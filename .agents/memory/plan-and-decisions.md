@@ -18,3 +18,11 @@ nothing is built before approval and that work proceeds one phase at a time.
   committee run has been measured; bring the numbers back to the owner rather than choosing them.
 - After each phase, stop and report under five headings: completed, tested, pending, blocked,
   next recommended action.
+- Each phase is set up as one task that the owner starts. Do not build or propose a later
+  phase before the owner has answered the previous phase's report.
+- The owner decides where a task is built: in an isolated copy or in the main project. Check
+  the task's state before assuming either, and do not start until the task is assigned.
+- A task can no longer be edited once the owner accepts it, which can happen within minutes.
+  Put late corrections in `replit.md` and the plan's decision log, where the builder reads them.
+- Replit's documentation (checked 17 Nov 2026) says an isolated task copy reflects the
+  project's current files, uncommitted ones included, and can read the project's Secrets.

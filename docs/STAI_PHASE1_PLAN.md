@@ -1,6 +1,6 @@
 # STAI Phase 1 plan
 
-Status: proposed to the owner on 17 November 2026. Awaiting approval. Nothing is built.
+Status: approved by the owner on 17 November 2026, all 23 items as proposed. Phase 1 is set up as a task. Nothing is built yet.
 The decision log at the end records what the owner approved or changed. Item numbers are never reused.
 
 This is the technical review and architecture plan that section 16 of the specification asks
@@ -87,10 +87,10 @@ that the Python side makes redundant.
 Vite rather than Next.js: the interface is a signed-in dashboard on a Python API, so Next.js
 would add a second server with no job.
 
-Git (section 11.3): this project has no Git repository yet. It is switched on from the Git
-pane with "Initialize Git Repository", which is the owner's step. After that each saved
-checkpoint appears as a commit. Each phase is built as a separate task that joins the main
-project only after the owner accepts it, which keeps the main line working.
+Git (section 11.3): the project has a Git repository as of 17 November 2026. It had none
+when this plan was first written. Each saved checkpoint appears as a commit. Each phase is
+built as a separate task that joins the main project only after the owner accepts it, which
+keeps the main line working.
 
 ## 4. Development phases
 
@@ -179,13 +179,22 @@ when the owner presses Start Pilot.
 
 ## Inputs only the owner can give
 
-- The AI provider, and its API key through Replit's secure Secrets form. The key is never asked for in chat, printed or logged.
-- The email address for alerts.
-- How the handoff files reach the project. On 17 November the `stai_handoff/` folder had not arrived at the project root; the plan was written from the copy attached to the conversation.
-- Git switched on from the Git pane before Phase 1, if commit history is wanted from the beginning.
+Where each one stands after the owner's approval on 17 November 2026:
+
+- The AI provider, and its API key through Replit's secure Secrets form. The key is never asked for in chat, printed or logged. Provider: OpenAI. The key is requested through the secure form as `OPENAI_API_KEY`.
+- The email address for alerts. Given by the owner. It is kept as the Replit Secret `STAI_ALERT_EMAIL` and is written in no project file.
+- How the handoff files reach the project. Settled: copied from the conversation to `stai_handoff/` at the project root.
+- Git. Settled: the project has a repository, so commit history exists from before Phase 1.
 
 ## Decision log
 
 | Date | Items | Outcome |
 |---|---|---|
-| 17 Nov 2026 | 1 to 23 | Proposed. Awaiting the owner's answer. |
+| 17 Nov 2026 | 1 to 23 | Proposed. |
+| 17 Nov 2026 | 1 to 23 | Approved by the owner as proposed, with no changes. |
+| 17 Nov 2026 | 7 | AI provider confirmed: OpenAI. The key is entered through Replit's secure Secrets form as `OPENAI_API_KEY` and is first used in Phase 3. |
+| 17 Nov 2026 | Inputs | Alert address received. It is kept as the Replit Secret `STAI_ALERT_EMAIL`, entered by the owner in the secure form, and is first used in Phase 4. It is not kept as a plain environment variable, because Replit writes those into the `.replit` file, which Git tracks. |
+| 17 Nov 2026 | Inputs | Owner chose to copy the handoff files from the conversation. Copied to `stai_handoff/` at the project root: 25 files, checksums identical to the source. |
+| 17 Nov 2026 | 17 | Note: interface labels read "Log in" and "Log out" without naming the provider, which is a platform rule. The sign-in method is unchanged. |
+| 17 Nov 2026 | 18, 23 | Note: the region is chosen by the owner in the Publishing tool's advanced settings before the first publish. Region selection needs a paid Replit plan; on the free plan the app publishes to North America. |
+| 17 Nov 2026 | Inputs | Git: the project has a repository, first commit 17 Nov 2026 at 13:02 UTC. The Git paragraph in section 3 and the inputs list were updated to match. |
