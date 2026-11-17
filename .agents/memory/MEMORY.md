@@ -1,0 +1,6 @@
+- [Plan and decision register](plan-and-decisions.md) — numbered owner decisions live in docs/STAI_PHASE1_PLAN.md; read it before any phase work and keep its decision log current.
+- [Handoff sources](handoff-sources.md) — brief, spec, logo and analytics may sit only in .conversation/stai_handoff/; never modify them, ask the owner before copying.
+- [Runtime probe lessons](runtime-probe-lessons.md) — how Freqtrade, TA-Lib and TradingAgents install and behave on this runtime; what was measured and what was not.
+- [Replit publish constraints](replit-publish-constraints.md) — why Freqtrade cannot use production PostgreSQL directly and why append-only cannot rely on triggers.
+- [Auth choice for a Python backend](auth-python-backend.md) — Replit-managed Clerk needs a Node proxy in production; Replit sign-in over OIDC is the direct route for FastAPI.
+- [No Git repository in the workspace](git-in-workspace.md) — there is no .git here and git init is off limits; do not promise commits or branches.

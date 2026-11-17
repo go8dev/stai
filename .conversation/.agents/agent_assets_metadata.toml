@@ -1,0 +1,44 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "bLjl0N6hbXbWktVtwYrFl"
+uri = "file://stai_review/STAI_logo_check.png"
+type = "image"
+title = "STAI logo check"
+description = "Your logo on the app background, as supplied and with its own background removed, plus the S mark at app-icon and favicon sizes."
+logical_id = "d7c1360b-d9a2-4d21-a04f-aa37fd7eb0db"
+content_hash = "sha256:c654c49144f09acd651615980b83d0c69eb6eafcac183394fec92c43ee690227"
+size = 1233878
+mtime_ms = 1794914195084
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/conversation:438f7a81-fe7b-47ad-a8a9-26775a2cc43f/d7c1360b-d9a2-4d21-a04f-aa37fd7eb0db/69bd6c84-5593-4df0-95fb-59869a8b2c10"
+storage_version_token = "1794915383365582"
+content_type = "image/png"
+
+[[outputs]]
+id = "ZurzOlkj-P6QRdEekSRHz"
+uri = "file://stai_review/AUDIT_NOTES.md"
+type = "text"
+title = "STAI pre-build audit notes (updated)"
+description = "Now includes your five decisions, what they change in the design, the Smart Trader analytics test results, and the findings on the second logo file."
+logical_id = "92c2e06b-0683-43ac-a86d-92468c470803"
+content_hash = "sha256:9fc01c4f4d4f9b53781ba9a35f9e87bb9089a93be533f4dbbc3b553dc08f68de"
+size = 9695
+mtime_ms = 1794917198527
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/conversation:438f7a81-fe7b-47ad-a8a9-26775a2cc43f/92c2e06b-0683-43ac-a86d-92468c470803/1fb78183-6bf6-4a2c-b14a-861b32051737"
+storage_version_token = "1794917220221444"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "WsV0-i_bbvZEo3CO8jmJU"
+uri = "file://stai_review/STAI_logo_files_compared.png"
+type = "image"
+title = "STAI logo on dark and light backgrounds"
+description = "The new logo file as sent on the app background and on white, the proposed app version with the navy parts switched to white, and the first file for comparison."
+logical_id = "36d5af90-a57f-4e07-9f5f-2410ca5fc4b2"
+content_hash = "sha256:bd6816784d99dba6efc71e3a0d9dbe2d0cdcab4d9d2847ca7fec2608f6e7d0fb"
+size = 435927
+mtime_ms = 1794916991815
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/conversation:438f7a81-fe7b-47ad-a8a9-26775a2cc43f/36d5af90-a57f-4e07-9f5f-2410ca5fc4b2/52692ceb-1fea-49f9-966a-cc8220285b7c"
+storage_version_token = "1794917217284401"
+content_type = "image/png"
