@@ -10,23 +10,29 @@ name = "API Server"
 paths = ["/api"]
 
 [services.development]
-run = "pnpm --filter @workspace/api-server run dev"
+
+[services.development.run]
+# STAI backend (Python, FastAPI). Commands run from the repository root.
+args = ["python", "-m", "stai", "--reload"]
+
+[services.development.run.env]
+PORT = "8080"
+STAI_ENV = "development"
+PYTHONPATH = "artifacts/api-server"
 
 [services.production]
 
 [services.production.build]
-args = ["pnpm", "--filter", "@workspace/api-server", "run", "build"]
-
-[services.production.build.env]
-NODE_ENV = "production"
+# Installs exactly the locked runtime dependencies; the checks-only group is left out.
+args = ["uv", "sync", "--frozen", "--no-dev"]
 
 [services.production.run]
-# we don't run through pnpm to make startup faster in production
-args = ["node", "--enable-source-maps", "artifacts/api-server/dist/index.mjs"]
+args = ["python", "-m", "stai"]
 
 [services.production.run.env]
 PORT = "8080"
-NODE_ENV = "production"
+STAI_ENV = "production"
+PYTHONPATH = "artifacts/api-server"
 
 [services.production.health.startup]
 path = "/api/healthz"

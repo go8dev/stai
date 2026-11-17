@@ -1,0 +1,3 @@
+# STAI is a private application. Nothing here is meant to be indexed.
+User-agent: *
+Disallow: /

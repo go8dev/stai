@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "STAI"
+description = "STAI (SmartTrader AI) is a private, paper-trading-only crypto research and portfolio platform for a single owner. The web app is the owner's signed-in workspace: ten modules from the specification, a permanent PAPER label, and a live system status screen. It is used by the owner only."
+version = "1.0.0"
+id = "artifacts/stai"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21943
+
+[services.development]
+run = "pnpm --filter @workspace/stai run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/stai", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/stai/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21943"
+BASE_PATH = "/"

@@ -20,6 +20,9 @@ nothing is built before approval and that work proceeds one phase at a time.
   next recommended action.
 - Each phase is set up as one task that the owner starts. Do not build or propose a later
   phase before the owner has answered the previous phase's report.
+- Phase 1 was built in the main project and reported on 18 Nov 2026. The test publish
+  (item 23) was the owner's open step at that point. Read the decision log for where it stands
+  before planning Phase 2, which depends on OKX answering the published machine.
 - The owner decides where a task is built: in an isolated copy or in the main project. Check
   the task's state before assuming either, and do not start until the task is assigned.
 - A task can no longer be edited once the owner accepts it, which can happen within minutes.

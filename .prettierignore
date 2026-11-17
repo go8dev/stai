@@ -1,0 +1,38 @@
+# Prettier covers the TypeScript, JavaScript, JSON, CSS and HTML of the project.
+# Python is formatted by Ruff (see pyproject.toml).
+
+# Dependencies, build output and caches
+node_modules
+dist
+.cache
+.local
+.pythonlibs
+.pytest_cache
+.ruff_cache
+generated-artifacts
+test-results
+*.tsbuildinfo
+
+# Lock files and files written by tools
+pnpm-lock.yaml
+pnpm-workspace.yaml
+uv.lock
+.replit
+.upm
+.config
+.agents
+.conversation
+
+# Generated from the backend's API contract (pnpm run openapi:export, then codegen)
+lib/api-spec/openapi.yaml
+lib/api-client-react/src/generated
+lib/api-zod/src/generated
+
+# Read-only source material supplied by the owner
+stai_handoff
+
+# The platform's canvas scaffold is not part of STAI
+artifacts/mockup-sandbox
+
+# Documents keep the layout they were written in
+*.md

@@ -1,6 +1,6 @@
 # STAI Phase 1 plan
 
-Status: approved by the owner on 17 November 2026, all 23 items as proposed. Phase 1 is set up as a task. Nothing is built yet.
+Status: approved by the owner on 17 November 2026, all 23 items as proposed. Phase 1 was built and checked in the workspace on 18 November 2026. It is not published: the test publish of item 23 is the owner's step. Phases 2 to 7 are not started.
 The decision log at the end records what the owner approved or changed. Item numbers are never reused.
 
 This is the technical review and architecture plan that section 16 of the specification asks
@@ -198,3 +198,11 @@ Where each one stands after the owner's approval on 17 November 2026:
 | 17 Nov 2026 | 17 | Note: interface labels read "Log in" and "Log out" without naming the provider, which is a platform rule. The sign-in method is unchanged. |
 | 17 Nov 2026 | 18, 23 | Note: the region is chosen by the owner in the Publishing tool's advanced settings before the first publish. Region selection needs a paid Replit plan; on the free plan the app publishes to North America. |
 | 17 Nov 2026 | Inputs | Git: the project has a repository, first commit 17 Nov 2026 at 13:02 UTC. The Git paragraph in section 3 and the inputs list were updated to match. |
+| 18 Nov 2026 | Phase 1 | Built and checked in the workspace: Python backend, database with migrations, owner sign-in, audit trail, web app with the ten module screens and System Status, ported analytics, documents and the publish checklist. What was built is described in `README.md` and `docs/ARCHITECTURE.md`; what is not verified or not done is in `docs/KNOWN_LIMITATIONS.md`. Not published. No later phase was started. |
+| 18 Nov 2026 | 23 | Open. The project side is ready: deployment type Reserved VM, production build and run commands, health check. Pressing Publish and the seven checks on the live app are the owner's step and follow the checklist in `README.md`. |
+| 18 Nov 2026 | 16, 18, 19 | Note: region (Asia), private access and machine size (1 vCPU, 4 GiB) are not set by the project. The owner chooses them in the Publishing tool at the first publish. The region is permanent from then on. |
+| 18 Nov 2026 | 17 | Note: built as Replit's OpenID Connect sign-in with PKCE in the Python backend. The owner's account ID is read from the workspace's owner ID, with the production secret `STAI_OWNER_USER_ID` as an override. Nobody has signed in through Replit's real service yet, because the tests use a stand-in. Step 1 of the checklist is the first real sign-in. |
+| 18 Nov 2026 | 20 | Note: item 20 says any later edit is detectable. As built, changing, removing or reordering earlier audit records is detected. Two cases are not: removing the newest records, and replacing the whole chain with recomputed hashes. Both need direct database access. A copy of the newest hash kept outside the database would close the gap. Whether to add one is for the owner to decide, at the latest when the ledger arrives in Phase 2. |
+| 18 Nov 2026 | Analytics | Ported by copying from the handoff, all 191 tests passing. One exception to copying: the data shape `MarketRegimeResponse` (five fields) was rebuilt, because the file that defines it was not in the handoff. The record of every change is in `docs/UPSTREAM_REGISTER.md`. The review of the stop and target rules stays open until before the pilot. |
+| 18 Nov 2026 | 8 | Note: built as approved. The app shows resized copies of the supplied white-text logo, and the simplified S is used only for the browser-tab icon and the small app icons. |
+| 18 Nov 2026 | Inputs | `OPENAI_API_KEY` and `STAI_ALERT_EMAIL` are in Replit Secrets. Phase 1 uses neither. |

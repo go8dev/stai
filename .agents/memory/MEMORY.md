@@ -5,3 +5,7 @@
 - [Auth choice for a Python backend](auth-python-backend.md) — Replit-managed Clerk needs a Node proxy in production; Replit sign-in over OIDC is the direct route for FastAPI.
 - [Git in the workspace](git-in-workspace.md) — a repository appeared on 17 Nov 2026 without git init; check what exists before claiming anything about commits or remotes.
 - [Personal values belong in Secrets](env-vars-and-personal-data.md) — plain env vars are written into the tracked .replit file; the owner's alert address must stay a Secret.
+- [Workspace runtime quirks](workspace-runtime-quirks.md) — port 18080 forwards to the dev backend, workflows can start twice, a clean uvicorn stop exits -15, no --no-dev sync in the workspace env.
+- [Browser check lessons](browser-check-lessons.md) — cancelled calls look like failures, how signed-in screens were checked without a real sign-in, the one-off harnesses are outside Git.
+- [Publishing is the owner's step](publish-is-owners-step.md) — hold back the publish card, publish calls and the schema-diff explainer until the owner has published once.
+- [Task tool limits](task-tool-limits.md) — follow-up task descriptions are capped at 4,000 characters; a rejected proposal records nothing and can be sent again.

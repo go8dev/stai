@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>STAI</title>
+  <rect width="64" height="64" rx="14" fill="#0B1220"/>
+  <path d="M15 19 49 33v12L15 31Z" fill="#00847C"/>
+  <path d="M15 19 49 8v12L15 31Z" fill="#00BBAC"/>
+  <path d="M49 33v12L15 56V44Z" fill="#00BBAC"/>
+</svg>

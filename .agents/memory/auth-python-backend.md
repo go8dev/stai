@@ -14,7 +14,8 @@ owner's Replit user ID.
 **Why:** The specification wants one custom backend and the simplest reliable solution; the
 owner is the only user.
 
-**How to apply:** This is a proposal (item 17) until the owner approves it. If the owner
-prefers otherwise, the alternatives are Clerk with a small Node gateway or a self-built
-email and password login. The platform's Replit Auth instructions are written for Express;
-reuse their flow and security rules, not their code.
+**How to apply:** The owner approved this on 17 Nov 2026 (item 17) and Phase 1 built it. The
+platform's Replit Auth instructions are written for Express: keep their flow, route names,
+browser-side package and security rules, and write only the server side in Python. The tests
+use a stand-in for Replit's sign-in service, so the owner's first sign-in is the first real
+one. If it shows an account ID other than the workspace owner's, stop and ask the owner.

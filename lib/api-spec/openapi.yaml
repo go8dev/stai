@@ -1,36 +1,576 @@
+# Generated from the Python backend by `pnpm run openapi:export`.
+# Do not edit by hand: change the routes or schemas in artifacts/api-server/stai,
+# then export again and run `pnpm --filter @workspace/api-spec run codegen`.
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
+  description: STAI API contract. Generated from the Python backend; do not edit by hand.
   version: 0.1.0
-  description: API specification
 servers:
-  - url: /api
-    description: Base API path
-tags:
-  - name: health
-    description: Health operations
+- url: /api
+  description: Base API path
 paths:
   /healthz:
     get:
-      operationId: healthCheck
-      tags: [health]
+      tags:
+      - health
       summary: Health check
-      description: Returns server health status
+      description: Says only that the process is serving. It never touches the database.
+      operationId: healthCheck
       responses:
-        "200":
+        '200':
           description: Healthy
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HealthStatus"
+                $ref: '#/components/schemas/HealthStatus'
+  /system/status:
+    get:
+      tags:
+      - system
+      summary: Live checks of the backend, database, market-data reachability and build
+      operationId: getSystemStatus
+      responses:
+        '200':
+          description: Current status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemStatus'
+        '401':
+          description: Not signed in.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /auth/user:
+    get:
+      tags:
+      - Auth
+      summary: Get the currently signed-in owner, if any
+      operationId: getCurrentAuthUser
+      responses:
+        '200':
+          description: Auth state resolved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthUserEnvelope'
+  /login:
+    get:
+      tags:
+      - Auth
+      summary: Start the browser sign-in flow
+      operationId: beginBrowserLogin
+      responses:
+        '302':
+          description: Redirect to the identity provider.
+      parameters:
+      - name: returnTo
+        in: query
+        required: false
+        description: Path inside the app to open after sign-in. Anything else is ignored.
+        schema:
+          type: string
+  /callback:
+    get:
+      tags:
+      - Auth
+      summary: Complete the browser sign-in flow
+      operationId: handleBrowserLoginCallback
+      responses:
+        '302':
+          description: Redirect back into the app.
+      parameters:
+      - name: code
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: state
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: iss
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: error
+        in: query
+        required: false
+        schema:
+          type: string
+  /logout:
+    get:
+      tags:
+      - Auth
+      summary: End the session and sign out
+      operationId: logoutBrowserSession
+      responses:
+        '302':
+          description: Redirect to the identity provider's sign-out page.
+        '429':
+          description: Too many attempts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /auth/csrf:
+    get:
+      tags:
+      - Auth
+      summary: Get the CSRF token for the current session
+      operationId: getCsrfToken
+      responses:
+        '200':
+          description: Token for the X-CSRF-Token header.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CsrfToken'
+        '401':
+          description: Not signed in.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /audit/events:
+    get:
+      tags:
+      - audit
+      summary: Most recent audit events, newest first
+      operationId: listAuditEvents
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 20
+      responses:
+        '200':
+          description: Recent events.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEventList'
+        '401':
+          description: Not signed in.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: The limit is out of range.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /audit/verify:
+    post:
+      tags:
+      - audit
+      summary: Recompute the hash chain and report the first break, if any
+      operationId: verifyAuditTrail
+      responses:
+        '200':
+          description: Verification result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditVerification'
+        '401':
+          description: Not signed in.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: CSRF check failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
-    HealthStatus:
+    AuditBreak:
+      properties:
+        seq:
+          type: integer
+        reason:
+          $ref: '#/components/schemas/AuditBreakReason'
+        detail:
+          type: string
       type: object
+      required:
+      - seq
+      - reason
+      - detail
+    AuditBreakReason:
+      type: string
+      enum:
+      - sequence_gap
+      - prev_hash_mismatch
+      - hash_mismatch
+    AuditEvent:
+      properties:
+        seq:
+          type: integer
+        occurredAt:
+          type: string
+          format: date-time
+        eventType:
+          type: string
+        actorType:
+          type: string
+        actorId:
+          anyOf:
+          - type: string
+          - type: 'null'
+        correlationId:
+          anyOf:
+          - type: string
+          - type: 'null'
+        payload:
+          description: The payload as stored. An object for every record the application wrote; anything
+            else means the record was changed in the database.
+        hash:
+          type: string
+      type: object
+      required:
+      - seq
+      - occurredAt
+      - eventType
+      - actorType
+      - actorId
+      - correlationId
+      - payload
+      - hash
+    AuditEventList:
+      properties:
+        events:
+          items:
+            $ref: '#/components/schemas/AuditEvent'
+          type: array
+        total:
+          type: integer
+      type: object
+      required:
+      - events
+      - total
+    AuditSummary:
+      properties:
+        status:
+          $ref: '#/components/schemas/CheckStatus'
+        eventCount:
+          type: integer
+        lastEventAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+        lastEventType:
+          anyOf:
+          - type: string
+          - type: 'null'
+        detail:
+          anyOf:
+          - type: string
+          - type: 'null'
+      type: object
+      required:
+      - status
+      - eventCount
+      - lastEventAt
+      - lastEventType
+      - detail
+    AuditVerification:
+      properties:
+        ok:
+          type: boolean
+        eventsChecked:
+          type: integer
+        firstSeq:
+          anyOf:
+          - type: integer
+          - type: 'null'
+        lastSeq:
+          anyOf:
+          - type: integer
+          - type: 'null'
+        headHash:
+          anyOf:
+          - type: string
+          - type: 'null'
+        firstBreak:
+          anyOf:
+          - $ref: '#/components/schemas/AuditBreak'
+          - type: 'null'
+        verifiedAt:
+          type: string
+          format: date-time
+        durationMs:
+          type: number
+      type: object
+      required:
+      - ok
+      - eventsChecked
+      - firstSeq
+      - lastSeq
+      - headHash
+      - firstBreak
+      - verifiedAt
+      - durationMs
+    AuthUser:
+      properties:
+        id:
+          type: string
+        username:
+          anyOf:
+          - type: string
+          - type: 'null'
+        firstName:
+          anyOf:
+          - type: string
+          - type: 'null'
+        lastName:
+          anyOf:
+          - type: string
+          - type: 'null'
+        profileImageUrl:
+          anyOf:
+          - type: string
+          - type: 'null'
+      type: object
+      required:
+      - id
+      - username
+      - firstName
+      - lastName
+      - profileImageUrl
+    AuthUserEnvelope:
+      properties:
+        user:
+          anyOf:
+          - $ref: '#/components/schemas/AuthUser'
+          - type: 'null'
+      type: object
+      required:
+      - user
+    BackendCheck:
+      properties:
+        status:
+          $ref: '#/components/schemas/CheckStatus'
+        environment:
+          $ref: '#/components/schemas/RuntimeEnvironment'
+        uptimeSeconds:
+          type: integer
+        pythonVersion:
+          type: string
+      type: object
+      required:
+      - status
+      - environment
+      - uptimeSeconds
+      - pythonVersion
+    BuildInfo:
+      properties:
+        version:
+          type: string
+        commit:
+          anyOf:
+          - type: string
+          - type: 'null'
+        startedAt:
+          type: string
+          format: date-time
+      type: object
+      required:
+      - version
+      - commit
+      - startedAt
+    CheckStatus:
+      type: string
+      enum:
+      - ok
+      - degraded
+      - down
+    CsrfToken:
+      properties:
+        csrfToken:
+          type: string
+      type: object
+      required:
+      - csrfToken
+    DatabaseCheck:
+      properties:
+        status:
+          $ref: '#/components/schemas/CheckStatus'
+        latencyMs:
+          anyOf:
+          - type: number
+          - type: 'null'
+        serverVersion:
+          anyOf:
+          - type: string
+          - type: 'null'
+        schemaReady:
+          type: boolean
+        missingTables:
+          items:
+            type: string
+          type: array
+        migrationRevision:
+          anyOf:
+          - type: string
+          - type: 'null'
+        detail:
+          anyOf:
+          - type: string
+          - type: 'null'
+      type: object
+      required:
+      - status
+      - latencyMs
+      - serverVersion
+      - schemaReady
+      - missingTables
+      - migrationRevision
+      - detail
+    ErrorResponse:
+      properties:
+        error:
+          type: string
+          description: Stable machine-readable code.
+        message:
+          type: string
+        correlationId:
+          type: string
+        details:
+          anyOf:
+          - items:
+              additionalProperties: true
+              type: object
+            type: array
+          - type: 'null'
+      type: object
+      required:
+      - error
+      - message
+      - correlationId
+      description: Body of every error response.
+    HealthStatus:
       properties:
         status:
           type: string
+      type: object
       required:
-        - status
-
+      - status
+    MarketDataCheck:
+      properties:
+        status:
+          $ref: '#/components/schemas/CheckStatus'
+        provider:
+          type: string
+        endpoint:
+          type: string
+        latencyMs:
+          anyOf:
+          - type: number
+          - type: 'null'
+        exchangeTime:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+        clockSkewMs:
+          anyOf:
+          - type: number
+          - type: 'null'
+        checkedAt:
+          type: string
+          format: date-time
+        detail:
+          anyOf:
+          - type: string
+          - type: 'null'
+      type: object
+      required:
+      - status
+      - provider
+      - endpoint
+      - latencyMs
+      - exchangeTime
+      - clockSkewMs
+      - checkedAt
+      - detail
+    RuntimeEnvironment:
+      type: string
+      enum:
+      - development
+      - production
+    SystemStatus:
+      properties:
+        overall:
+          $ref: '#/components/schemas/CheckStatus'
+        tradingMode:
+          $ref: '#/components/schemas/TradingMode'
+        checkedAt:
+          type: string
+          format: date-time
+        backend:
+          $ref: '#/components/schemas/BackendCheck'
+        database:
+          $ref: '#/components/schemas/DatabaseCheck'
+        marketData:
+          $ref: '#/components/schemas/MarketDataCheck'
+        audit:
+          $ref: '#/components/schemas/AuditSummary'
+        build:
+          $ref: '#/components/schemas/BuildInfo'
+        time:
+          $ref: '#/components/schemas/TimeInfo'
+      type: object
+      required:
+      - overall
+      - tradingMode
+      - checkedAt
+      - backend
+      - database
+      - marketData
+      - audit
+      - build
+      - time
+    TimeInfo:
+      properties:
+        utc:
+          type: string
+          format: date-time
+        manila:
+          type: string
+          format: date-time
+        timezone:
+          type: string
+      type: object
+      required:
+      - utc
+      - manila
+      - timezone
+    TradingMode:
+      type: string
+      enum:
+      - paper
+      description: STAI has one mode. There is no live value and no switch to add one.
+tags:
+- name: health
+  description: Health check.
+- name: Auth
+  description: Owner sign-in, sign-out and session state.
+- name: system
+  description: Live system checks.
+- name: audit
+  description: Append-only audit trail.

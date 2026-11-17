@@ -53,3 +53,19 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Python
+__pycache__/
+*.py[cod]
+.pythonlibs/
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Local environment files (the committed example is docs/example.env)
+.env
+.env.*
+
+# Generated checks output
+/generated-artifacts/

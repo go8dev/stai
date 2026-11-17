@@ -5,7 +5,7 @@ Personal, paper-trading-only crypto research and portfolio platform for one owne
 ## Status
 
 - 17 Nov 2026: the owner approved the plan in `docs/STAI_PHASE1_PLAN.md`, all 23 numbered items as proposed. Its decision log records every approval and change.
-- Phase 1 (foundation) is set up as a task. Nothing is built yet: the code is still the unmodified starter template described under "Run & Operate" and "Stack", plus the Python 3.12 runtime.
+- 18 Nov 2026: Phase 1 (foundation) is built and checked in the workspace. It is not published. Publishing and the checks on the live app are the owner's step and follow the checklist in `README.md`.
 - Work proceeds one phase at a time. Phases 2 to 7 are not started and each needs the owner's go-ahead.
 
 ## Owner rules (do not weaken)
@@ -25,53 +25,72 @@ Personal, paper-trading-only crypto research and portfolio platform for one owne
 
 ## Run & Operate
 
-Starter template, unchanged until Phase 1:
+Two workflows run the app in the workspace: `artifacts/api-server: API Server` (the Python backend, under `/api`) and `artifacts/stai: web` (the web app, at `/`). Commands run from the repository root.
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `pnpm run check` — everything that must pass: lint, type checks, the API contract check and the backend tests
+- `pnpm run lint`, `pnpm run typecheck`, `pnpm run test` — the parts of `check`, one command each
+- `pnpm run test:browser` — browser test for signed-out visitors; both workflows must be running; not part of `check`
+- `pnpm run format` — Prettier and Ruff formatting
+- `pnpm run db:migrate` — apply Alembic migrations to the development database
+- `pnpm run openapi:export`, then `pnpm --filter @workspace/api-spec run codegen` — after any change to the API
+- `pnpm install --frozen-lockfile` and `uv sync --frozen` — install exactly the locked dependencies
+- `PYTHONPATH=artifacts/api-server python -m stai.audit verify` — verify the audit trail from a shell
+- Required env: `DATABASE_URL`. Every other variable has a default or comes from Replit; see `docs/ENVIRONMENT.md`
 
 ## Stack
 
-Starter template, unchanged until Phase 1. The approved stack is in section 3 of the plan.
-
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
-- Python 3.12 runtime is enabled; no Python code or dependencies yet
+- Backend: Python 3.12, FastAPI on Uvicorn, Pydantic 2, SQLAlchemy 2.1 with psycopg 3, Alembic. Sign-in uses httpx and PyJWT. Dependencies are pinned in `pyproject.toml` and `uv.lock`.
+- Web app: React 19, TypeScript 5.9, Vite 7, Tailwind CSS 4, React Query, wouter. pnpm workspaces on Node.js 24.
+- API contract: OpenAPI exported from the backend; Orval generates the typed React Query hooks and Zod validators.
+- Database: Replit PostgreSQL.
+- Checks: Ruff, pytest, ESLint, Prettier, `tsc`, Playwright.
+- Not installed yet: Freqtrade and CCXT (Phase 2), TradingAgents (Phase 3). `pyproject.toml` holds version constraints so they can be added without moving a locked version.
 
 ## Where things live
 
 - `docs/STAI_PHASE1_PLAN.md` — approved architecture plan, the 23 numbered owner decisions and the decision log
-- `stai_handoff/` — specification, brief, audit notes, logo files, analytics to port, gate probe
+- `README.md` — status, commands, layout and the owner's publish checklist
+- `docs/ARCHITECTURE.md`, `docs/ENVIRONMENT.md`, `docs/DATABASE.md`, `docs/KNOWN_LIMITATIONS.md`, `docs/UPSTREAM_REGISTER.md` — how it works, settings, tables and migrations, what is not done or not verified, versions and licences
+- `artifacts/api-server/stai/` — backend package: `core`, `auth`, `audit`, `db`, `system`, `marketdata`, `analytics`, `tools`
+- `artifacts/api-server/migrations/` — Alembic migrations; `artifacts/api-server/tests/` — backend tests
+- `artifacts/stai/` — web app; `src/lib/modules.ts` is the single list of the ten modules and the phase that delivers each
+- `lib/api-spec/openapi.yaml` — the API contract; `lib/api-client-react/`, `lib/api-zod/` — generated client and validators
+- `lib/replit-auth-web/` — browser side of sign-in
+- `e2e/` — browser test; `scripts/post-merge.sh` — setup after a task is merged
+- `stai_handoff/` — specification, brief, audit notes, logo files, analytics source, gate probe
 
 ## Architecture decisions
 
 Approved by the owner on 17 Nov 2026. Details and reasons are in the plan.
 
-- One Python application (FastAPI API plus a worker process) and two unmodified Freqtrade dry-run bots, one for spot and one for futures, reachable only from inside the machine.
+- One Python application (FastAPI API plus a worker process) and two unmodified Freqtrade dry-run bots, one for spot and one for futures, reachable only from inside the machine. Phase 1 built the API only.
 - STAI's PostgreSQL ledger, in decimal values, is the book of record. Freqtrade is the paper execution engine and is reconciled against it. Each bot keeps its local database file, and STAI stores a copy in PostgreSQL with every trade event because a published machine loses its files at restart.
 - An entry reaches Freqtrade only with a single-use permit issued after the owner approves the exact trade. The gate is built together with Freqtrade in Phase 2.
-- Migrations run in development only. Replit's Publish step applies the production structure and carries no triggers, so append-only is enforced in the application with a hash chain.
+- Migrations run in development only. Replit's Publish step applies the production structure and carries no triggers, so append-only is enforced in the application with a hash chain. The backend never creates or alters tables.
 - Sign-in is Replit's sign-in restricted to the owner's account. Hosting is a Reserved VM in Asia, starting at 1 vCPU and 4 GiB.
+- The API is closed by default: middleware requires the owner's session on every path except the health check and the sign-in routes, so a new route is protected without further work. Requests that change something also need the CSRF header, which the generated client attaches.
+- The analytics read market data only through the `MarketDataProvider` interface. Its OKX implementation is Phase 2.
 
 ## Product
 
-Nothing user-facing exists yet.
+- A sign-in screen with the supplied logo. Only the owner's Replit account gets in; any other account is refused and shown its own account ID.
+- The dark STAI interface with navigation to the ten modules and a PAPER label on every screen. Each module screen says it is not built yet and names the phase that delivers it. No sample numbers anywhere.
+- A System Status screen with live checks: backend, database, OKX public data, audit trail, build, and the time in UTC and Asia/Manila.
+- An append-only audit trail of sign-ins, refused sign-ins and sign-outs that the owner can verify from the System Status screen.
 
 ## Gotchas
 
 - The project has a Git repository and checkpoints appear as commits. Do not rewrite history or force-push.
-- The alert address is kept as the Replit Secret `STAI_ALERT_EMAIL`. Replit writes plain environment variables into the `.replit` file, which Git tracks, so personal values go in Secrets. Never write the address, or any other personal data or secret, into a file, log or test.
+- The alert address is kept as the Replit Secret `STAI_ALERT_EMAIL`. Replit writes plain environment variables into the `.replit` file, which Git tracks, so personal values go in Secrets. Never write the address, or any other personal data or secret, into a file, log or test. A test scans the project files for real secret values and fails when it finds one.
+- `tests/test_paper_only.py` fails if a live-trading switch, an exchange-key setting, order code or an exchange library appears. Never skip or delete these tests. The ones that describe Phase 1 as it is (no engine installed, one OKX request, one state-changing route) are revised on purpose when Phase 2 adds the dry-run engine, each keeping the rule it protects.
+- The publish region is permanent after the first publish and only the owner can choose it, in the Publishing tool. Do not publish or trigger a publish for the owner.
+- Sign-in needs its own browser tab. Inside the workspace preview the browser withholds the sign-in cookies, and the sign-in screen offers a button that opens STAI in a new tab.
+- Never run `uv sync --no-dev` in the workspace. It removes the check tools from the workspace's Python environment. Only the publish build uses it.
+- Do not edit the `generated` folders by hand, and do not reformat the ported analytics: they are exempt from style checks so each file stays comparable with its source in `stai_handoff/`.
 - Do test installs outside the project folder so no dependency files appear before a phase is approved.
-- The publish region is permanent after the first publish and only the owner can choose it, in the Publishing tool.
+- Change artifact services, commands and publish settings only through the platform's artifact and deployment tooling.
 
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- `artifacts/mockup-sandbox/` is Replit's canvas scaffold and not part of STAI

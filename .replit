@@ -2,7 +2,7 @@ modules = ["nodejs-24", "python-3.12"]
 
 [deployment]
 router = "application"
-deploymentTarget = "autoscale"
+deploymentTarget = "vm"
 
 [deployment.postBuild]
 args = ["pnpm", "store", "prune"]
@@ -17,8 +17,12 @@ expertMode = true
 
 [postMerge]
 path = "scripts/post-merge.sh"
-timeoutMs = 20000
+timeoutMs = 240000
 
 [userenv]
 
 [userenv.shared]
+
+[nix]
+channel = "stable-25_05"
+packages = ["glibcLocales", "libxcrypt", "libyaml", "postgresql"]
