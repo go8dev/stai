@@ -56,7 +56,10 @@ def list_strategy_backtests(
     "/strategy-lab/backtests/{run_id}",
     operation_id="getStrategyBacktest",
     response_model=BacktestResult,
-    responses={404: {"model": ErrorResponse, "description": "Backtest was not found."}},
+    responses={
+        404: {"model": ErrorResponse, "description": "Backtest was not found."},
+        422: {"model": ErrorResponse, "description": "Backtest identifier is invalid."},
+    },
     summary="Get one saved historical Strategy Laboratory run",
 )
 def get_strategy_backtest(
@@ -89,9 +92,7 @@ async def create_strategy_backtest(
     auth: AuthContext = Depends(current_auth),
 ) -> BacktestResult:
     try:
-        result, source_snapshot = await create_run(
-            runtime, body=body
-        )
+        result, source_snapshot = await create_run(runtime, body=body)
     except (MarketDataUnavailable, ValueError) as exc:
         raise HTTPException(
             status_code=503,

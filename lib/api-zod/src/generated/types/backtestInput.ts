@@ -8,12 +8,12 @@
 import type { BacktestInputSymbol } from './backtestInputSymbol';
 
 export interface BacktestInput {
-  symbol?: BacktestInputSymbol;
+  symbol: BacktestInputSymbol;
   /**
      * @minimum 7
      * @maximum 30
      */
-  days?: number;
-  spreadBps?: number | string;
-  slippageBps?: number | string;
+  days: number;
+  spreadBps: number | string;
+  slippageBps: number | string;
 }

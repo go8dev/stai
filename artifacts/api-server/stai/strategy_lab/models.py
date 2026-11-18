@@ -27,6 +27,4 @@ class StrategyBacktestRun(Base):
     result: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     source_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
 
-    __table_args__ = (
-        Index("ix_strategy_backtest_runs_owner_created", "user_id", "created_at"),
-    )
+    __table_args__ = (Index("ix_strategy_backtest_runs_owner_created", "user_id", "created_at"),)

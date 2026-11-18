@@ -38,6 +38,7 @@ APPLICATION_TABLES = {
     "trading_permits",
     "paper_positions",
     "paper_fills",
+    "strategy_backtest_runs",
 }
 VERSIONS = API_ROOT / "migrations" / "versions"
 
@@ -82,7 +83,7 @@ def test_a_new_database_gets_exactly_the_migrated_tables(fresh: tuple[str, Engin
     command.upgrade(alembic_config(url), "head")
 
     assert public_tables(engine) == APPLICATION_TABLES | {"alembic_version"}
-    assert scalar(engine, "SELECT version_num FROM alembic_version") == "0004"
+    assert scalar(engine, "SELECT version_num FROM alembic_version") == "0005"
     for table in APPLICATION_TABLES:
         assert scalar(engine, f"SELECT count(*) FROM {table}") == 0
 
@@ -196,6 +197,10 @@ def test_keys_checks_and_indexes_have_their_explicit_names(_admin_engine: Engine
         "ck_trade_proposals_leverage_range",
         "ck_trade_proposals_cost_nonnegative",
         "ck_trade_proposals_reward_risk_nonnegative",
+        "pk_strategy_backtest_runs",
+        "fk_strategy_backtest_runs_user_id_users",
+        "ck_strategy_backtest_runs_symbol",
+        "ck_strategy_backtest_runs_requested_days",
     }
     assert set(indexes) == {
         "pk_users",
@@ -238,6 +243,8 @@ def test_keys_checks_and_indexes_have_their_explicit_names(_admin_engine: Engine
         "uq_trade_proposals_committee_run",
         "uq_trade_proposals_permit_id",
         "ix_trade_proposals_status_expiry",
+        "pk_strategy_backtest_runs",
+        "ix_strategy_backtest_runs_owner_created",
     }
     assert "UNIQUE" in indexes["uq_audit_events_prev_hash"]
     assert "UNIQUE" in indexes["uq_audit_events_hash"]
@@ -281,15 +288,22 @@ def test_running_the_migrations_twice_changes_nothing(fresh: tuple[str, Engine])
 def test_the_revisions_form_one_line(database_url: str) -> None:
     scripts = ScriptDirectory.from_config(alembic_config(database_url))
 
-    assert scripts.get_heads() == ["0004"]
+    assert scripts.get_heads() == ["0005"]
     assert scripts.get_bases() == ["0001"]
     revisions = list(scripts.walk_revisions())
-    assert [revision.revision for revision in revisions] == ["0004", "0003", "10af905d740f", "0001"]
+    assert [revision.revision for revision in revisions] == [
+        "0005",
+        "0004",
+        "0003",
+        "10af905d740f",
+        "0001",
+    ]
     # Alembic follows the revision chain, not lexical filename order.
     assert sorted(path.name for path in VERSIONS.glob("*.py")) == [
         "0001_users_sessions_audit.py",
         "0003_committee.py",
         "0004_owner_proposals.py",
+        "0005_strategy_lab.py",
         "10af905d740f_phase2_fund_ledger_market_data.py",
     ]
 
@@ -393,6 +407,7 @@ def test_every_timestamp_carries_a_time_zone(_admin_engine: Engine) -> None:
         ("trade_proposals", "created_at"),
         ("trade_proposals", "expires_at"),
         ("trade_proposals", "decided_at"),
+        ("strategy_backtest_runs", "created_at"),
     }
     assert {row.data_type for row in timestamps} == {"timestamp with time zone"}
 

@@ -7,7 +7,6 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import uuid4
 
-import httpx
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -134,13 +133,9 @@ async def create_run(
                 "BTCUSDT", "spot", warmup_start, end_at
             )
         )
-        funding = await runtime.okx_market_data.get_historical_funding(
-            symbol, start_at, end_at
-        )
+        funding = await runtime.okx_market_data.get_historical_funding(symbol, start_at, end_at)
     except MarketDataUnavailable:
         raise
-    except httpx.HTTPError as exc:
-        raise MarketDataUnavailable("OKX historical market data is unavailable.") from exc
 
     source_snapshot: dict[str, object] = {
         "source": "OKX public historical API",

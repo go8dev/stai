@@ -45,6 +45,10 @@ OPERATIONS = {
     ("GET", "/proposal-center"): "getProposalCenter",
     ("POST", "/proposals/{proposal_id}/approve"): "approveTradeProposal",
     ("POST", "/proposals/{proposal_id}/reject"): "rejectTradeProposal",
+    ("GET", "/strategy-lab"): "getStrategyLabOverview",
+    ("GET", "/strategy-lab/backtests"): "listStrategyBacktests",
+    ("POST", "/strategy-lab/backtests"): "createStrategyBacktest",
+    ("GET", "/strategy-lab/backtests/{run_id}"): "getStrategyBacktest",
 }
 
 
@@ -241,6 +245,7 @@ def test_every_operation_that_changes_something_documents_the_csrf_refusal(
         ("POST", "/audit/verify"),
         ("POST", "/proposals/{proposal_id}/approve"),
         ("POST", "/proposals/{proposal_id}/reject"),
+        ("POST", "/strategy-lab/backtests"),
     }
     for key in changing:
         assert "403" in operations(stored)[key]["responses"], key

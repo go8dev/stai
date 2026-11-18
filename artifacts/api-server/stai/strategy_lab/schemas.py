@@ -17,10 +17,10 @@ PeriodName = Literal["development", "out_of_sample"]
 
 
 class BacktestInput(ApiModel):
-    symbol: BacktestSymbol = "BTCUSDT"
-    days: int = Field(default=30, ge=7, le=30)
-    spread_bps: Decimal = Field(default=Decimal("5"), ge=0, le=50)
-    slippage_bps: Decimal = Field(default=Decimal("5"), ge=0, le=50)
+    symbol: BacktestSymbol
+    days: int = Field(ge=7, le=30)
+    spread_bps: Decimal = Field(ge=0, le=50)
+    slippage_bps: Decimal = Field(ge=0, le=50)
 
 
 class StrategyConfiguration(ApiModel):

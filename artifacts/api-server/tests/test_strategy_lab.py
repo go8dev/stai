@@ -1,22 +1,27 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+import httpx
 from sqlalchemy import select
 
 from stai.analytics.core.constants import TradeSide
 from stai.db.models import TradeProposal, TradingPermit
+from stai.marketdata.okx_market import MarketDataUnavailable, OkxMarketData
 from stai.marketdata.schemas import CandlePoint
 from stai.strategy_lab.engine import (
     _find_exit,
+    _funding_coverage,
+    _indicator_snapshots,
     _latest_closed_hour,
     _metrics,
-    _indicator_snapshots,
     _trade_from_exit,
 )
 from stai.strategy_lab.models import StrategyBacktestRun
 from stai.strategy_lab.schemas import BacktestTrade
+from stai.strategy_lab.service import get_run, list_runs
 
 from .conftest import Harness
 from .support import csrf_headers, sign_in
@@ -198,6 +203,29 @@ def test_metrics_use_net_trade_results_and_keep_empty_metrics_undefined() -> Non
     assert len(empty_curve) == 1
 
 
+def test_drawdown_percentage_keeps_the_peak_at_the_time_of_the_loss() -> None:
+    start = datetime(2026, 11, 18, tzinfo=UTC)
+    metrics, _ = _metrics(
+        [
+            _trade("-100", start + timedelta(minutes=15)),
+            _trade("1100", start + timedelta(minutes=30)),
+        ],
+        excluded=0,
+        period_start=start,
+    )
+    assert metrics.max_drawdown_pct == Decimal("10.0000")
+
+
+def test_funding_coverage_marks_missing_history_at_the_edges() -> None:
+    start = datetime(2026, 11, 18, tzinfo=UTC)
+    coverage = _funding_coverage(
+        [(start + timedelta(hours=16), Decimal("0.0001"))],
+        start,
+        start + timedelta(days=1),
+    )
+    assert coverage.status == "partial"
+
+
 def test_strategy_lab_requires_owner_and_persists_backtests_without_trade_side_effects(
     harness: Harness, monkeypatch
 ) -> None:
@@ -249,6 +277,10 @@ def test_strategy_lab_requires_owner_and_persists_backtests_without_trade_side_e
     assert result["status"]["paidCommitteeReviewEnabled"] is False
     assert result["status"]["tradingEnabled"] is False
     assert result["status"]["proposalCreationEnabled"] is False
+    assert all(segment["metrics"]["tradeCount"] == 0 for segment in result["segments"])
+    assert all(segment["metrics"]["winRatePct"] is None for segment in result["segments"])
+    assert "cannot both pass" in result["notes"][0]
+    assert result["developmentEnd"] == result["outOfSampleStart"]
 
     history = harness.client.get("/api/strategy-lab/backtests")
     assert history.status_code == 200
@@ -259,5 +291,80 @@ def test_strategy_lab_requires_owner_and_persists_backtests_without_trade_side_e
 
     with harness.runtime.database.session() as session:
         assert session.get(StrategyBacktestRun, result["id"]) is not None
+        assert get_run(session, user_id="another-owner", run_id=result["id"]) is None
+        assert list_runs(session, user_id="another-owner") == []
         assert session.execute(select(TradeProposal)).scalars().all() == []
         assert session.execute(select(TradingPermit)).scalars().all() == []
+
+
+def test_strategy_lab_rejects_bad_inputs_csrf_and_unavailable_history(
+    harness: Harness, monkeypatch
+) -> None:
+    sign_in(harness.client, harness.provider)
+    endpoint = "/api/strategy-lab/backtests"
+    assert harness.client.post(endpoint, json={"days": 7}).status_code == 403
+    headers = csrf_headers(harness.client)
+    assert harness.client.post(endpoint, json={"days": 31}, headers=headers).status_code == 422
+    assert (
+        harness.client.post(endpoint, json={"symbol": "DOGEUSDT"}, headers=headers).status_code
+        == 422
+    )
+
+    async def unavailable(*args):
+        raise MarketDataUnavailable("Unreachable.")
+
+    monkeypatch.setattr(harness.runtime.okx_market_data, "get_historical_candles", unavailable)
+    assert (
+        harness.client.post(
+            endpoint,
+            json={"symbol": "BTCUSDT", "days": 7, "spreadBps": 5, "slippageBps": 5},
+            headers=headers,
+        ).status_code
+        == 503
+    )
+    assert harness.client.get(endpoint).json() == []
+
+
+def test_okx_history_paginates_deduplicates_and_excludes_open_candles() -> None:
+    start = datetime(2026, 11, 18, tzinfo=UTC)
+    start_ms = int(start.timestamp() * 1000)
+    calls = []
+
+    def candle(offset: int, confirmation: str = "1"):
+        return [
+            str(start_ms + offset * 900_000),
+            "100",
+            "101",
+            "99",
+            "100",
+            "10",
+            "10",
+            "1000",
+            confirmation,
+        ]
+
+    def transport(request):
+        calls.append(request)
+        assert request.method == "GET"
+        assert request.url.path == "/api/v5/market/history-candles"
+        cursor = request.url.params["after"]
+        rows = (
+            [candle(3, "0"), candle(2), candle(1)]
+            if cursor == str(start_ms + 4 * 900_000)
+            else [candle(1), candle(0), candle(-1)]
+        )
+        return httpx.Response(200, json={"code": "0", "data": rows})
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(transport)) as client:
+            market = OkxMarketData(client, "https://www.okx.com")
+            return await market.get_historical_candles(
+                "BTCUSDT", "spot", start, start + timedelta(hours=1)
+            )
+
+    bars = asyncio.run(run())
+    assert len(calls) == 2
+    assert [bar.opened_at for bar in bars] == [
+        start + timedelta(minutes=15 * index) for index in range(3)
+    ]
+    assert all(bar.complete for bar in bars)

@@ -651,25 +651,22 @@ export const ListStrategyBacktestsResponse = zod.array(ListStrategyBacktestsResp
 /**
  * @summary Run and save a deterministic OKX historical backtest
  */
-export const createStrategyBacktestBodySymbolDefault = `BTCUSDT`;
-export const createStrategyBacktestBodyDaysDefault = 30;
 export const createStrategyBacktestBodyDaysMin = 7;
 export const createStrategyBacktestBodyDaysMax = 30;
 
 export const createStrategyBacktestBodySpreadBpsOneMin = 0;
 export const createStrategyBacktestBodySpreadBpsOneMax = 50;
 
-export const createStrategyBacktestBodySpreadBpsDefault = `5`;
 export const createStrategyBacktestBodySlippageBpsOneMin = 0;
 export const createStrategyBacktestBodySlippageBpsOneMax = 50;
 
-export const createStrategyBacktestBodySlippageBpsDefault = `5`;
+
 
 export const CreateStrategyBacktestBody = zod.object({
-  "symbol": zod.enum(['BTCUSDT', 'ETHUSDT', 'SOLUSDT']).default(createStrategyBacktestBodySymbolDefault),
-  "days": zod.number().int().min(createStrategyBacktestBodyDaysMin).max(createStrategyBacktestBodyDaysMax).default(createStrategyBacktestBodyDaysDefault),
-  "spreadBps": zod.union([zod.number().min(createStrategyBacktestBodySpreadBpsOneMin).max(createStrategyBacktestBodySpreadBpsOneMax),zod.string()]).default(createStrategyBacktestBodySpreadBpsDefault),
-  "slippageBps": zod.union([zod.number().min(createStrategyBacktestBodySlippageBpsOneMin).max(createStrategyBacktestBodySlippageBpsOneMax),zod.string()]).default(createStrategyBacktestBodySlippageBpsDefault)
+  "symbol": zod.enum(['BTCUSDT', 'ETHUSDT', 'SOLUSDT']),
+  "days": zod.number().int().min(createStrategyBacktestBodyDaysMin).max(createStrategyBacktestBodyDaysMax),
+  "spreadBps": zod.union([zod.number().min(createStrategyBacktestBodySpreadBpsOneMin).max(createStrategyBacktestBodySpreadBpsOneMax),zod.string()]),
+  "slippageBps": zod.union([zod.number().min(createStrategyBacktestBodySlippageBpsOneMin).max(createStrategyBacktestBodySlippageBpsOneMax),zod.string()])
 })
 
 export const CreateStrategyBacktestResponse = zod.object({

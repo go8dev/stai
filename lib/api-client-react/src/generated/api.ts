@@ -36,7 +36,6 @@ import type {
   CommitteeRunDetail,
   CsrfToken,
   ErrorResponse,
-  HTTPValidationError,
   HandleBrowserLoginCallbackParams,
   HealthStatus,
   LedgerList,
@@ -2198,7 +2197,7 @@ export const getGetStrategyBacktestQueryKey = (runId: string,) => {
     }
 
 
-export const getGetStrategyBacktestQueryOptions = <TData = Awaited<ReturnType<typeof getStrategyBacktest>>, TError = ErrorType<ErrorResponse | HTTPValidationError>>(runId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStrategyBacktest>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+export const getGetStrategyBacktestQueryOptions = <TData = Awaited<ReturnType<typeof getStrategyBacktest>>, TError = ErrorType<ErrorResponse>>(runId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStrategyBacktest>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -2217,10 +2216,10 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type GetStrategyBacktestQueryResult = NonNullable<Awaited<ReturnType<typeof getStrategyBacktest>>>
-export type GetStrategyBacktestQueryError = ErrorType<ErrorResponse | HTTPValidationError>
+export type GetStrategyBacktestQueryError = ErrorType<ErrorResponse>
 
 
-export function useGetStrategyBacktest<TData = Awaited<ReturnType<typeof getStrategyBacktest>>, TError = ErrorType<ErrorResponse | HTTPValidationError>>(
+export function useGetStrategyBacktest<TData = Awaited<ReturnType<typeof getStrategyBacktest>>, TError = ErrorType<ErrorResponse>>(
  runId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStrategyBacktest>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getStrategyBacktest>>,
@@ -2230,7 +2229,7 @@ export function useGetStrategyBacktest<TData = Awaited<ReturnType<typeof getStra
       >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetStrategyBacktest<TData = Awaited<ReturnType<typeof getStrategyBacktest>>, TError = ErrorType<ErrorResponse | HTTPValidationError>>(
+export function useGetStrategyBacktest<TData = Awaited<ReturnType<typeof getStrategyBacktest>>, TError = ErrorType<ErrorResponse>>(
  runId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStrategyBacktest>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getStrategyBacktest>>,
@@ -2240,7 +2239,7 @@ export function useGetStrategyBacktest<TData = Awaited<ReturnType<typeof getStra
       >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetStrategyBacktest<TData = Awaited<ReturnType<typeof getStrategyBacktest>>, TError = ErrorType<ErrorResponse | HTTPValidationError>>(
+export function useGetStrategyBacktest<TData = Awaited<ReturnType<typeof getStrategyBacktest>>, TError = ErrorType<ErrorResponse>>(
  runId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStrategyBacktest>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
@@ -2248,7 +2247,7 @@ export function useGetStrategyBacktest<TData = Awaited<ReturnType<typeof getStra
  * @summary Get one saved historical Strategy Laboratory run
  */
 
-export function useGetStrategyBacktest<TData = Awaited<ReturnType<typeof getStrategyBacktest>>, TError = ErrorType<ErrorResponse | HTTPValidationError>>(
+export function useGetStrategyBacktest<TData = Awaited<ReturnType<typeof getStrategyBacktest>>, TError = ErrorType<ErrorResponse>>(
  runId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStrategyBacktest>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {

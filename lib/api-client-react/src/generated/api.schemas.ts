@@ -119,14 +119,14 @@ export const BacktestInputSymbol = {
 } as const;
 
 export interface BacktestInput {
-  symbol?: BacktestInputSymbol;
+  symbol: BacktestInputSymbol;
   /**
      * @minimum 7
      * @maximum 30
      */
-  days?: number;
-  spreadBps?: number | string;
-  slippageBps?: number | string;
+  days: number;
+  spreadBps: number | string;
+  slippageBps: number | string;
 }
 
 export type BacktestListItemSymbol = typeof BacktestListItemSymbol[keyof typeof BacktestListItemSymbol];
@@ -658,20 +658,6 @@ export interface ErrorResponse {
   message: string;
   correlationId: string;
   details?: ErrorResponseDetails;
-}
-
-export type ValidationErrorCtx = { [key: string]: unknown };
-
-export interface ValidationError {
-  loc: (string | number)[];
-  msg: string;
-  type: string;
-  input?: unknown;
-  ctx?: ValidationErrorCtx;
-}
-
-export interface HTTPValidationError {
-  detail?: ValidationError[];
 }
 
 export interface HealthStatus {

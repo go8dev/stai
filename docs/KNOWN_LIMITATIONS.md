@@ -5,6 +5,19 @@ consequence is and, where there is one, what would remove it. Nothing here is hi
 behind a default: where a check cannot run or a value is not available, the interface
 says so.
 
+## Strategy Laboratory limitations
+
+- The owner selected exact scanner parity after the conflicting 1h trend and
+  pullback requirements were explained. No eligible entries are expected; zero
+  trades cannot establish a win rate or validate the inherited exits.
+- Results are hypothetical closed-candle simulations, not Freqtrade execution
+  backtests. Fees use defaults; spread/slippage and intrabar exit timing are
+  assumptions. Funding coverage is observed, not guaranteed complete.
+- Runs are limited to 7–30 days plus warm-up. Development and held-out results
+  are separate; no strategy optimization or paid Committee interpretation runs.
+- The development schema was migrated; production was not changed. See
+  [Strategy Laboratory](STRATEGY_LAB.md) for exact assumptions and verification.
+
 ## Phase 3 research limitations
 
 - Phase 3 is workspace-only. The owner deferred production migrations; restart

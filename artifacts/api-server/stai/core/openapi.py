@@ -22,6 +22,7 @@ TAGS = [
     {"name": "portfolio", "description": "Virtual fund and paper ledger."},
     {"name": "committee", "description": "Read-only AI research and measured operating costs."},
     {"name": "proposals", "description": "Qualified paper setups and explicit owner decisions."},
+    {"name": "strategy-lab", "description": "Historical, hypothetical OKX strategy research."},
 ]
 
 

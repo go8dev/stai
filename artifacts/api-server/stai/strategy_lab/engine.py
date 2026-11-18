@@ -88,6 +88,10 @@ def strategy_configuration(
             "regime candles; enter at the next 15m candle open."
         ),
         execution_assumptions=[
+            "Mirrors the scanner's current indicator gates exactly, including its conflicting "
+            "1h trend/pullback requirements; no eligible entries are expected.",
+            "Require directional BTC regime, matching 1h/15m EMA alignment, matching 15m MACD, "
+            "a directional confirmation candle, an EMA-7/99 pullback, and score >=70.",
             "Fixed 100 USDT notional per trade; 1x exposure; no compounding.",
             "Taker fees use STAI's configurable defaults, not an account-specific OKX tier.",
             "Historical candles do not contain order-book spreads; the selected spread and "
@@ -256,9 +260,7 @@ def _latest_closed_hour(signal_close: datetime) -> datetime:
     return datetime.fromtimestamp(hour_open_ms / 1000, tz=UTC)
 
 
-def _btc_regime(
-    btc_h1: MarketSnapshot | None, btc_m15: MarketSnapshot | None
-) -> MarketRegime:
+def _btc_regime(btc_h1: MarketSnapshot | None, btc_m15: MarketSnapshot | None) -> MarketRegime:
     if btc_h1 is None or btc_m15 is None:
         return MarketRegime.UNKNOWN
     h1_score, _ = _score_snapshot(btc_h1)
@@ -311,8 +313,12 @@ def _eligible_setup(
     if h1.ema_7 is None or h1.ema_99 is None:
         return None
     current_price = float(signal_bar.close)
-    in_zone = h1.ema_99 <= h1.current_price <= h1.ema_7
-    in_zone = in_zone and h1.ema_99 <= current_price <= h1.ema_7
+    if side == TradeSide.LONG:
+        in_zone = h1.ema_99 <= h1.current_price <= h1.ema_7
+        in_zone = in_zone and h1.ema_99 <= current_price <= h1.ema_7
+    else:
+        in_zone = h1.ema_7 <= h1.current_price <= h1.ema_99
+        in_zone = in_zone and h1.ema_7 <= current_price <= h1.ema_99
     if not in_zone:
         return None
 
@@ -455,6 +461,7 @@ def _metrics(
     equity = INITIAL_EQUITY
     peak = INITIAL_EQUITY
     max_drawdown = Decimal("0")
+    max_drawdown_pct = Decimal("0")
     curve = [
         EquityPoint(at=_as_utc(period_start), equity_usdt=equity, cumulative_pnl_usdt=Decimal("0"))
     ]
@@ -462,6 +469,8 @@ def _metrics(
         equity += trade.net_pnl_usdt
         peak = max(peak, equity)
         max_drawdown = max(max_drawdown, peak - equity)
+        if peak > 0:
+            max_drawdown_pct = max(max_drawdown_pct, (peak - equity) / peak * 100)
         curve.append(
             EquityPoint(
                 at=trade.exited_at,
@@ -489,9 +498,7 @@ def _metrics(
             else ("No completed trades." if count == 0 else None)
         ),
         max_drawdown_usdt=_quantize(max_drawdown),
-        max_drawdown_pct=(
-            _quantize(max_drawdown / peak * 100, _PERCENT_QUANTUM) if peak else Decimal("0")
-        ),
+        max_drawdown_pct=_quantize(max_drawdown_pct, _PERCENT_QUANTUM),
         cumulative_pnl_usdt=_quantize(total),
         cumulative_return_pct=_quantize(total / INITIAL_EQUITY * 100, _PERCENT_QUANTUM),
         ending_equity_usdt=_quantize(equity),
@@ -563,9 +570,7 @@ def _funding_coverage(
     funding: list[tuple[datetime, Decimal]], start_at: datetime, end_at: datetime
 ) -> FundingCoverage:
     selected = [
-        (at, rate)
-        for at, rate in funding
-        if _as_utc(start_at) <= _as_utc(at) < _as_utc(end_at)
+        (at, rate) for at, rate in funding if _as_utc(start_at) <= _as_utc(at) < _as_utc(end_at)
     ]
     if not selected:
         return FundingCoverage(
@@ -575,20 +580,23 @@ def _funding_coverage(
             last_event_at=None,
             note="No historical settlement rates were returned; futures P&L excludes funding.",
         )
-    gaps = [
-        right[0] - left[0]
-        for left, right in zip(selected, selected[1:], strict=False)
-    ]
-    partial = any(gap > timedelta(hours=12) for gap in gaps)
+    gaps = [right[0] - left[0] for left, right in zip(selected, selected[1:], strict=False)]
+    partial = (
+        any(gap > timedelta(hours=8) for gap in gaps)
+        or _as_utc(selected[0][0]) - _as_utc(start_at) > timedelta(hours=8)
+        or _as_utc(end_at) - _as_utc(selected[-1][0]) > timedelta(hours=8)
+    )
     return FundingCoverage(
         status="partial" if partial else "available",
         records=len(selected),
         first_event_at=_as_utc(selected[0][0]),
         last_event_at=_as_utc(selected[-1][0]),
         note=(
-            "Funding events use the returned historical settlement rates."
+            "Returned settlement rates are included. No observed gap exceeds eight hours; "
+            "this checks continuity, not an exchange settlement calendar."
             if not partial
-            else "Funding history has gaps over 12 hours; uncovered settlements are excluded."
+            else "Funding history has an edge or internal gap over eight hours; "
+            "uncovered settlements are excluded."
         ),
     )
 
@@ -635,6 +643,11 @@ def _strategy_trade(
     if entry_bar.opened_at != signal_close:
         return None, signal_index + 1, False
     entry = entry_bar.open
+    h1 = target_h1_snapshots[h1_key]
+    ema7, ema99 = Decimal(str(h1.ema_7)), Decimal(str(h1.ema_99))
+    entry_in_zone = ema99 <= entry <= ema7 if side == TradeSide.LONG else ema7 <= entry <= ema99
+    if not entry_in_zone:
+        return None, signal_index + 1, False
     stop = Decimal(str(levels["stop_loss"]))
     target = Decimal(str(levels["tp1"]))
     if not _valid_levels(side, entry, levels):
@@ -687,13 +700,11 @@ def run_backtest(
 ) -> BacktestResult:
     """Evaluate one pair on spot and swap using a chronological holdout."""
     start_at, end_at = _as_utc(requested_start), _as_utc(requested_end)
-    evaluated_spot = [
-        bar for bar in spot_bars if start_at <= _as_utc(bar.opened_at) < end_at
-    ]
+    evaluated_spot = [bar for bar in spot_bars if start_at <= _as_utc(bar.opened_at) < end_at]
     if len(evaluated_spot) < 4:
         raise ValueError("Not enough closed 15-minute candles for a backtest.")
-    split_position = max(1, min(len(evaluated_spot) - 1, int(len(evaluated_spot) * 0.70)))
-    split_at = _as_utc(evaluated_spot[split_position].opened_at)
+    expected_bars = int((end_at - start_at) / BAR_INTERVAL)
+    split_at = start_at + BAR_INTERVAL * max(1, int(expected_bars * 0.70))
     selected_ranges: list[tuple[PeriodName, datetime, datetime]] = [
         ("development", start_at, split_at),
         ("out_of_sample", split_at, end_at),
@@ -705,12 +716,8 @@ def run_backtest(
     }
     btc_bars = btc_spot_bars
     btc_h1_bars = _hourly_bars(btc_bars)
-    btc_m15_snapshots = _indicator_snapshots(
-        btc_bars, symbol="BTC/USDT", timeframe=Timeframe.M15
-    )
-    btc_h1_snapshots = _indicator_snapshots(
-        btc_h1_bars, symbol="BTC/USDT", timeframe=Timeframe.H1
-    )
+    btc_m15_snapshots = _indicator_snapshots(btc_bars, symbol="BTC/USDT", timeframe=Timeframe.M15)
+    btc_h1_snapshots = _indicator_snapshots(btc_h1_bars, symbol="BTC/USDT", timeframe=Timeframe.H1)
     segments: list[BacktestSegment] = []
     for market_type, bars in series_by_market.items():
         h1_bars = _hourly_bars(bars)
@@ -812,6 +819,10 @@ def run_backtest(
         )
     fund_coverage = _funding_coverage(funding, start_at, end_at)
     notes = [
+        "Owner-selected scanner parity: the 1h trend requires price strictly beyond EMA-7, "
+        "while the pullback gate requires it on the opposite side or at EMA-7. These gates "
+        "cannot both pass. Zero trades therefore do not establish a win/loss rate or validate "
+        "the stop and target rules.",
         "Historical and hypothetical only. Results are not a forecast, recommendation, or "
         "guarantee of profit.",
         "The 70/100 rule score is an eligibility screen, not a probability or expected win rate.",
@@ -823,8 +834,7 @@ def run_backtest(
         "not interpolated.",
         "Entries use the next 15-minute open, must remain in the EMA entry zone, and last at "
         "most four bars.",
-        "Spread and slippage are assumptions because historical order-book depth is not "
-        "included.",
+        "Spread and slippage are assumptions because historical order-book depth is not included.",
         "Live quote and order-book quality gates are not simulated from OHLCV candles.",
         "The first 70% is development; the final 30% is out-of-sample. No random shuffle or "
         "parameter fitting is used.",

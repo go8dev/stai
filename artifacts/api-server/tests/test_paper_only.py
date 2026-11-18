@@ -182,6 +182,7 @@ def test_no_table_could_hold_an_exchange_credential() -> None:
         "committee_calls",
         "setup_candidates",
         "trade_proposals",
+        "strategy_backtest_runs",
     }
 
     suspicious = re.compile(r"api_?key|secret|passphrase|password|credential|exchange_key", re.I)
@@ -270,9 +271,11 @@ def test_okx_is_only_ever_asked_for_public_data() -> None:
         "/api/v5/public/time",
         "/api/v5/market/ticker",
         "/api/v5/market/candles",
+        "/api/v5/market/history-candles",
         "/api/v5/market/books",
         "/api/v5/public/instruments",
         "/api/v5/public/funding-rate",
+        "/api/v5/public/funding-rate-history",
     }
     assert set(paths) - {"/api/v5/public/time"} == set(MARKET_PATHS)
     # Private OKX paths start with trade, account, asset and the like. None may appear.
@@ -304,6 +307,7 @@ def test_the_app_has_one_state_changing_route_and_it_is_not_about_orders(
         ("POST", "/api/audit/verify"),
         ("POST", "/api/proposals/{proposal_id}/approve"),
         ("POST", "/api/proposals/{proposal_id}/reject"),
+        ("POST", "/api/strategy-lab/backtests"),
     }
     words = re.compile(r"order|trade|position|withdraw|transfer|credential|key|live|exchange")
     assert [path for _, path in sorted(routes) if words.search(path)] == []
