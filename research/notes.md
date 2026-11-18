@@ -1,6 +1,6 @@
 # Research Notes: STAI Intraday Entry Strategy
 
-**Status:** drafting
+**Status:** complete
 **Depth:** Quick
 
 ## Plan
@@ -20,12 +20,12 @@
 
 ## Coverage Checklist
 
-- [ ] State exactly why the current trend and pullback gates cannot both pass.
-- [ ] Recommend a simple, causal trend/pullback/confirmation sequence without pretending it is profitable.
-- [ ] Compare the plausible 5m, 15m and 4h/15m choices and state data/warm-up constraints.
-- [ ] Specify stop, target, maximum holding time, costs, and leverage/risk boundaries that need approval.
-- [ ] Keep the 30% holdout protected from choosing among strategies or repeated tuning.
-- [ ] Separate the rule screen, advisory Committee review, deterministic risk sizing, and owner approval.
+- [x] State exactly why the current trend and pullback gates cannot both pass.
+- [x] Recommend a simple, causal trend/pullback/confirmation sequence without pretending it is profitable.
+- [x] Compare the plausible 5m, 15m and 4h/15m choices and state data/warm-up constraints.
+- [x] Specify stop, target, maximum holding time, costs, and leverage/risk boundaries that need approval.
+- [x] Keep the 30% holdout protected from choosing among strategies or repeated tuning.
+- [x] Separate the rule screen, advisory Committee review, deterministic risk sizing, and owner approval.
 
 ## Findings Log
 
@@ -53,6 +53,21 @@ _[@key] markers reference sources in research/sources.json; they become numbered
 - The owner approved the 1h trend / 15m setup concept and the 70/100 initial score screen, but has not approved the exact corrected formula.
 - The current Strategy Laboratory is fixed at 100 USDT notional, 1x, a 30-day maximum, and seven warm-up days; these differ from live paper-fund and risk settings.
 - An exact pullback trigger, invalidation window, stop/target formula, and comparison protocol need owner approval before implementation.
+- The final report supplies explicit proposed test values; none were selected from measured strategy performance.
+- Intraday momentum studies describe distinct horizons and do not establish the proposed strategy's net performance. Their economic claims are study-specific.
+- The technical-rule study uses multiple-testing and cost controls, but does not validate this precise setup or futures shorts.
+- The ATR study concerns USD/JPY; its conditional findings do not transfer automatically to crypto.
+- The validation-method comparison is synthetic and does not prove universal superiority of CPCV or any other method.
+- The OKX reference fetch is truncated; current account fee rates are not historical fee records, and settlement coverage requires instrument/time-specific checks.
+- The recent Oxford article was access-restricted. Only its search snippet was retained for scope; no quantitative claim from it is used in the report.
+- The 2026 candlestick paper explicitly omits transaction costs; it is not evidence of net executable profitability.
+
+## Final Checks
+
+- Three independent AI research reviews completed; no human expert consultation is claimed.
+- Recent-literature and OKX-change sweep completed on 18 November 2026; no source establishes a best timeframe for STAI.
+- The report was rendered from stable source keys; all 12 cited keys resolve to saved evidence and URLs.
+- No code, strategy activation, production migration, or app trading settings were changed.
 
 ## Gaps
 

@@ -59,3 +59,17 @@ mtime_ms = 1794994033084
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7706c7d9-5d6b-4c81-bbe3-7534c69d723d/ae949f7b-5800-45f7-9edf-d8250e4bed20/22501e6f-3568-4d79-8bd8-ed7d0328b85b"
 storage_version_token = "1794994041817657"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "VqOphy9xWPCZGy7zoxEFd"
+uri = "file://research/strategy-recommendation.md"
+type = "text"
+title = "STAI Intraday Strategy Recommendation"
+description = "Independent AI research review, exact proposed 1h/15m test rules, risk responsibilities, and supporting sources. No trading activation."
+logical_id = "4e6a2868-6893-4f5b-80d0-5b5183976e2b"
+content_hash = "sha256:b0d3fff3a86be796826be74a8b0411fda854470633837d64ef6ce82b60790ca7"
+size = 15464
+mtime_ms = 1794995439061
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7706c7d9-5d6b-4c81-bbe3-7534c69d723d/4e6a2868-6893-4f5b-80d0-5b5183976e2b/b49fa5db-0ae2-4335-8424-a4161ec04fce"
+storage_version_token = "1794995467147002"
+content_type = "text/markdown"
