@@ -26,4 +26,7 @@ export interface BacktestMetrics {
   totalSpreadCostUsdt: number | string;
   totalSlippageCostUsdt: number | string;
   excludedUnclosedTrades: number;
+  unfilledEntryOrders: number;
+  totalMakerFeesUsdt: number | string;
+  totalTakerFeesUsdt: number | string;
 }

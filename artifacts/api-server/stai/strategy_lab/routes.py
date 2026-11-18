@@ -9,13 +9,28 @@ from stai.auth.gate import AuthContext
 from stai.core.errors import ErrorResponse
 from stai.core.runtime import Runtime, get_runtime
 from stai.marketdata.okx_market import MarketDataUnavailable
+from stai.strategy_lab.historical_review import (
+    HistoricalReviewBudgetExceeded,
+    HistoricalReviewProviderError,
+    HistoricalReviewUnavailable,
+)
 from stai.strategy_lab.schemas import (
     BacktestInput,
     BacktestListItem,
     BacktestResult,
+    HistoricalReviewInput,
+    HistoricalReviewResponse,
     StrategyLabOverview,
 )
-from stai.strategy_lab.service import create_run, get_run, list_runs, overview, persist_run
+from stai.strategy_lab.service import (
+    create_historical_review,
+    create_run,
+    get_run,
+    list_historical_reviews,
+    list_runs,
+    overview,
+    persist_run,
+)
 
 router = APIRouter(
     prefix="/api",
@@ -35,7 +50,7 @@ def get_strategy_lab_overview(
     auth: AuthContext = Depends(current_auth),
 ) -> StrategyLabOverview:
     with runtime.database.session() as session:
-        return overview(session, auth.user.user_id)
+        return overview(session, auth.user.user_id, runtime)
 
 
 @router.get(
@@ -74,6 +89,27 @@ def get_strategy_backtest(
     return result
 
 
+@router.get(
+    "/strategy-lab/backtests/{run_id}/reviews",
+    operation_id="listStrategyBacktestReviews",
+    response_model=list[HistoricalReviewResponse],
+    responses={
+        404: {"model": ErrorResponse, "description": "Backtest was not found."},
+    },
+    summary="List completed historical AI reviews for one saved run",
+)
+def list_strategy_backtest_reviews(
+    run_id: str,
+    runtime: Runtime = Depends(get_runtime),
+    auth: AuthContext = Depends(current_auth),
+) -> list[HistoricalReviewResponse]:
+    with runtime.database.session() as session:
+        reviews = list_historical_reviews(session, user_id=auth.user.user_id, run_id=run_id)
+    if reviews is None:
+        raise HTTPException(status_code=404, detail="Backtest was not found.")
+    return reviews
+
+
 @router.post(
     "/strategy-lab/backtests",
     operation_id="createStrategyBacktest",
@@ -106,3 +142,46 @@ async def create_strategy_backtest(
             user_id=auth.user.user_id,
         )
     return result
+
+
+@router.post(
+    "/strategy-lab/backtests/{run_id}/reviews",
+    operation_id="createStrategyBacktestReview",
+    response_model=HistoricalReviewResponse,
+    status_code=201,
+    responses={
+        404: {"model": ErrorResponse, "description": "Backtest was not found."},
+        409: {"model": ErrorResponse, "description": "Historical AI review is not authorized."},
+        422: {"model": ErrorResponse, "description": "Question or saved evidence is invalid."},
+        429: {"model": ErrorResponse, "description": "The configured review budget is exhausted."},
+        502: {
+            "model": ErrorResponse,
+            "description": "The provider did not return a usable review.",
+        },
+    },
+    summary="Ask an authorized AI model about one immutable historical run",
+)
+def create_strategy_backtest_review(
+    run_id: str,
+    body: HistoricalReviewInput,
+    runtime: Runtime = Depends(get_runtime),
+    auth: AuthContext = Depends(current_auth),
+) -> HistoricalReviewResponse:
+    try:
+        response = create_historical_review(
+            runtime,
+            user_id=auth.user.user_id,
+            run_id=run_id,
+            question=body.question,
+        )
+    except HistoricalReviewUnavailable as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except HistoricalReviewBudgetExceeded as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
+    except HistoricalReviewProviderError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if response is None:
+        raise HTTPException(status_code=404, detail="Backtest was not found.")
+    return response

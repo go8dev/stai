@@ -27,6 +27,12 @@ from .conftest import API_ROOT, REPO_ROOT
 
 DOCUMENTED_VARIABLES = {
     "OPENAI_API_KEY",
+    "STAI_HISTORICAL_REVIEW_ENABLED",
+    "STAI_HISTORICAL_REVIEW_MODEL",
+    "STAI_HISTORICAL_REVIEW_PER_RUN_CAP_USD",
+    "STAI_HISTORICAL_REVIEW_DAILY_CAP_USD",
+    "STAI_HISTORICAL_REVIEW_INPUT_USD_PER_MILLION",
+    "STAI_HISTORICAL_REVIEW_OUTPUT_USD_PER_MILLION",
     "STAI_ENV",
     "REPLIT_DEPLOYMENT",
     "PORT",
@@ -66,6 +72,7 @@ def test_every_variable_is_described_in_the_environment_document() -> None:
 # What the example file may show: nothing, a default of the code, or an obvious placeholder.
 EXAMPLE_VALUES = {
     "",
+    "false",
     "8080",
     "INFO",
     "168",

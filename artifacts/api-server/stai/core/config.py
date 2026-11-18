@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Mapping
+from decimal import Decimal
 from functools import lru_cache
 from typing import Literal
 from urllib.parse import unquote, urlsplit
@@ -85,6 +86,24 @@ class Settings(BaseSettings):
     okx_base_url: str = Field(default="https://www.okx.com", validation_alias="STAI_OKX_BASE_URL")
     # Used only by the explicitly invoked workspace benchmark, never by the API or paper bots.
     openai_api_key: SecretStr | None = Field(default=None, validation_alias="OPENAI_API_KEY")
+    historical_review_enabled: bool = Field(
+        default=False, validation_alias="STAI_HISTORICAL_REVIEW_ENABLED"
+    )
+    historical_review_model: str | None = Field(
+        default=None, validation_alias="STAI_HISTORICAL_REVIEW_MODEL"
+    )
+    historical_review_per_run_cap_usd: Decimal | None = Field(
+        default=None, validation_alias="STAI_HISTORICAL_REVIEW_PER_RUN_CAP_USD", gt=0
+    )
+    historical_review_daily_cap_usd: Decimal | None = Field(
+        default=None, validation_alias="STAI_HISTORICAL_REVIEW_DAILY_CAP_USD", gt=0
+    )
+    historical_review_input_usd_per_million: Decimal | None = Field(
+        default=None, validation_alias="STAI_HISTORICAL_REVIEW_INPUT_USD_PER_MILLION", gt=0
+    )
+    historical_review_output_usd_per_million: Decimal | None = Field(
+        default=None, validation_alias="STAI_HISTORICAL_REVIEW_OUTPUT_USD_PER_MILLION", gt=0
+    )
 
     @field_validator("log_level")
     @classmethod
@@ -102,7 +121,7 @@ class Settings(BaseSettings):
             raise ValueError("must be an https:// URL")
         return url
 
-    @field_validator("owner_user_id", "repl_id", "build_commit")
+    @field_validator("owner_user_id", "repl_id", "build_commit", "historical_review_model")
     @classmethod
     def _strip(cls, value: str | None) -> str | None:
         if value is None:
@@ -166,6 +185,19 @@ class Settings(BaseSettings):
     @property
     def signin_configured(self) -> bool:
         return bool(self.repl_id and self.owner_user_id)
+
+    @property
+    def historical_review_ready(self) -> bool:
+        return bool(
+            self.historical_review_enabled
+            and self.openai_api_key
+            and self.historical_review_model
+            and self.historical_review_per_run_cap_usd
+            and self.historical_review_daily_cap_usd
+            and self.historical_review_daily_cap_usd >= self.historical_review_per_run_cap_usd
+            and self.historical_review_input_usd_per_million
+            and self.historical_review_output_usd_per_million
+        )
 
     def check(self) -> None:
         """Refuse combinations that would weaken a published machine."""

@@ -5,8 +5,11 @@
  * STAI API contract. Generated from the Python backend; do not edit by hand.
  * OpenAPI spec version: 0.1.0
  */
+import type { StrategyConfigurationEntryFeeType } from './strategyConfigurationEntryFeeType';
 import type { StrategyConfigurationFuturesSidesItem } from './strategyConfigurationFuturesSidesItem';
 import type { StrategyConfigurationSpotSidesItem } from './strategyConfigurationSpotSidesItem';
+import type { StrategyConfigurationStopFeeType } from './strategyConfigurationStopFeeType';
+import type { StrategyConfigurationTargetFeeType } from './strategyConfigurationTargetFeeType';
 
 export interface StrategyConfiguration {
   strategyVersion: string;
@@ -27,4 +30,9 @@ export interface StrategyConfiguration {
   executionAssumptions: string[];
   entryRules: string[];
   scoreGateEnabled: boolean;
+  entryLimitRule: string;
+  entryExpiryBars: number;
+  entryFeeType: StrategyConfigurationEntryFeeType;
+  targetFeeType: StrategyConfigurationTargetFeeType;
+  stopFeeType: StrategyConfigurationStopFeeType;
 }

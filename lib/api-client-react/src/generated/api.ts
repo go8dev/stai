@@ -36,8 +36,11 @@ import type {
   CommitteeRunDetail,
   CsrfToken,
   ErrorResponse,
+  HTTPValidationError,
   HandleBrowserLoginCallbackParams,
   HealthStatus,
+  HistoricalReviewInput,
+  HistoricalReviewResponse,
   LedgerList,
   LedgerVerification,
   ListAuditEventsParams,
@@ -2264,4 +2267,194 @@ export function useGetStrategyBacktest<TData = Awaited<ReturnType<typeof getStra
 
 
 
+
+export const getListStrategyBacktestReviewsUrl = (runId: string,) => {
+
+
+
+
+  return `/api/strategy-lab/backtests/${runId}/reviews`
+}
+
+/**
+ * @summary List completed historical AI reviews for one saved run
+ */
+export const listStrategyBacktestReviews = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<HistoricalReviewResponse[]> => {
+
+  return customFetch<HistoricalReviewResponse[]>(getListStrategyBacktestReviewsUrl(runId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListStrategyBacktestReviewsQueryKey = (runId: string,) => {
+    return [
+    `/api/strategy-lab/backtests/${runId}/reviews`
+    ] as const;
+    }
+
+
+export const getListStrategyBacktestReviewsQueryOptions = <TData = Awaited<ReturnType<typeof listStrategyBacktestReviews>>, TError = ErrorType<ErrorResponse | HTTPValidationError>>(runId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStrategyBacktestReviews>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListStrategyBacktestReviewsQueryKey(runId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listStrategyBacktestReviews>>> = ({ signal }) => listStrategyBacktestReviews(runId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: runId !== null && runId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listStrategyBacktestReviews>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListStrategyBacktestReviewsQueryResult = NonNullable<Awaited<ReturnType<typeof listStrategyBacktestReviews>>>
+export type ListStrategyBacktestReviewsQueryError = ErrorType<ErrorResponse | HTTPValidationError>
+
+
+export function useListStrategyBacktestReviews<TData = Awaited<ReturnType<typeof listStrategyBacktestReviews>>, TError = ErrorType<ErrorResponse | HTTPValidationError>>(
+ runId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStrategyBacktestReviews>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listStrategyBacktestReviews>>,
+          TError,
+          Awaited<ReturnType<typeof listStrategyBacktestReviews>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListStrategyBacktestReviews<TData = Awaited<ReturnType<typeof listStrategyBacktestReviews>>, TError = ErrorType<ErrorResponse | HTTPValidationError>>(
+ runId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStrategyBacktestReviews>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listStrategyBacktestReviews>>,
+          TError,
+          Awaited<ReturnType<typeof listStrategyBacktestReviews>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListStrategyBacktestReviews<TData = Awaited<ReturnType<typeof listStrategyBacktestReviews>>, TError = ErrorType<ErrorResponse | HTTPValidationError>>(
+ runId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStrategyBacktestReviews>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary List completed historical AI reviews for one saved run
+ */
+
+export function useListStrategyBacktestReviews<TData = Awaited<ReturnType<typeof listStrategyBacktestReviews>>, TError = ErrorType<ErrorResponse | HTTPValidationError>>(
+ runId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStrategyBacktestReviews>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListStrategyBacktestReviewsQueryOptions(runId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateStrategyBacktestReviewUrl = (runId: string,) => {
+
+
+
+
+  return `/api/strategy-lab/backtests/${runId}/reviews`
+}
+
+/**
+ * @summary Ask an authorized AI model about one immutable historical run
+ */
+export const createStrategyBacktestReview = async (runId: string,
+    historicalReviewInput: HistoricalReviewInput, options?: Parameters<typeof customFetch>[1]): Promise<HistoricalReviewResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<HistoricalReviewResponse>(getCreateStrategyBacktestReviewUrl(runId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(historicalReviewInput)
+  }
+);}
+
+
+
+
+
+export const getCreateStrategyBacktestReviewMutationKey = () => ['createStrategyBacktestReview'] as const;
+
+export const getCreateStrategyBacktestReviewMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createStrategyBacktestReview>>, TError,CreateStrategyBacktestReviewMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createStrategyBacktestReview>>, TError,CreateStrategyBacktestReviewMutationVariables, TContext> => {
+
+const mutationKey = getCreateStrategyBacktestReviewMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createStrategyBacktestReview>>, CreateStrategyBacktestReviewMutationVariables> = (props) => {
+          const {runId,data} = props ?? {};
+
+          return  createStrategyBacktestReview(runId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateStrategyBacktestReviewMutationResult = NonNullable<Awaited<ReturnType<typeof createStrategyBacktestReview>>>
+    export type CreateStrategyBacktestReviewMutationBody = BodyType<HistoricalReviewInput>
+    export type CreateStrategyBacktestReviewMutationError = ErrorType<ErrorResponse>
+    export type CreateStrategyBacktestReviewMutationVariables = {runId: string;data: BodyType<HistoricalReviewInput>}
+
+    /**
+ * @summary Ask an authorized AI model about one immutable historical run
+ */
+export const useCreateStrategyBacktestReview = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createStrategyBacktestReview>>, TError,CreateStrategyBacktestReviewMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createStrategyBacktestReview>>,
+        TError,
+        CreateStrategyBacktestReviewMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateStrategyBacktestReviewMutationOptions(options), queryClient);
+    }
 

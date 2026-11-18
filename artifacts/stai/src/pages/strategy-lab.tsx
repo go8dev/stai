@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Area,
@@ -26,16 +26,21 @@ import {
 import {
   getGetStrategyBacktestQueryKey,
   getGetStrategyLabOverviewQueryKey,
+  getListStrategyBacktestReviewsQueryKey,
   getListStrategyBacktestsQueryKey,
+  useListStrategyBacktestReviews,
   useCreateStrategyBacktest,
+  useCreateStrategyBacktestReview,
   useGetStrategyBacktest,
   useGetStrategyLabOverview,
   useListStrategyBacktests,
   type BacktestInput,
   type BacktestListItem,
+  type BacktestEntryOrder,
   type BacktestResult,
   type BacktestSegment,
   type BacktestTrade,
+  type HistoricalReviewResponse,
   type StrategyConfiguration,
 } from '@workspace/api-client-react';
 import { cn } from '@/lib/utils';
@@ -292,6 +297,11 @@ function Configuration({ strategy }: { strategy: StrategyConfiguration }) {
           testId="text-stop-rule"
         />
         <ConfigItem
+          label="Entry order"
+          value={`${strategy.entryLimitRule} · expires after ${strategy.entryExpiryBars} candles`}
+          testId="text-entry-limit-rule"
+        />
+        <ConfigItem
           label="Maximum hold"
           value={`${strategy.maxHoldMinutes} minutes · ${Math.floor(strategy.maxHoldMinutes / 15)} × 15m bars`}
           testId="text-max-hold"
@@ -322,17 +332,16 @@ function Configuration({ strategy }: { strategy: StrategyConfiguration }) {
           className="text-[11px] leading-relaxed text-muted-foreground"
           data-testid="text-cost-coverage-note"
         >
-          Taker fees use configured defaults, not account-specific historical
-          fees. Available historical futures funding and any coverage gaps are
-          shown with each saved run.
+          Entry and target use maker-fee defaults; stop and time exits use
+          taker-fee defaults. They are not your account-specific OKX tier.
+          Historical futures funding is included where returned.
         </p>
         <p
           className="text-[11px] leading-relaxed text-muted-foreground"
           data-testid="text-strategy-interpretation"
         >
-          This is a fixed, reviewed research definition. Only the market,
-          lookback window, and estimated spread / slippage assumptions below are
-          adjustable per run.
+          This is a fixed research definition. Only the instrument and lookback
+          window are adjustable. No separate spread or slippage charge is used.
         </p>
       </div>
     </section>
@@ -554,22 +563,23 @@ function TradeTable({ trades }: { trades: BacktestTrade[] }) {
   return (
     <div className="overflow-x-auto">
       <table
-        className="w-full min-w-[850px] text-left text-[11.5px]"
+        className="w-full min-w-[1120px] text-left text-[11.5px]"
         data-testid="table-underlying-trades"
       >
         <thead>
           <tr className="border-b border-border/60">
             {[
-              'Signal / entry',
+              'Signal / fill time',
               'Side',
-              'Score',
-              'Entry → exit',
+              'Limit order',
+              'Filled entry',
+              'Stop / target',
+              'Actual exit',
               'Exit reason',
               'Gross P&L',
-              'Fees',
+              'Fee detail',
               'Funding',
-              'Spread',
-              'Slippage',
+              'Other costs',
               'Net P&L',
             ].map((label) => (
               <th
@@ -599,13 +609,32 @@ function TradeTable({ trades }: { trades: BacktestTrade[] }) {
               <td className="px-2.5 py-2">
                 <SideLabel side={trade.side} />
               </td>
-              <td className="num px-2.5 py-2">
-                {trade.score === null ? 'Not applied' : numeric(trade.score, 1)}
+              <td className="num whitespace-nowrap px-2.5 py-2">
+                {numeric(trade.entryOrderPrice ?? trade.entryPrice, 4)}
+                <span className="block text-[10px] text-muted-foreground">
+                  limit · {trade.entryFeeType}
+                </span>
               </td>
               <td className="num whitespace-nowrap px-2.5 py-2">
-                {numeric(trade.entryPrice, 4)}{' '}
-                <span className="text-muted-foreground">→</span>{' '}
+                {numeric(trade.entryPrice, 4)}
+                <span className="block text-[10px] text-muted-foreground">
+                  {trade.entryOrderType === 'legacy_next_open'
+                    ? 'legacy open'
+                    : 'simulated fill'}
+                </span>
+              </td>
+              <td className="num whitespace-nowrap px-2.5 py-2">
+                <span className="text-loss">{numeric(trade.stopPrice, 4)}</span>
+                <span className="text-muted-foreground"> / </span>
+                <span className="text-profit">
+                  {numeric(trade.targetPrice, 4)}
+                </span>
+              </td>
+              <td className="num whitespace-nowrap px-2.5 py-2">
                 {numeric(trade.exitPrice, 4)}
+                <span className="block text-[10px] text-muted-foreground">
+                  {trade.exitFeeType} · {dateTime(trade.exitedAt)}
+                </span>
               </td>
               <td className="px-2.5 py-2 capitalize">
                 {trade.exitReason.replaceAll('_', ' ')}
@@ -619,7 +648,9 @@ function TradeTable({ trades }: { trades: BacktestTrade[] }) {
                 {money(trade.grossPnlUsdt)}
               </td>
               <td className="num whitespace-nowrap px-2.5 py-2 text-muted-foreground">
-                {money(trade.feeUsdt)}
+                {trade.entryOrderType === 'legacy_next_open'
+                  ? money(trade.feeUsdt)
+                  : `${money(trade.makerFeeUsdt)} maker · ${money(trade.takerFeeUsdt)} taker`}
               </td>
               <td
                 className={cn(
@@ -630,10 +661,13 @@ function TradeTable({ trades }: { trades: BacktestTrade[] }) {
                 {money(trade.fundingUsdt)}
               </td>
               <td className="num whitespace-nowrap px-2.5 py-2 text-muted-foreground">
-                {money(trade.spreadCostUsdt)}
-              </td>
-              <td className="num whitespace-nowrap px-2.5 py-2 text-muted-foreground">
-                {money(trade.slippageCostUsdt)}
+                {money(
+                  numberOf(trade.spreadCostUsdt) === null ||
+                    numberOf(trade.slippageCostUsdt) === null
+                    ? null
+                    : Number(trade.spreadCostUsdt) +
+                        Number(trade.slippageCostUsdt),
+                )}
               </td>
               <td
                 className={cn(
@@ -648,6 +682,129 @@ function TradeTable({ trades }: { trades: BacktestTrade[] }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+function EntryOrderTable({ orders }: { orders: BacktestEntryOrder[] }) {
+  if (!orders.length) return null;
+  const notFilled = orders.filter((order) => order.status !== 'filled');
+  if (!notFilled.length) return null;
+  return (
+    <div
+      className="border-t border-border/50"
+      data-testid="section-entry-orders"
+    >
+      <header className="flex items-center justify-between px-4 py-2.5">
+        <div>
+          <h3 className="text-[11.5px] font-medium">
+            Unfilled or cancelled limit orders
+          </h3>
+          <p className="mt-0.5 text-[10px] text-muted-foreground">
+            These are not counted as trades or included in win rate.
+          </p>
+        </div>
+        <span className="num text-[10px] text-muted-foreground">
+          {notFilled.length} orders
+        </span>
+      </header>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[680px] text-left text-[10.5px]">
+          <thead>
+            <tr className="border-y border-border/40">
+              {[
+                'Signal time',
+                'Side',
+                'Limit price',
+                'Expires',
+                'Status',
+                'Reason',
+              ].map((label) => (
+                <th
+                  className="eyebrow whitespace-nowrap px-3 py-2 first:pl-4"
+                  key={label}
+                >
+                  {label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {notFilled.map((order, index) => (
+              <tr
+                className="border-b border-border/30"
+                data-testid={`row-entry-order-${index}`}
+                key={`${order.signalAt}-${index}`}
+              >
+                <td className="num whitespace-nowrap px-3 py-2 first:pl-4">
+                  {dateTime(order.signalAt)}
+                </td>
+                <td className="px-3 py-2">
+                  <SideLabel side={order.side} />
+                </td>
+                <td className="num px-3 py-2">
+                  {numeric(order.limitPrice, 4)}
+                </td>
+                <td className="num whitespace-nowrap px-3 py-2">
+                  {dateTime(order.expiresAt)}
+                </td>
+                <td className="px-3 py-2 capitalize">{order.status}</td>
+                <td className="px-3 py-2 text-muted-foreground">
+                  {order.reason}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function HistoricalReviewCard({
+  review,
+}: {
+  review: HistoricalReviewResponse;
+}) {
+  return (
+    <article
+      className="rounded border border-teal/30 bg-teal/[0.04] p-3"
+      data-testid="card-historical-ai-review"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[11px] font-medium">Advisory review</p>
+        <p className="num text-[9.5px] text-muted-foreground">
+          {review.model} · {review.inputTokens + review.outputTokens} tokens ·{' '}
+          {money(review.costUsd, 4)}
+        </p>
+      </div>
+      <p className="mt-2 text-[11.5px] leading-relaxed">
+        {review.answer.summary}
+      </p>
+      {[
+        ['Observations', review.answer.observations],
+        ['Risks', review.answer.risks],
+        ['Limitations', review.answer.limitations],
+      ].map(([title, items]) =>
+        Array.isArray(items) && items.length ? (
+          <div className="mt-2" key={String(title)}>
+            <p className="eyebrow">{String(title)}</p>
+            <ul className="mt-1 list-inside list-disc space-y-1 text-[10.5px] text-muted-foreground">
+              {items.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null,
+      )}
+      <p className="mt-2 break-words font-mono text-[9px] text-muted-foreground">
+        Evidence: {review.answer.evidenceIds.join(', ') || 'none cited'} · run
+        fingerprint {review.dataSha256}
+      </p>
+      <p className="mt-2 border-t border-border/50 pt-2 text-[9.5px] text-muted-foreground">
+        Historical commentary only. Not a trade recommendation, approval, or
+        execution instruction.
+      </p>
+    </article>
   );
 }
 
@@ -769,22 +926,43 @@ function ResultView({
   result,
   onChooseAnother,
   latestRunId,
+  reviewEnabled,
+  reviewNotice,
 }: {
   result: BacktestResult;
   onChooseAnother: (id: string) => void;
   latestRunId: string;
+  reviewEnabled: boolean;
+  reviewNotice: string;
 }) {
+  const queryClient = useQueryClient();
   const initialIndex = Math.max(
     0,
     result.segments.findIndex((item) => item.period === 'out_of_sample'),
   );
   const [segmentIndex, setSegmentIndex] = useState(initialIndex);
+  const [reviewQuestion, setReviewQuestion] = useState('');
+  const reviewRun = useCreateStrategyBacktestReview();
+  const reviewsQuery = useListStrategyBacktestReviews(result.id, {
+    query: {
+      queryKey: getListStrategyBacktestReviewsQueryKey(result.id),
+      enabled: Boolean(result.id),
+    },
+  });
   const segment = result.segments[segmentIndex];
   const metrics = segment?.metrics;
   const totalTrades = result.segments.reduce(
     (sum, item) => sum + item.metrics.tradeCount,
     0,
   );
+  const orderAwareRun = result.engineVersion === 'okx-limit-order-candle-v3';
+  const savedReviews = [...(reviewsQuery.data ?? [])];
+  if (
+    reviewRun.data &&
+    !savedReviews.some((review) => review.id === reviewRun.data?.id)
+  ) {
+    savedReviews.unshift(reviewRun.data);
+  }
   const statusIncomplete =
     result.candleCoverage.some((c) => c.missingCandles > 0) ||
     result.fundingCoverage.status === 'partial' ||
@@ -1017,6 +1195,11 @@ function ResultView({
                       {money(segment.metrics.totalFeesUsdt)}
                     </span>
                   </KV>
+                  <KV label="Maker / taker fees">
+                    {orderAwareRun
+                      ? `${money(segment.metrics.totalMakerFeesUsdt)} / ${money(segment.metrics.totalTakerFeesUsdt)}`
+                      : 'Not separated in this saved run'}
+                  </KV>
                   <KV label="Funding">
                     <span
                       className={signTone(segment.metrics.totalFundingUsdt)}
@@ -1024,15 +1207,16 @@ function ResultView({
                       {money(segment.metrics.totalFundingUsdt)}
                     </span>
                   </KV>
-                  <KV label="Spread cost">
+                  <KV label="Legacy spread / slippage">
                     <span className="text-muted-foreground">
-                      {money(segment.metrics.totalSpreadCostUsdt)}
-                    </span>
-                  </KV>
-                  <KV label="Slippage cost">
-                    <span className="text-muted-foreground">
+                      {money(segment.metrics.totalSpreadCostUsdt)} /{' '}
                       {money(segment.metrics.totalSlippageCostUsdt)}
                     </span>
+                  </KV>
+                  <KV label="Unfilled limit orders">
+                    {orderAwareRun
+                      ? segment.metrics.unfilledEntryOrders.toLocaleString()
+                      : 'Not tracked in this saved run'}
                   </KV>
                   <KV label="Unclosed excluded">
                     {segment.metrics.excludedUnclosedTrades.toLocaleString()}
@@ -1072,14 +1256,111 @@ function ResultView({
 
       <section
         className="panel overflow-hidden"
+        data-testid="section-historical-ai-review"
+      >
+        <header className="border-b border-border/60 px-4 py-3">
+          <h2 className="text-[13px] font-semibold">
+            Ask AI about this saved run
+          </h2>
+          <p className="mt-1 text-[10.5px] leading-relaxed text-muted-foreground">
+            Reviews the immutable data snapshot and a bounded sample of trades
+            and candles. Advisory only; it cannot recommend or place a live
+            order.
+          </p>
+        </header>
+        <div className="space-y-3 p-4">
+          {!reviewEnabled && (
+            <p
+              className="rounded border border-warn/30 bg-warn/[0.05] px-3 py-2 text-[10.5px] leading-relaxed text-muted-foreground"
+              data-testid="notice-historical-ai-review-disabled"
+            >
+              {reviewNotice}
+            </p>
+          )}
+          <label className="block">
+            <span className="eyebrow">Your question</span>
+            <textarea
+              value={reviewQuestion}
+              onChange={(event) => setReviewQuestion(event.target.value)}
+              maxLength={500}
+              rows={3}
+              placeholder="For example: What were the most common reasons entries did not fill?"
+              data-testid="input-historical-review-question"
+              className="focus-ring mt-1.5 w-full rounded border border-input bg-background px-3 py-2 text-[12px] leading-relaxed"
+            />
+          </label>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[10px] text-muted-foreground">
+              No AI call occurs until you submit. Each review uses configured
+              per-run and daily cost caps.
+            </p>
+            <button
+              type="button"
+              disabled={
+                !reviewEnabled || reviewRun.isPending || !reviewQuestion.trim()
+              }
+              onClick={() =>
+                reviewRun.mutate(
+                  {
+                    runId: result.id,
+                    data: { question: reviewQuestion.trim() },
+                  },
+                  {
+                    onSuccess: () => {
+                      setReviewQuestion('');
+                      void queryClient.invalidateQueries({
+                        queryKey: getListStrategyBacktestReviewsQueryKey(
+                          result.id,
+                        ),
+                      });
+                    },
+                  },
+                )
+              }
+              data-testid="button-ask-historical-review"
+              className="focus-ring inline-flex h-9 items-center justify-center gap-2 rounded border border-teal/50 bg-teal/10 px-3 text-[11px] font-semibold text-teal disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {reviewRun.isPending ? (
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              ) : (
+                <CircleHelp className="h-3.5 w-3.5" aria-hidden />
+              )}
+              {reviewRun.isPending ? 'Reviewing saved evidence' : 'Ask AI'}
+            </button>
+          </div>
+          {reviewRun.isError && (
+            <p
+              role="alert"
+              className="rounded border border-loss/30 bg-loss/[0.05] px-3 py-2 text-[10.5px] text-loss"
+              data-testid="error-historical-ai-review"
+            >
+              The review was not completed. Check the saved-run access and
+              review budget before trying again; failed provider calls are not
+              retried automatically.
+            </p>
+          )}
+          {reviewsQuery.isError && (
+            <p className="text-[10px] text-muted-foreground" role="status">
+              Saved review history could not be loaded. A new review will still
+              be stored against this backtest.
+            </p>
+          )}
+          {savedReviews.slice(0, 5).map((review) => (
+            <HistoricalReviewCard key={review.id} review={review} />
+          ))}
+        </div>
+      </section>
+
+      <section
+        className="panel overflow-hidden"
         data-testid="section-underlying-trades"
       >
         <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 px-4 py-3">
           <div>
             <h2 className="text-[13px] font-semibold">Underlying trades</h2>
             <p className="mt-0.5 text-[10.5px] text-muted-foreground">
-              Selected market, side, and chronological period. Cost components
-              remain separate.
+              Selected market, side, and chronological period. Target and stop
+              are shown beside the simulated order fills.
             </p>
           </div>
           <span
@@ -1090,7 +1371,10 @@ function ResultView({
           </span>
         </header>
         {segment ? (
-          <TradeTable trades={segment.trades} />
+          <>
+            <TradeTable trades={segment.trades} />
+            <EntryOrderTable orders={segment.entryOrders} />
+          </>
         ) : (
           <div className="px-4 py-7 text-center text-xs text-muted-foreground">
             Trade detail is not available for this result.
@@ -1146,10 +1430,7 @@ export default function StrategyLabPage() {
   const createRun = useCreateStrategyBacktest();
   const [symbol, setSymbol] = useState<Pair>('BTCUSDT');
   const [days, setDays] = useState(14);
-  const [spreadBps, setSpreadBps] = useState('2');
-  const [slippageBps, setSlippageBps] = useState('2');
   const [selectedId, setSelectedId] = useState('');
-  const initializedCosts = useRef(false);
   const strategy = overviewQuery.data?.strategy;
   const recentRuns = listQuery.data ?? overviewQuery.data?.recentRuns ?? [];
   const activeRunId = selectedId || recentRuns[0]?.id || '';
@@ -1168,29 +1449,11 @@ export default function StrategyLabPage() {
     !listQuery.isError &&
     recentRuns.length === 0;
 
-  const setNumericField = (
-    value: string,
-    setter: (next: string) => void,
-    min: number,
-    max: number,
-  ) => {
-    if (value === '' || /^\d*\.?\d*$/.test(value)) {
-      const parsed = Number(value);
-      if (
-        value === '' ||
-        (Number.isFinite(parsed) && parsed >= min && parsed <= max)
-      )
-        setter(value);
-    }
-  };
-
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const input: BacktestInput = {
       symbol,
       days,
-      spreadBps: Number(spreadBps),
-      slippageBps: Number(slippageBps),
     };
     createRun.reset();
     createRun.mutate(
@@ -1220,13 +1483,6 @@ export default function StrategyLabPage() {
     !overviewQuery.data &&
     listQuery.isError &&
     !listQuery.data;
-
-  useEffect(() => {
-    if (!strategy || initializedCosts.current) return;
-    setSpreadBps(String(strategy.spreadBps));
-    setSlippageBps(String(strategy.slippageBps));
-    initializedCosts.current = true;
-  }, [strategy]);
 
   return (
     <div
@@ -1305,9 +1561,11 @@ export default function StrategyLabPage() {
               aria-hidden
             />
             <div>
-              <p className="text-[12px] font-semibold">Paid AI review</p>
+              <p className="text-[12px] font-semibold">Historical AI review</p>
               <p className="mt-0.5 text-[10.5px] text-muted-foreground">
-                Disabled · no provider calls are made
+                {overviewQuery.data?.status.historicalAiReviewEnabled
+                  ? 'Manually requested · bounded by the server budget'
+                  : 'Disabled · no provider calls are made'}
               </p>
               {overviewQuery.data?.status.notice && (
                 <p
@@ -1319,15 +1577,14 @@ export default function StrategyLabPage() {
               )}
             </div>
           </div>
-          <button
-            type="button"
-            disabled
-            aria-disabled="true"
-            data-testid="button-paid-ai-review-disabled"
-            className="cursor-not-allowed rounded border border-border bg-muted/60 px-2.5 py-1.5 text-[10px] text-muted-foreground opacity-70"
+          <span
+            data-testid="status-historical-ai-review"
+            className="rounded border border-border bg-muted/60 px-2.5 py-1.5 text-[10px] text-muted-foreground"
           >
-            Unavailable
-          </button>
+            {overviewQuery.data?.status.historicalAiReviewEnabled
+              ? 'Ready'
+              : 'Locked'}
+          </span>
         </div>
       </section>
 
@@ -1337,13 +1594,13 @@ export default function StrategyLabPage() {
           data-testid="status-lab-gates"
         >
           <div className="panel flex items-center justify-between gap-2 px-3 py-2">
-            <span className="eyebrow">Paid review</span>
+            <span className="eyebrow">Historical review</span>
             <span
               className="text-[10.5px] font-medium text-muted-foreground"
               data-testid="status-paid-review"
             >
-              {overviewQuery.data.status.paidCommitteeReviewEnabled
-                ? 'Enabled by server'
+              {overviewQuery.data.status.historicalAiReviewEnabled
+                ? 'Enabled with budget'
                 : 'Disabled'}
             </span>
           </div>
@@ -1499,57 +1756,13 @@ export default function StrategyLabPage() {
                       <span>30 days</span>
                     </span>
                   </label>
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <label className="block">
-                      <span className="eyebrow">Spread · bps</span>
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        value={spreadBps}
-                        onChange={(event) =>
-                          setNumericField(
-                            event.target.value,
-                            setSpreadBps,
-                            0,
-                            100,
-                          )
-                        }
-                        data-testid="input-spread-bps"
-                        aria-label="Estimated spread in basis points"
-                        className="focus-ring num mt-1.5 h-9 w-full rounded border border-input bg-background px-2.5 text-[12px]"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="eyebrow">Slippage · bps</span>
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        value={slippageBps}
-                        onChange={(event) =>
-                          setNumericField(
-                            event.target.value,
-                            setSlippageBps,
-                            0,
-                            100,
-                          )
-                        }
-                        data-testid="input-slippage-bps"
-                        aria-label="Estimated slippage in basis points"
-                        className="focus-ring num mt-1.5 h-9 w-full rounded border border-input bg-background px-2.5 text-[12px]"
-                      />
-                    </label>
-                  </div>
                   <p
                     className="text-[10.5px] leading-relaxed text-muted-foreground"
                     data-testid="text-cost-assumption-hint"
                   >
-                    Fee and historical funding coverage are actual data. Spread
-                    and slippage are configurable estimates; shown separately in
-                    the result.
+                    Entries rest at the pullback limit for up to four 15m
+                    candles. Maker/taker fee defaults and available futures
+                    funding are included; no separate spread or slippage charge.
                   </p>
                   <button
                     type="submit"
@@ -1726,6 +1939,14 @@ export default function StrategyLabPage() {
                   result={result}
                   onChooseAnother={chooseRun}
                   latestRunId={recentRuns[0]?.id ?? result.id}
+                  reviewEnabled={
+                    overviewQuery.data?.status.historicalAiReviewEnabled ??
+                    false
+                  }
+                  reviewNotice={
+                    overviewQuery.data?.status.notice ??
+                    'Historical AI review is not configured.'
+                  }
                 />
               )}
               {!activeRunId && isNoSavedRuns && (
@@ -1740,10 +1961,9 @@ export default function StrategyLabPage() {
                     A clean historical sample starts here
                   </p>
                   <p className="mx-auto mt-1 max-w-md text-[11.5px] leading-relaxed text-muted-foreground">
-                    Set a bounded lookback, include conservative execution
-                    estimates, then compare development with chronological
-                    out-of-sample behavior. The first run is saved for
-                    inspection.
+                    Choose a supported instrument and bounded lookback, then
+                    inspect limit fills and compare development with
+                    chronological out-of-sample behavior.
                   </p>
                 </div>
               )}

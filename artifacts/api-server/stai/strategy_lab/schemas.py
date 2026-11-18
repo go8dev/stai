@@ -19,8 +19,6 @@ PeriodName = Literal["development", "out_of_sample"]
 class BacktestInput(ApiModel):
     symbol: BacktestSymbol
     days: int = Field(ge=7, le=30)
-    spread_bps: Decimal = Field(ge=0, le=50)
-    slippage_bps: Decimal = Field(ge=0, le=50)
 
 
 class StrategyConfiguration(DefaultedResponse):
@@ -36,15 +34,20 @@ class StrategyConfiguration(DefaultedResponse):
     sample_split: str
     notional_usdt: Decimal
     leverage: Decimal
-    spread_bps: Decimal
-    slippage_bps: Decimal
+    spread_bps: Decimal = Decimal("0")
+    slippage_bps: Decimal = Decimal("0")
     no_lookahead_rule: str
     execution_assumptions: list[str]
     entry_rules: list[str] = Field(default_factory=list)
     score_gate_enabled: bool = True
+    entry_limit_rule: str = "Legacy next-15m-open entry."
+    entry_expiry_bars: int = 0
+    entry_fee_type: Literal["maker", "taker"] = "taker"
+    target_fee_type: Literal["maker", "taker"] = "taker"
+    stop_fee_type: Literal["maker", "taker"] = "taker"
 
 
-class BacktestMetrics(ApiModel):
+class BacktestMetrics(DefaultedResponse):
     trade_count: int
     wins: int
     losses: int
@@ -64,6 +67,9 @@ class BacktestMetrics(ApiModel):
     total_spread_cost_usdt: Decimal
     total_slippage_cost_usdt: Decimal
     excluded_unclosed_trades: int
+    unfilled_entry_orders: int = 0
+    total_maker_fees_usdt: Decimal = Decimal("0")
+    total_taker_fees_usdt: Decimal = Decimal("0")
 
 
 class EquityPoint(ApiModel):
@@ -72,7 +78,7 @@ class EquityPoint(ApiModel):
     cumulative_pnl_usdt: Decimal
 
 
-class BacktestTrade(ApiModel):
+class BacktestTrade(DefaultedResponse):
     signal_at: datetime
     entered_at: datetime
     exited_at: datetime
@@ -91,6 +97,24 @@ class BacktestTrade(ApiModel):
     slippage_cost_usdt: Decimal
     net_pnl_usdt: Decimal
     return_on_notional_pct: Decimal
+    entry_order_price: Decimal | None = None
+    entry_order_type: str = "legacy_next_open"
+    entry_fee_type: Literal["maker", "taker"] = "taker"
+    exit_order_type: str = "legacy_rule_exit"
+    exit_fee_type: Literal["maker", "taker"] = "taker"
+    maker_fee_usdt: Decimal = Decimal("0")
+    taker_fee_usdt: Decimal = Decimal("0")
+
+
+class BacktestEntryOrder(DefaultedResponse):
+    signal_at: datetime
+    side: TradeSide
+    limit_price: Decimal
+    expires_at: datetime
+    status: Literal["filled", "unfilled", "cancelled"]
+    filled_at: datetime | None = None
+    fill_price: Decimal | None = None
+    reason: str
 
 
 class BacktestSegment(DefaultedResponse):
@@ -103,6 +127,7 @@ class BacktestSegment(DefaultedResponse):
     equity_curve: list[EquityPoint]
     trades: list[BacktestTrade]
     entry_diagnostics: dict[str, int] = Field(default_factory=dict)
+    entry_orders: list[BacktestEntryOrder] = Field(default_factory=list)
 
 
 class CandleCoverage(ApiModel):
@@ -127,11 +152,38 @@ class FundingCoverage(ApiModel):
     note: str
 
 
-class StrategyLabStatus(ApiModel):
+class StrategyLabStatus(DefaultedResponse):
     paid_committee_review_enabled: bool
+    historical_ai_review_enabled: bool = False
     trading_enabled: bool
     proposal_creation_enabled: bool
     notice: str
+
+
+class HistoricalReviewInput(ApiModel):
+    question: str = Field(min_length=1, max_length=500)
+
+
+class HistoricalReviewAnswer(DefaultedResponse):
+    summary: str
+    observations: list[str]
+    risks: list[str]
+    limitations: list[str]
+    evidence_ids: list[str]
+
+
+class HistoricalReviewResponse(DefaultedResponse):
+    id: str
+    backtest_id: str
+    data_sha256: str
+    created_at: datetime
+    question: str
+    model: str
+    input_tokens: int
+    output_tokens: int
+    cost_usd: Decimal
+    answer: HistoricalReviewAnswer
+    advisory_only: bool = True
 
 
 class BacktestResult(ApiModel):

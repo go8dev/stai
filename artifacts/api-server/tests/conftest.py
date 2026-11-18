@@ -55,6 +55,7 @@ API_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = API_ROOT.parents[1]
 
 _TABLES = (
+    "strategy_backtest_reviews",
     "strategy_backtest_runs",
     "committee_calls",
     "committee_findings",

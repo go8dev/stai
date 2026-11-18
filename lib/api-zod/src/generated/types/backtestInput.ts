@@ -14,6 +14,4 @@ export interface BacktestInput {
      * @maximum 30
      */
   days: number;
-  spreadBps: number | string;
-  slippageBps: number | string;
 }

@@ -36,7 +36,9 @@ from stai.strategies.pullback import (
     indicator_series,
     replay,
 )
+from stai.strategies.schemas import PullbackEvidence
 from stai.strategy_lab.schemas import (
+    BacktestEntryOrder,
     BacktestMetrics,
     BacktestResult,
     BacktestSegment,
@@ -50,20 +52,19 @@ from stai.strategy_lab.schemas import (
 )
 from stai.trading.accounting import FeeSchedule
 
-ENGINE_VERSION = "okx-closed-candle-v2"
+ENGINE_VERSION = "okx-limit-order-candle-v3"
 INITIAL_EQUITY = Decimal("1000")
 TRADE_NOTIONAL = Decimal("100")
 LEVERAGE = Decimal("1")
 BAR_INTERVAL = timedelta(minutes=15)
 MAX_HOLD_BARS = 4
+ENTRY_EXPIRY_BARS = 4
 INDICATOR_WARMUP = timedelta(days=7)
 _MONEY_QUANTUM = Decimal("0.000001")
 _PERCENT_QUANTUM = Decimal("0.0001")
 
 
-def strategy_configuration(
-    *, spread_bps: Decimal = Decimal("5"), slippage_bps: Decimal = Decimal("5")
-) -> StrategyConfiguration:
+def strategy_configuration() -> StrategyConfiguration:
     return StrategyConfiguration(
         strategy_version=STRATEGY_VERSION,
         score_threshold=STRATEGY_THRESHOLD,
@@ -86,15 +87,23 @@ def strategy_configuration(
         futures_sides=["long", "short"],
         take_profit_level="TP1: EMA-7 × 1.015 long / EMA-7 × 0.985 short",
         stop_rule="EMA-99 minus 1.5% long / plus 1.5% short",
+        entry_limit_rule=(
+            "After confirmation, rest a limit at the original pullback candle high (long) "
+            "or low (short); fill only on a later candle touch."
+        ),
+        entry_expiry_bars=ENTRY_EXPIRY_BARS,
+        entry_fee_type="maker",
+        target_fee_type="maker",
+        stop_fee_type="taker",
         max_hold_minutes=60,
         sample_split="Chronological 70% development / 30% out-of-sample",
         notional_usdt=TRADE_NOTIONAL,
         leverage=LEVERAGE,
-        spread_bps=spread_bps,
-        slippage_bps=slippage_bps,
+        spread_bps=Decimal("0"),
+        slippage_bps=Decimal("0"),
         no_lookahead_rule=(
-            "Evaluate only a closed 15m signal candle using the latest closed 1h and BTC "
-            "context candles; enter at the next 15m candle open."
+            "Evaluate only closed signal candles using the latest closed 1h and BTC context. "
+            "A later 15m candle must touch the resting limit before a trade is counted."
         ),
         execution_assumptions=[
             "Uses the shared ema25-pullback-v2 entry state machine, with no legacy score gate. "
@@ -103,10 +112,12 @@ def strategy_configuration(
             "Exit levels are inherited, unvalidated EMA references, NOT new approved exits. "
             "Invalid entry/stop/target geometry is rejected and counted.",
             "Fixed 100 USDT notional per trade; 1x exposure; no compounding.",
-            "Taker fees use STAI's configurable defaults, not an account-specific OKX tier.",
-            "Historical candles do not contain order-book spreads; the selected spread and "
-            "slippage values are assumptions, not measured historical fills.",
-            "Stops win ties when both stop and target are touched in one 15m candle.",
+            "Limit entry and take-profit fills use maker fees; stop-market and time exits use "
+            "taker fees from STAI defaults, not an account-specific OKX tier.",
+            "No separate spread or slippage charge is applied. Candle touches approximate a "
+            "full fill; actual queue position and partial fills are unavailable.",
+            "An entry candle stop is evaluated conservatively; same-candle stop/target ties "
+            "resolve to the stop. A target is not credited on the entry candle.",
         ],
     )
 
@@ -288,6 +299,10 @@ def _has_recent_warmup(
 def _valid_levels(side: TradeSide, entry: Decimal, levels: dict[str, float]) -> bool:
     stop = Decimal(str(levels["stop_loss"]))
     target = Decimal(str(levels["tp1"]))
+    return _valid_price_geometry(side, entry, stop, target)
+
+
+def _valid_price_geometry(side: TradeSide, entry: Decimal, stop: Decimal, target: Decimal) -> bool:
     return stop < entry < target if side == TradeSide.LONG else target < entry < stop
 
 
@@ -314,6 +329,9 @@ def _find_exit(
             if stop_hit:
                 return index, min(open_price, stop) if open_price < stop else stop, "stop_loss"
             if target_hit:
+                if index == entry_index:
+                    # OHLC cannot prove the target was touched after the limit entry filled.
+                    continue
                 exit_price = max(open_price, target) if open_price > target else target
                 return index, exit_price, "take_profit_1"
         else:
@@ -322,6 +340,8 @@ def _find_exit(
             if stop_hit:
                 return index, max(open_price, stop) if open_price > stop else stop, "stop_loss"
             if target_hit:
+                if index == entry_index:
+                    continue
                 exit_price = min(open_price, target) if open_price < target else target
                 return index, exit_price, "take_profit_1"
         if index == entry_index + MAX_HOLD_BARS - 1:
@@ -347,28 +367,41 @@ def _trade_from_exit(
     exit_reason: Literal["stop_loss", "take_profit_1", "time_limit"],
     market_type: MarketType,
     funding: list[tuple[datetime, Decimal]],
-    spread_bps: Decimal,
-    slippage_bps: Decimal,
+    entry_fee_type: Literal["maker", "taker"],
+    exit_fee_type: Literal["maker", "taker"],
+    entry_order_price: Decimal,
 ) -> BacktestTrade:
     direction = Decimal("1") if side == TradeSide.LONG else Decimal("-1")
     quantity = TRADE_NOTIONAL / entry
     exit_notional = quantity * exit_price
     gross = quantity * (exit_price - entry) * direction
-    fee_rate = FeeSchedule().rate(market_type, "taker")
-    fees = (TRADE_NOTIONAL + exit_notional) * fee_rate
-    spread_cost = (TRADE_NOTIONAL + exit_notional) * spread_bps / Decimal("20000")
-    slippage_cost = (TRADE_NOTIONAL + exit_notional) * slippage_bps / Decimal("10000")
+    fee_schedule = FeeSchedule()
+    entry_fee = TRADE_NOTIONAL * fee_schedule.rate(market_type, entry_fee_type)
+    exit_fee = exit_notional * fee_schedule.rate(market_type, exit_fee_type)
+    fees = entry_fee + exit_fee
+    maker_fees = sum(
+        (
+            fee
+            for fee, kind in ((entry_fee, entry_fee_type), (exit_fee, exit_fee_type))
+            if kind == "maker"
+        ),
+        Decimal("0"),
+    )
+    taker_fees = fees - maker_fees
+    spread_cost = Decimal("0")
+    slippage_cost = Decimal("0")
     exit_at = _as_utc(exit_bar.opened_at) + BAR_INTERVAL
+    entered_at = _as_utc(entry_bar.opened_at) + BAR_INTERVAL
     funding_cost = Decimal("0")
     if market_type == "futures":
         for funding_at, rate in funding:
             funding_at = _as_utc(funding_at)
-            if _as_utc(entry_bar.opened_at) < funding_at <= exit_at:
+            if entered_at < funding_at <= exit_at:
                 funding_cost += TRADE_NOTIONAL * rate * direction
     net = gross - fees - spread_cost - slippage_cost - funding_cost
     return BacktestTrade(
         signal_at=_as_utc(signal_bar.opened_at) + BAR_INTERVAL,
-        entered_at=_as_utc(entry_bar.opened_at),
+        entered_at=entered_at,
         exited_at=exit_at,
         side=side.value,
         score=_quantize(score, _PERCENT_QUANTUM) if score is not None else None,
@@ -385,6 +418,15 @@ def _trade_from_exit(
         slippage_cost_usdt=_quantize(slippage_cost),
         net_pnl_usdt=_quantize(net),
         return_on_notional_pct=_quantize(net / TRADE_NOTIONAL * 100, _PERCENT_QUANTUM),
+        entry_order_price=_quantize(entry_order_price, _PERCENT_QUANTUM),
+        entry_order_type="resting_limit",
+        entry_fee_type=entry_fee_type,
+        exit_order_type=(
+            "take_profit_limit" if exit_reason == "take_profit_1" else "stop_market_or_time"
+        ),
+        exit_fee_type=exit_fee_type,
+        maker_fee_usdt=_quantize(maker_fees),
+        taker_fee_usdt=_quantize(taker_fees),
     )
 
 
@@ -393,6 +435,7 @@ def _metrics(
     *,
     excluded: int,
     period_start: datetime,
+    unfilled_entry_orders: int = 0,
 ) -> tuple[BacktestMetrics, list[EquityPoint]]:
     wins = sum(trade.net_pnl_usdt > 0 for trade in trades)
     losses = sum(trade.net_pnl_usdt < 0 for trade in trades)
@@ -458,6 +501,13 @@ def _metrics(
             sum((trade.slippage_cost_usdt for trade in trades), Decimal("0"))
         ),
         excluded_unclosed_trades=excluded,
+        unfilled_entry_orders=unfilled_entry_orders,
+        total_maker_fees_usdt=_quantize(
+            sum((trade.maker_fee_usdt for trade in trades), Decimal("0"))
+        ),
+        total_taker_fees_usdt=_quantize(
+            sum((trade.taker_fee_usdt for trade in trades), Decimal("0"))
+        ),
     )
     return metrics, curve
 
@@ -552,7 +602,7 @@ def _strategy_trade(
     *,
     bars: list[CandlePoint],
     target_h1_snapshots: dict[int, MarketSnapshot],
-    qualified: bool,
+    signal_state: PullbackEvidence | None,
     diagnostics: dict[str, int],
     signal_index: int,
     end_index: int,
@@ -560,36 +610,151 @@ def _strategy_trade(
     market_type: MarketType,
     side: TradeSide,
     funding: list[tuple[datetime, Decimal]],
-    spread_bps: Decimal,
-    slippage_bps: Decimal,
-) -> tuple[BacktestTrade | None, int, bool]:
+) -> tuple[BacktestTrade | None, BacktestEntryOrder | None, int, bool]:
     signal_bar = bars[signal_index]
     signal_close = _as_utc(signal_bar.opened_at) + BAR_INTERVAL
     hourly_open = _latest_closed_hour(signal_close)
     h1_key = _millis(hourly_open)
-    if not qualified:
-        return None, signal_index + 1, False
+    if signal_state is None:
+        return None, None, signal_index + 1, False
     diagnostics["confirmed_setups"] += 1
+    raw_limit = signal_state.pullback_high if side == TradeSide.LONG else signal_state.pullback_low
+    if raw_limit is None or not math.isfinite(raw_limit) or raw_limit <= 0:
+        diagnostics["invalid_entry_reference"] += 1
+        return None, None, signal_index + 1, False
+    limit_price = Decimal(str(raw_limit))
+    expires_at = signal_close + BAR_INTERVAL * ENTRY_EXPIRY_BARS
     h1 = target_h1_snapshots.get(h1_key)
     if h1 is None or h1.ema_7 is None or h1.ema_99 is None:
         diagnostics["missing_exit_indicators"] += 1
-        return None, signal_index + 1, False
+        diagnostics["entry_orders_cancelled"] += 1
+        return (
+            None,
+            BacktestEntryOrder(
+                signal_at=signal_close,
+                side=side.value,
+                limit_price=limit_price,
+                expires_at=expires_at,
+                status="cancelled",
+                reason="Required completed 1h stop/target indicators were unavailable.",
+            ),
+            signal_index + 1,
+            False,
+        )
     levels = derive_trade_levels(h1, side, float(signal_bar.close))
-
-    entry_index = signal_index + 1
-    if entry_index >= end_index or entry_index >= len(bars):
-        diagnostics["missing_next_open"] += 1
-        return None, signal_index + 1, False
-    entry_bar = bars[entry_index]
-    if entry_bar.opened_at != signal_close:
-        diagnostics["missing_next_open"] += 1
-        return None, signal_index + 1, False
-    entry = entry_bar.open
     stop = Decimal(str(levels["stop_loss"]))
     target = Decimal(str(levels["tp1"]))
-    if not _valid_levels(side, entry, levels):
+    if not _valid_price_geometry(side, limit_price, stop, target):
         diagnostics["invalid_exit_geometry"] += 1
-        return None, signal_index + 1, False
+        diagnostics["entry_orders_cancelled"] += 1
+        return (
+            None,
+            BacktestEntryOrder(
+                signal_at=signal_close,
+                side=side.value,
+                limit_price=limit_price,
+                expires_at=expires_at,
+                status="cancelled",
+                reason="Inherited stop/target geometry was invalid at the proposed limit price.",
+            ),
+            signal_index + 1,
+            False,
+        )
+
+    first_entry_index = signal_index + 1
+    last_entry_index = min(
+        signal_index + ENTRY_EXPIRY_BARS,
+        end_index - 1,
+        len(bars) - 1,
+    )
+    if first_entry_index > last_entry_index:
+        diagnostics["entry_orders_cancelled"] += 1
+        return (
+            None,
+            BacktestEntryOrder(
+                signal_at=signal_close,
+                side=side.value,
+                limit_price=limit_price,
+                expires_at=expires_at,
+                status="cancelled",
+                reason=(
+                    "The fill window crossed the sample boundary before an entry could be tested."
+                ),
+            ),
+            max(first_entry_index, end_index),
+            False,
+        )
+
+    entry_index: int | None = None
+    entry: Decimal | None = None
+    for index in range(first_entry_index, last_entry_index + 1):
+        entry_bar = bars[index]
+        if _as_utc(entry_bar.opened_at) != _as_utc(bars[index - 1].opened_at) + BAR_INTERVAL:
+            diagnostics["entry_orders_cancelled"] += 1
+            return (
+                None,
+                BacktestEntryOrder(
+                    signal_at=signal_close,
+                    side=side.value,
+                    limit_price=limit_price,
+                    expires_at=expires_at,
+                    status="cancelled",
+                    reason="A 15m data gap cancelled the unfilled entry order.",
+                ),
+                index + 1,
+                False,
+            )
+        touched = (
+            entry_bar.low <= limit_price
+            if side == TradeSide.LONG
+            else entry_bar.high >= limit_price
+        )
+        if touched:
+            entry_index = index
+            # A gap through a resting limit receives the better opening price.
+            entry = (
+                min(entry_bar.open, limit_price)
+                if side == TradeSide.LONG
+                else max(entry_bar.open, limit_price)
+            )
+            break
+
+    if entry_index is None or entry is None:
+        complete_window = last_entry_index == signal_index + ENTRY_EXPIRY_BARS
+        status = "unfilled" if complete_window else "cancelled"
+        reason = (
+            "Price did not revisit the limit within four completed 15m candles."
+            if complete_window
+            else "The entry window ended at the sample boundary or available-history edge."
+        )
+        diagnostics["unfilled_entry_orders" if complete_window else "entry_orders_cancelled"] += 1
+        return (
+            None,
+            BacktestEntryOrder(
+                signal_at=signal_close,
+                side=side.value,
+                limit_price=limit_price,
+                expires_at=expires_at,
+                status=status,
+                reason=reason,
+            ),
+            last_entry_index + 1,
+            False,
+        )
+
+    entry_bar = bars[entry_index]
+    entered_at = _as_utc(entry_bar.opened_at) + BAR_INTERVAL
+    order = BacktestEntryOrder(
+        signal_at=signal_close,
+        side=side.value,
+        limit_price=limit_price,
+        expires_at=expires_at,
+        status="filled",
+        filled_at=entered_at,
+        fill_price=entry,
+        reason="Limit touched in completed-candle history; full fill is an approximation.",
+    )
+    diagnostics["entry_orders_filled"] += 1
     exit_details = _find_exit(
         bars,
         entry_index=entry_index,
@@ -599,7 +764,7 @@ def _strategy_trade(
         target=target,
     )
     if exit_details is None:
-        return None, signal_index + 1, True
+        return None, order, end_index, True
     exit_index, exit_price, reason = exit_details
     trade = _trade_from_exit(
         side=side,
@@ -614,10 +779,11 @@ def _strategy_trade(
         exit_reason=reason,
         market_type=market_type,
         funding=funding,
-        spread_bps=spread_bps,
-        slippage_bps=slippage_bps,
+        entry_fee_type="maker",
+        exit_fee_type="maker" if reason == "take_profit_1" else "taker",
+        entry_order_price=limit_price,
     )
-    return trade, exit_index + 1, False
+    return trade, order, exit_index + 1, False
 
 
 def run_backtest(
@@ -632,8 +798,6 @@ def run_backtest(
     futures_bars: list[CandlePoint],
     btc_spot_bars: list[CandlePoint],
     funding: list[tuple[datetime, Decimal]],
-    spread_bps: Decimal,
-    slippage_bps: Decimal,
     data_sha256: str,
     btc_futures_bars: list[CandlePoint] | None = None,
 ) -> BacktestResult:
@@ -698,14 +862,19 @@ def run_backtest(
             )
             for side in supported_sides:
                 trades: list[BacktestTrade] = []
+                entry_orders: list[BacktestEntryOrder] = []
                 excluded = 0
                 diagnostics = {
                     "confirmed_setups": 0,
                     "missing_exit_indicators": 0,
                     "invalid_exit_geometry": 0,
-                    "missing_next_open": 0,
+                    "invalid_entry_reference": 0,
+                    "entry_orders_filled": 0,
+                    "entry_orders_cancelled": 0,
+                    "unfilled_entry_orders": 0,
                     "overlapping_signals_skipped": 0,
                 }
+                side_signals = {_as_utc(at): state for at, state in signals[side.value].items()}
                 index = first_index
                 while index < end_index:
                     # Avoid running indicators on a stale/gapped EMA history.
@@ -728,10 +897,10 @@ def run_backtest(
                     ):
                         index += 1
                         continue
-                    trade, next_index, censored = _strategy_trade(
+                    trade, entry_order, next_index, censored = _strategy_trade(
                         bars=bars,
                         target_h1_snapshots=h1_snapshots,
-                        qualified=bars[index].opened_at in signals[side.value],
+                        signal_state=side_signals.get(_as_utc(bars[index].opened_at)),
                         diagnostics=diagnostics,
                         signal_index=index,
                         end_index=end_index,
@@ -739,21 +908,38 @@ def run_backtest(
                         market_type=market_type,
                         side=side,
                         funding=funding,
-                        spread_bps=spread_bps,
-                        slippage_bps=slippage_bps,
                     )
+                    if entry_order is not None:
+                        entry_orders.append(entry_order)
+                        if entry_order.status == "unfilled":
+                            diagnostics["unfilled_entry_orders"] += 1
                     if trade is None:
                         if censored:
                             excluded += 1
-                        index += 1
+                        if entry_order is not None and entry_order.status in {
+                            "unfilled",
+                            "filled",
+                        }:
+                            diagnostics["overlapping_signals_skipped"] += sum(
+                                _as_utc(bars[i].opened_at) in side_signals
+                                for i in range(index + 1, min(next_index, end_index))
+                            )
+                            index = max(next_index, index + 1)
+                        else:
+                            index += 1
                     else:
                         trades.append(trade)
                         diagnostics["overlapping_signals_skipped"] += sum(
-                            bars[i].opened_at in signals[side.value]
+                            _as_utc(bars[i].opened_at) in side_signals
                             for i in range(index + 1, min(next_index, end_index))
                         )
                         index = max(next_index, index + 1)
-                metrics, curve = _metrics(trades, excluded=excluded, period_start=period_start)
+                metrics, curve = _metrics(
+                    trades,
+                    excluded=excluded,
+                    period_start=period_start,
+                    unfilled_entry_orders=diagnostics["unfilled_entry_orders"],
+                )
                 segments.append(
                     BacktestSegment(
                         market_type=market_type,
@@ -765,6 +951,7 @@ def run_backtest(
                         equity_curve=curve,
                         trades=trades,
                         entry_diagnostics=diagnostics,
+                        entry_orders=entry_orders,
                     )
                 )
 
@@ -789,8 +976,7 @@ def run_backtest(
     fund_coverage = _funding_coverage(funding, start_at, end_at)
     notes = [
         "Corrected EMA25 pullback entries are evaluated sequentially by the same research "
-        "state machine as the scanner. Exit levels remain inherited and unvalidated. "
-        "Entry diagnostics explain rejected exit geometry and unavailable next-open fills.",
+        "state machine as the scanner. Exit levels remain inherited and unvalidated.",
         "Historical and hypothetical only. Results are not a forecast, recommendation, or "
         "guarantee of profit.",
         "No score gate is applied to this revised entry research. The selected 70/100 future "
@@ -801,9 +987,12 @@ def run_backtest(
         "closed 15-minute candles.",
         "Stops take precedence when a stop and target touch within the same candle. Gaps are "
         "not interpolated.",
-        "Entries use the next 15-minute open, must remain in the EMA entry zone, and last at "
-        "most four bars.",
-        "Spread and slippage are assumptions because historical order-book depth is not included.",
+        "Resting entry limits use the original pullback high for longs and low for shorts, "
+        "remain open for four completed 15m candles, and expire if not touched.",
+        "A candle touch approximates a full limit fill; queue position, partial fills, and "
+        "intrabar order are unknown. No separate spread or slippage charge is applied.",
+        "Limit entry and target exits use maker-fee defaults. Stop-market and time exits use "
+        "taker-fee defaults; these are not account-specific OKX rates.",
         "Live quote and order-book quality gates are not simulated from OHLCV candles.",
         "The first 70% is development; the final 30% is out-of-sample. No random shuffle or "
         "parameter fitting is used.",
@@ -820,7 +1009,7 @@ def run_backtest(
         created_at=_as_utc(created_at),
         symbol=symbol,  # type: ignore[arg-type]
         requested_days=days,
-        strategy=strategy_configuration(spread_bps=spread_bps, slippage_bps=slippage_bps),
+        strategy=strategy_configuration(),
         engine_version=ENGINE_VERSION,
         requested_start=start_at,
         requested_end=end_at,

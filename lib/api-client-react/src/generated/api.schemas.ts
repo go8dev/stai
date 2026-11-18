@@ -109,6 +109,34 @@ export interface BackendCheck {
   pythonVersion: string;
 }
 
+export type BacktestEntryOrderSide = typeof BacktestEntryOrderSide[keyof typeof BacktestEntryOrderSide];
+
+
+export const BacktestEntryOrderSide = {
+  long: 'long',
+  short: 'short',
+} as const;
+
+export type BacktestEntryOrderStatus = typeof BacktestEntryOrderStatus[keyof typeof BacktestEntryOrderStatus];
+
+
+export const BacktestEntryOrderStatus = {
+  filled: 'filled',
+  unfilled: 'unfilled',
+  cancelled: 'cancelled',
+} as const;
+
+export interface BacktestEntryOrder {
+  signalAt: string;
+  side: BacktestEntryOrderSide;
+  limitPrice: number | string;
+  expiresAt: string;
+  status: BacktestEntryOrderStatus;
+  filledAt: string | null;
+  fillPrice: number | string | null;
+  reason: string;
+}
+
 export type BacktestInputSymbol = typeof BacktestInputSymbol[keyof typeof BacktestInputSymbol];
 
 
@@ -125,8 +153,6 @@ export interface BacktestInput {
      * @maximum 30
      */
   days: number;
-  spreadBps: number | string;
-  slippageBps: number | string;
 }
 
 export type BacktestListItemSymbol = typeof BacktestListItemSymbol[keyof typeof BacktestListItemSymbol];
@@ -170,6 +196,9 @@ export interface BacktestMetrics {
   totalSpreadCostUsdt: number | string;
   totalSlippageCostUsdt: number | string;
   excludedUnclosedTrades: number;
+  unfilledEntryOrders: number;
+  totalMakerFeesUsdt: number | string;
+  totalTakerFeesUsdt: number | string;
 }
 
 export type BacktestResultSymbol = typeof BacktestResultSymbol[keyof typeof BacktestResultSymbol];
@@ -197,6 +226,30 @@ export const StrategyConfigurationFuturesSidesItem = {
   short: 'short',
 } as const;
 
+export type StrategyConfigurationEntryFeeType = typeof StrategyConfigurationEntryFeeType[keyof typeof StrategyConfigurationEntryFeeType];
+
+
+export const StrategyConfigurationEntryFeeType = {
+  maker: 'maker',
+  taker: 'taker',
+} as const;
+
+export type StrategyConfigurationTargetFeeType = typeof StrategyConfigurationTargetFeeType[keyof typeof StrategyConfigurationTargetFeeType];
+
+
+export const StrategyConfigurationTargetFeeType = {
+  maker: 'maker',
+  taker: 'taker',
+} as const;
+
+export type StrategyConfigurationStopFeeType = typeof StrategyConfigurationStopFeeType[keyof typeof StrategyConfigurationStopFeeType];
+
+
+export const StrategyConfigurationStopFeeType = {
+  maker: 'maker',
+  taker: 'taker',
+} as const;
+
 export interface StrategyConfiguration {
   strategyVersion: string;
   scoreThreshold: number;
@@ -216,6 +269,11 @@ export interface StrategyConfiguration {
   executionAssumptions: string[];
   entryRules: string[];
   scoreGateEnabled: boolean;
+  entryLimitRule: string;
+  entryExpiryBars: number;
+  entryFeeType: StrategyConfigurationEntryFeeType;
+  targetFeeType: StrategyConfigurationTargetFeeType;
+  stopFeeType: StrategyConfigurationStopFeeType;
 }
 
 export type CandleCoverageSymbol = typeof CandleCoverageSymbol[keyof typeof CandleCoverageSymbol];
@@ -314,6 +372,22 @@ export const BacktestTradeExitReason = {
   time_limit: 'time_limit',
 } as const;
 
+export type BacktestTradeEntryFeeType = typeof BacktestTradeEntryFeeType[keyof typeof BacktestTradeEntryFeeType];
+
+
+export const BacktestTradeEntryFeeType = {
+  maker: 'maker',
+  taker: 'taker',
+} as const;
+
+export type BacktestTradeExitFeeType = typeof BacktestTradeExitFeeType[keyof typeof BacktestTradeExitFeeType];
+
+
+export const BacktestTradeExitFeeType = {
+  maker: 'maker',
+  taker: 'taker',
+} as const;
+
 export interface BacktestTrade {
   signalAt: string;
   enteredAt: string;
@@ -333,6 +407,13 @@ export interface BacktestTrade {
   slippageCostUsdt: number | string;
   netPnlUsdt: number | string;
   returnOnNotionalPct: number | string;
+  entryOrderPrice: number | string | null;
+  entryOrderType: string;
+  entryFeeType: BacktestTradeEntryFeeType;
+  exitOrderType: string;
+  exitFeeType: BacktestTradeExitFeeType;
+  makerFeeUsdt: number | string;
+  takerFeeUsdt: number | string;
 }
 
 export type BacktestSegmentEntryDiagnostics = {[key: string]: number};
@@ -347,10 +428,12 @@ export interface BacktestSegment {
   equityCurve: EquityPoint[];
   trades: BacktestTrade[];
   entryDiagnostics: BacktestSegmentEntryDiagnostics;
+  entryOrders: BacktestEntryOrder[];
 }
 
 export interface StrategyLabStatus {
   paidCommitteeReviewEnabled: boolean;
+  historicalAiReviewEnabled: boolean;
   tradingEnabled: boolean;
   proposalCreationEnabled: boolean;
   notice: string;
@@ -711,8 +794,52 @@ export interface ErrorResponse {
   details?: ErrorResponseDetails;
 }
 
+export type ValidationErrorCtx = { [key: string]: unknown };
+
+export interface ValidationError {
+  loc: (string | number)[];
+  msg: string;
+  type: string;
+  input?: unknown;
+  ctx?: ValidationErrorCtx;
+}
+
+export interface HTTPValidationError {
+  detail?: ValidationError[];
+}
+
 export interface HealthStatus {
   status: string;
+}
+
+export interface HistoricalReviewAnswer {
+  summary: string;
+  observations: string[];
+  risks: string[];
+  limitations: string[];
+  evidenceIds: string[];
+}
+
+export interface HistoricalReviewInput {
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  question: string;
+}
+
+export interface HistoricalReviewResponse {
+  id: string;
+  backtestId: string;
+  dataSha256: string;
+  createdAt: string;
+  question: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number | string;
+  answer: HistoricalReviewAnswer;
+  advisoryOnly: boolean;
 }
 
 export interface InstrumentRules {

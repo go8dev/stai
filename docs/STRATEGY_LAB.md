@@ -62,8 +62,11 @@ rules, or the intended 15–60-minute holding period.
   and restart after a gap; missing candles are not interpolated.
 - The first 70% of time is development and the last 30% is a held-out sample.
   Boundaries are aligned to 15 minutes. No optimization or random split occurs.
-- Signals use only completed candles and the latest completed 1h bar. Entries
-  use the following 15-minute open; exits cannot cross the holdout boundary.
+- Signals use only completed candles and the latest completed 1h bar. New v3
+  runs place a resting limit at the original pullback candle's high for longs
+  or low for shorts, then wait up to four later completed 15m candles. A candle
+  touch is an approximate full fill; a gap through the price receives the
+  better opening price. Exits cannot cross the holdout boundary.
 - Each saved run retains its source candles, historical funding observations,
   query bounds, SHA-256 fingerprint, exact configuration, strategy version, and
   simulation-engine version. Reads are restricted to its owner.
@@ -77,29 +80,44 @@ quote freshness, order-book depth,
 approval delay, risk vetoes, partial fills, or bot reconciliation.
 
 Each market/side/sample segment starts independently at 1,000 USDT, using a fixed
-100 USDT notional at 1x without compounding or overlapping positions. This is not
+100 USDT notional at 1x without compounding or overlapping positions. There is
+one pending entry order or position per segment; signals while it is active are
+skipped. Unfilled and cancelled orders are displayed, but are not trades and do
+not affect performance metrics. This is not
 the live paper fund or its 600/400 allocation. The curve changes at completed
 trade exits, so drawdown is closed-trade drawdown, not intrabar mark-to-market.
 The inherited stop is EMA-99 ±1.5%; target is EMA-7 ×1.015 for long or ×0.985 for
 short. A trade lasts at most four 15-minute bars.
 These exits remain inherited and unvalidated, not an approved ATR/2R redesign.
-Each segment shows confirmed setups, missing exit indicators, invalid exit
-geometry, unavailable next opens and signals skipped during an existing simulated
-position. Invalid levels are rejected, not changed to force trades. New trade
-scores are null ("Not applied"), not fabricated confidence values.
+Each segment shows confirmed setups, filled/unfilled/cancelled limit orders,
+missing exit indicators, invalid exit geometry and signals skipped while an
+order or position is active. Invalid levels are rejected, not changed to force
+trades. The trade table shows signal time, requested limit, simulated entry,
+stop, target, actual exit price/time, exit reason, fee types, gross/net P&L and
+funding. New trade scores are null ("Not applied"), not fabricated confidence
+values.
 
-If stop and target both touch one candle, the stop wins. Gaps through a stop or
-target use that candle's open where applicable. Intrabar exit time is unknown:
-exits are timestamped at candle close, and funding through that timestamp is an
-approximation. Incomplete exits at a sample boundary or data gap are excluded.
+The inherited stop remains EMA-99 minus 1.5% for longs / plus 1.5% for shorts.
+The inherited target remains EMA-7 × 1.015 for longs / × 0.985 for shorts. The
+stop is simulated as a stop-market exit (taker fee); the target is a limit exit
+(maker fee); a 60-minute time exit uses taker fee. These levels and the hold time
+remain unvalidated, not an approved ATR/2R redesign.
 
-Taker fees use STAI defaults: spot 0.15% and futures 0.05% per filled notional,
-not an account-specific fee tier. Spread and slippage are configurable 0–50 bps
-assumptions. Spread charges half the selected bid/ask spread per side; slippage
-charges the selected amount per side. Funding uses returned historical rates
-on fixed entry notional and is a signed cost (negative means a credit). The
-coverage check flags observed gaps over eight hours, including window edges;
-it does not prove that every exchange settlement was returned.
+If stop and target both touch one candle, the stop wins. A target is not credited
+on the entry-fill candle because OHLC cannot prove it was touched after entry.
+Gaps through a stop or target use that candle's open where applicable. Intrabar
+fill and exit times are unknown; fills are timestamped at candle close, and
+funding through that timestamp is an approximation. A data gap cancels a resting
+unfilled limit. Incomplete exits at a sample boundary or data gap are excluded.
+
+Fee calculations use STAI defaults, not an account-specific OKX tier: spot maker
+0.10% / taker 0.15%; futures maker 0.02% / taker 0.05%. There is no separate
+spread or slippage charge because the model uses explicit limit prices. Historical
+funding uses returned rates on fixed entry notional and is a signed cost (negative
+means a credit). The coverage check flags observed gaps over eight hours,
+including window edges; it does not prove that every exchange settlement was
+returned. Older saved runs keep their original spread/slippage assumptions and
+are displayed as legacy results; they are never rewritten.
 
 Win/loss, expectancy, profit factor, and cumulative performance use net P&L after
 these costs. Cumulative return uses the segment's initial 1,000 USDT; per-trade
@@ -108,9 +126,16 @@ returns use its 100 USDT notional.
 ## Verification and operating boundaries
 
 Automated tests cover closed-hour alignment, indicator causality, stop/target
-ties, four-bar exits and gaps, fees/funding/spread/slippage, net metrics,
-drawdown, pagination and open-candle exclusion, authentication, CSRF, input
-validation, persistence, owner-scoped reads, and absence of trade side effects.
+ties, four-bar exits and gaps, limit entry touch/expiry, maker/taker fees and
+funding, net metrics, drawdown, pagination and open-candle exclusion,
+authentication, CSRF, input validation, persistence, owner-scoped reads, and
+absence of trade side effects. Historical AI review is manual, attaches to the
+saved data fingerprint, uses a bounded sample of OHLCV/trades, and reserves the
+per-run amount against a UTC-day budget before calling a provider. The feature
+has no model, prices, caps or enable flag configured by default; no AI call is
+made until each is explicitly set. Provider failures are never automatically
+retried; if billing is unknown, the reservation remains charged against that
+day's budget.
 The revised-entry checks additionally cover valid long/short sequences, original
 touch references, strict confirmation, fourth-bar confirmation/expiry, BTC context,
 spot-short exclusion, serialized restart/refresh, scanner/replay parity and legacy
@@ -123,7 +148,7 @@ A legacy public-data-only BTC smoke check fetched 1,344 spot and 1,344 swap cand
 segments had zero trades, consistent with the preserved conflict. This check
 was not saved to the database and made no model calls.
 
-The development schema includes migration `0005_strategy_lab`. No production
-migration, publish, paid review, or trading activation is included. Committee
-interpretation requires separate authorization of an available model and daily
-run/spend limits.
+The development schema includes migrations `0005_strategy_lab` and
+`0006_strategy_backtest_reviews`. No production migration or publish is included.
+Historical AI review, proposals, permits, orders and trading remain disabled
+unless separately authorized; this work did not invoke a paid model.

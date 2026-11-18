@@ -5,6 +5,7 @@
  * STAI API contract. Generated from the Python backend; do not edit by hand.
  * OpenAPI spec version: 0.1.0
  */
+import type { BacktestEntryOrder } from './backtestEntryOrder';
 import type { BacktestMetrics } from './backtestMetrics';
 import type { BacktestSegmentEntryDiagnostics } from './backtestSegmentEntryDiagnostics';
 import type { BacktestSegmentMarketType } from './backtestSegmentMarketType';
@@ -23,4 +24,5 @@ export interface BacktestSegment {
   equityCurve: EquityPoint[];
   trades: BacktestTrade[];
   entryDiagnostics: BacktestSegmentEntryDiagnostics;
+  entryOrders: BacktestEntryOrder[];
 }

@@ -596,6 +596,105 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /strategy-lab/backtests/{run_id}/reviews:
+    get:
+      tags:
+      - strategy-lab
+      summary: List completed historical AI reviews for one saved run
+      operationId: listStrategyBacktestReviews
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HistoricalReviewResponse'
+        '401':
+          description: Owner session required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Backtest was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - strategy-lab
+      summary: Ask an authorized AI model about one immutable historical run
+      operationId: createStrategyBacktestReview
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HistoricalReviewInput'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoricalReviewResponse'
+        '401':
+          description: Owner session required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Backtest was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Historical AI review is not authorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Question or saved evidence is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: The configured review budget is exhausted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: The provider did not return a usable review.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
     AllocationBalance:
@@ -813,6 +912,51 @@ components:
       - environment
       - uptimeSeconds
       - pythonVersion
+    BacktestEntryOrder:
+      properties:
+        signalAt:
+          type: string
+          format: date-time
+        side:
+          type: string
+          enum:
+          - long
+          - short
+        limitPrice:
+          anyOf:
+          - type: number
+          - type: string
+        expiresAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+          - filled
+          - unfilled
+          - cancelled
+        filledAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+        fillPrice:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        reason:
+          type: string
+      type: object
+      required:
+      - signalAt
+      - side
+      - limitPrice
+      - expiresAt
+      - status
+      - filledAt
+      - fillPrice
+      - reason
     BacktestInput:
       properties:
         symbol:
@@ -825,24 +969,10 @@ components:
           type: integer
           maximum: 30.0
           minimum: 7.0
-        spreadBps:
-          anyOf:
-          - type: number
-            maximum: 50.0
-            minimum: 0.0
-          - type: string
-        slippageBps:
-          anyOf:
-          - type: number
-            maximum: 50.0
-            minimum: 0.0
-          - type: string
       type: object
       required:
       - symbol
       - days
-      - spreadBps
-      - slippageBps
     BacktestListItem:
       properties:
         id:
@@ -953,6 +1083,19 @@ components:
           - type: string
         excludedUnclosedTrades:
           type: integer
+        unfilledEntryOrders:
+          type: integer
+          default: 0
+        totalMakerFeesUsdt:
+          anyOf:
+          - type: number
+          - type: string
+          default: '0'
+        totalTakerFeesUsdt:
+          anyOf:
+          - type: number
+          - type: string
+          default: '0'
       type: object
       required:
       - tradeCount
@@ -974,6 +1117,9 @@ components:
       - totalSpreadCostUsdt
       - totalSlippageCostUsdt
       - excludedUnclosedTrades
+      - unfilledEntryOrders
+      - totalMakerFeesUsdt
+      - totalTakerFeesUsdt
     BacktestResult:
       properties:
         id:
@@ -1078,6 +1224,10 @@ components:
           additionalProperties:
             type: integer
           type: object
+        entryOrders:
+          items:
+            $ref: '#/components/schemas/BacktestEntryOrder'
+          type: array
       type: object
       required:
       - marketType
@@ -1089,6 +1239,7 @@ components:
       - equityCurve
       - trades
       - entryDiagnostics
+      - entryOrders
     BacktestTrade:
       properties:
         signalAt:
@@ -1162,6 +1313,39 @@ components:
           anyOf:
           - type: number
           - type: string
+        entryOrderPrice:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        entryOrderType:
+          type: string
+          default: legacy_next_open
+        entryFeeType:
+          type: string
+          enum:
+          - maker
+          - taker
+          default: taker
+        exitOrderType:
+          type: string
+          default: legacy_rule_exit
+        exitFeeType:
+          type: string
+          enum:
+          - maker
+          - taker
+          default: taker
+        makerFeeUsdt:
+          anyOf:
+          - type: number
+          - type: string
+          default: '0'
+        takerFeeUsdt:
+          anyOf:
+          - type: number
+          - type: string
+          default: '0'
       type: object
       required:
       - signalAt
@@ -1182,6 +1366,13 @@ components:
       - slippageCostUsdt
       - netPnlUsdt
       - returnOnNotionalPct
+      - entryOrderPrice
+      - entryOrderType
+      - entryFeeType
+      - exitOrderType
+      - exitFeeType
+      - makerFeeUsdt
+      - takerFeeUsdt
     BookLevel:
       properties:
         price:
@@ -1812,6 +2003,13 @@ components:
       - firstEventAt
       - lastEventAt
       - note
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+      type: object
     HealthStatus:
       properties:
         status:
@@ -1819,6 +2017,83 @@ components:
       type: object
       required:
       - status
+    HistoricalReviewAnswer:
+      properties:
+        summary:
+          type: string
+        observations:
+          items:
+            type: string
+          type: array
+        risks:
+          items:
+            type: string
+          type: array
+        limitations:
+          items:
+            type: string
+          type: array
+        evidenceIds:
+          items:
+            type: string
+          type: array
+      type: object
+      required:
+      - summary
+      - observations
+      - risks
+      - limitations
+      - evidenceIds
+    HistoricalReviewInput:
+      properties:
+        question:
+          type: string
+          maxLength: 500
+          minLength: 1
+      type: object
+      required:
+      - question
+    HistoricalReviewResponse:
+      properties:
+        id:
+          type: string
+        backtestId:
+          type: string
+        dataSha256:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        question:
+          type: string
+        model:
+          type: string
+        inputTokens:
+          type: integer
+        outputTokens:
+          type: integer
+        costUsd:
+          anyOf:
+          - type: number
+          - type: string
+        answer:
+          $ref: '#/components/schemas/HistoricalReviewAnswer'
+        advisoryOnly:
+          type: boolean
+          default: true
+      type: object
+      required:
+      - id
+      - backtestId
+      - dataSha256
+      - createdAt
+      - question
+      - model
+      - inputTokens
+      - outputTokens
+      - costUsd
+      - answer
+      - advisoryOnly
     InstrumentRules:
       properties:
         instrumentId:
@@ -2629,10 +2904,12 @@ components:
           anyOf:
           - type: number
           - type: string
+          default: '0'
         slippageBps:
           anyOf:
           - type: number
           - type: string
+          default: '0'
         noLookaheadRule:
           type: string
         executionAssumptions:
@@ -2646,6 +2923,30 @@ components:
         scoreGateEnabled:
           type: boolean
           default: true
+        entryLimitRule:
+          type: string
+          default: Legacy next-15m-open entry.
+        entryExpiryBars:
+          type: integer
+          default: 0
+        entryFeeType:
+          type: string
+          enum:
+          - maker
+          - taker
+          default: taker
+        targetFeeType:
+          type: string
+          enum:
+          - maker
+          - taker
+          default: taker
+        stopFeeType:
+          type: string
+          enum:
+          - maker
+          - taker
+          default: taker
       type: object
       required:
       - strategyVersion
@@ -2666,6 +2967,11 @@ components:
       - executionAssumptions
       - entryRules
       - scoreGateEnabled
+      - entryLimitRule
+      - entryExpiryBars
+      - entryFeeType
+      - targetFeeType
+      - stopFeeType
     StrategyLabOverview:
       properties:
         strategy:
@@ -2685,6 +2991,9 @@ components:
       properties:
         paidCommitteeReviewEnabled:
           type: boolean
+        historicalAiReviewEnabled:
+          type: boolean
+          default: false
         tradingEnabled:
           type: boolean
         proposalCreationEnabled:
@@ -2694,6 +3003,7 @@ components:
       type: object
       required:
       - paidCommitteeReviewEnabled
+      - historicalAiReviewEnabled
       - tradingEnabled
       - proposalCreationEnabled
       - notice
@@ -2749,6 +3059,26 @@ components:
       enum:
       - paper
       description: STAI has one mode. There is no live value and no switch to add one.
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+        msg:
+          type: string
+        type:
+          type: string
+        input: {}
+        ctx:
+          type: object
+      type: object
+      required:
+      - loc
+      - msg
+      - type
 tags:
 - name: health
   description: Health check.

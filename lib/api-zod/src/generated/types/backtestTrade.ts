@@ -5,6 +5,8 @@
  * STAI API contract. Generated from the Python backend; do not edit by hand.
  * OpenAPI spec version: 0.1.0
  */
+import type { BacktestTradeEntryFeeType } from './backtestTradeEntryFeeType';
+import type { BacktestTradeExitFeeType } from './backtestTradeExitFeeType';
 import type { BacktestTradeExitReason } from './backtestTradeExitReason';
 import type { BacktestTradeSide } from './backtestTradeSide';
 
@@ -27,4 +29,11 @@ export interface BacktestTrade {
   slippageCostUsdt: number | string;
   netPnlUsdt: number | string;
   returnOnNotionalPct: number | string;
+  entryOrderPrice: number | string | null;
+  entryOrderType: string;
+  entryFeeType: BacktestTradeEntryFeeType;
+  exitOrderType: string;
+  exitFeeType: BacktestTradeExitFeeType;
+  makerFeeUsdt: number | string;
+  takerFeeUsdt: number | string;
 }

@@ -8,6 +8,7 @@
 
 export interface StrategyLabStatus {
   paidCommitteeReviewEnabled: boolean;
+  historicalAiReviewEnabled: boolean;
   tradingEnabled: boolean;
   proposalCreationEnabled: boolean;
   notice: string;

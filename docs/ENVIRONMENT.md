@@ -84,6 +84,12 @@ one of them. Read-only requests are not filtered by host; they need a valid sess
 | Variable | Set by | Default | Meaning |
 | --- | --- | --- | --- |
 | `STAI_OKX_BASE_URL` | Owner, optional | `https://www.okx.com` | Base address for OKX public market data. Must be `https://`. Phase 1 only asks it for the server time. |
+| `STAI_HISTORICAL_REVIEW_ENABLED` | Owner, optional | `false` | Must be explicitly enabled before Strategy Lab can make any historical AI review call. |
+| `STAI_HISTORICAL_REVIEW_MODEL` | Owner, after separate approval | not set | Explicitly selected supported OpenAI model for historical review. |
+| `STAI_HISTORICAL_REVIEW_PER_RUN_CAP_USD` | Owner, after separate approval | not set | Maximum authorized spend for one manual historical review. |
+| `STAI_HISTORICAL_REVIEW_DAILY_CAP_USD` | Owner, after separate approval | not set | Maximum authorized historical-review spend for one UTC day; must be at least the per-run cap. |
+| `STAI_HISTORICAL_REVIEW_INPUT_USD_PER_MILLION` | Owner, after separate approval | not set | Input-token price for the approved model, used for conservative pre-call budgeting. |
+| `STAI_HISTORICAL_REVIEW_OUTPUT_USD_PER_MILLION` | Owner, after separate approval | not set | Output-token price for the approved model, used for conservative pre-call budgeting. |
 
 There is no variable for an exchange API key, secret or passphrase, and there is no
 variable that switches trading mode. STAI is paper trading only. Tests fail if such a
@@ -105,12 +111,14 @@ under `/api`.
 ## Secrets in the workspace
 
 Three Secrets exist in the workspace. Phase 3 settings read `OPENAI_API_KEY` as a masked
-secret; only the explicitly invoked development benchmark uses it for provider calls.
-It is not embedded in the browser or passed to either paper bot.
+secret; only the explicitly invoked development benchmark currently uses it for provider
+calls. Strategy Lab historical reviews remain disabled until the owner separately approves
+a supported model, rates, per-run and daily spending caps, and the explicit enable switch.
+The key is not embedded in the browser or passed to either paper bot.
 
 | Secret | Purpose | Used from |
 | --- | --- | --- |
-| `OPENAI_API_KEY` | Model provider for the AI committee. | Phase 3 |
+| `OPENAI_API_KEY` | Model provider for the AI committee and authorized historical reviews. | Phase 3; historical reviews only after separate approval |
 | `STAI_ALERT_EMAIL` | Address that receives alerts. | Phase 4 |
 | `SESSION_SECRET` | Came with the project template. STAI does not use it: a session is a random token whose SHA-256 is stored in the database. | Not used |
 
@@ -124,6 +132,9 @@ Rules for secrets:
 
 - Add and change them in Replit Secrets only. Never paste one into chat, a file, a test
   or a commit.
+- Historical-review model name, token rates, caps, and enable switch also remain unset
+  until the owner authorizes them. The app does not infer spending authorization from an
+  existing API key.
 - Never set a personal value such as an email address as a plain environment variable.
 - Published apps do not automatically share workspace Secrets. Check the Secrets of the
   published app before the phases that need them.

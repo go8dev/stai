@@ -619,7 +619,15 @@ export const RejectTradeProposalResponse = zod.object({
 /**
  * @summary Get the approved strategy setup and recent historical backtests
  */
+export const getStrategyLabOverviewResponseStrategySpreadBpsDefault = `0`;
+export const getStrategyLabOverviewResponseStrategySlippageBpsDefault = `0`;
 export const getStrategyLabOverviewResponseStrategyScoreGateEnabledDefault = true;
+export const getStrategyLabOverviewResponseStrategyEntryLimitRuleDefault = `Legacy next-15m-open entry.`;
+export const getStrategyLabOverviewResponseStrategyEntryExpiryBarsDefault = 0;
+export const getStrategyLabOverviewResponseStrategyEntryFeeTypeDefault = `taker`;
+export const getStrategyLabOverviewResponseStrategyTargetFeeTypeDefault = `taker`;
+export const getStrategyLabOverviewResponseStrategyStopFeeTypeDefault = `taker`;
+export const getStrategyLabOverviewResponseStatusHistoricalAiReviewEnabledDefault = false;
 
 export const GetStrategyLabOverviewResponse = zod.object({
   "strategy": zod.object({
@@ -635,15 +643,21 @@ export const GetStrategyLabOverviewResponse = zod.object({
   "sampleSplit": zod.string(),
   "notionalUsdt": zod.union([zod.number(),zod.string()]),
   "leverage": zod.union([zod.number(),zod.string()]),
-  "spreadBps": zod.union([zod.number(),zod.string()]),
-  "slippageBps": zod.union([zod.number(),zod.string()]),
+  "spreadBps": zod.union([zod.number(),zod.string()]).default(getStrategyLabOverviewResponseStrategySpreadBpsDefault),
+  "slippageBps": zod.union([zod.number(),zod.string()]).default(getStrategyLabOverviewResponseStrategySlippageBpsDefault),
   "noLookaheadRule": zod.string(),
   "executionAssumptions": zod.array(zod.string()),
   "entryRules": zod.array(zod.string()),
-  "scoreGateEnabled": zod.boolean().default(getStrategyLabOverviewResponseStrategyScoreGateEnabledDefault)
+  "scoreGateEnabled": zod.boolean().default(getStrategyLabOverviewResponseStrategyScoreGateEnabledDefault),
+  "entryLimitRule": zod.string().default(getStrategyLabOverviewResponseStrategyEntryLimitRuleDefault),
+  "entryExpiryBars": zod.number().int().default(getStrategyLabOverviewResponseStrategyEntryExpiryBarsDefault),
+  "entryFeeType": zod.enum(['maker', 'taker']).default(getStrategyLabOverviewResponseStrategyEntryFeeTypeDefault),
+  "targetFeeType": zod.enum(['maker', 'taker']).default(getStrategyLabOverviewResponseStrategyTargetFeeTypeDefault),
+  "stopFeeType": zod.enum(['maker', 'taker']).default(getStrategyLabOverviewResponseStrategyStopFeeTypeDefault)
 }),
   "status": zod.object({
   "paidCommitteeReviewEnabled": zod.boolean(),
+  "historicalAiReviewEnabled": zod.boolean().default(getStrategyLabOverviewResponseStatusHistoricalAiReviewEnabledDefault),
   "tradingEnabled": zod.boolean(),
   "proposalCreationEnabled": zod.boolean(),
   "notice": zod.string()
@@ -685,22 +699,31 @@ export const ListStrategyBacktestsResponse = zod.array(ListStrategyBacktestsResp
 export const createStrategyBacktestBodyDaysMin = 7;
 export const createStrategyBacktestBodyDaysMax = 30;
 
-export const createStrategyBacktestBodySpreadBpsOneMin = 0;
-export const createStrategyBacktestBodySpreadBpsOneMax = 50;
-
-export const createStrategyBacktestBodySlippageBpsOneMin = 0;
-export const createStrategyBacktestBodySlippageBpsOneMax = 50;
-
 
 
 export const CreateStrategyBacktestBody = zod.object({
   "symbol": zod.enum(['BTCUSDT', 'ETHUSDT', 'SOLUSDT']),
-  "days": zod.number().int().min(createStrategyBacktestBodyDaysMin).max(createStrategyBacktestBodyDaysMax),
-  "spreadBps": zod.union([zod.number().min(createStrategyBacktestBodySpreadBpsOneMin).max(createStrategyBacktestBodySpreadBpsOneMax),zod.string()]),
-  "slippageBps": zod.union([zod.number().min(createStrategyBacktestBodySlippageBpsOneMin).max(createStrategyBacktestBodySlippageBpsOneMax),zod.string()])
+  "days": zod.number().int().min(createStrategyBacktestBodyDaysMin).max(createStrategyBacktestBodyDaysMax)
 })
 
+export const createStrategyBacktestResponseStrategySpreadBpsDefault = `0`;
+export const createStrategyBacktestResponseStrategySlippageBpsDefault = `0`;
 export const createStrategyBacktestResponseStrategyScoreGateEnabledDefault = true;
+export const createStrategyBacktestResponseStrategyEntryLimitRuleDefault = `Legacy next-15m-open entry.`;
+export const createStrategyBacktestResponseStrategyEntryExpiryBarsDefault = 0;
+export const createStrategyBacktestResponseStrategyEntryFeeTypeDefault = `taker`;
+export const createStrategyBacktestResponseStrategyTargetFeeTypeDefault = `taker`;
+export const createStrategyBacktestResponseStrategyStopFeeTypeDefault = `taker`;
+export const createStrategyBacktestResponseSegmentsItemMetricsUnfilledEntryOrdersDefault = 0;
+export const createStrategyBacktestResponseSegmentsItemMetricsTotalMakerFeesUsdtDefault = `0`;
+export const createStrategyBacktestResponseSegmentsItemMetricsTotalTakerFeesUsdtDefault = `0`;
+export const createStrategyBacktestResponseSegmentsItemTradesItemEntryOrderTypeDefault = `legacy_next_open`;
+export const createStrategyBacktestResponseSegmentsItemTradesItemEntryFeeTypeDefault = `taker`;
+export const createStrategyBacktestResponseSegmentsItemTradesItemExitOrderTypeDefault = `legacy_rule_exit`;
+export const createStrategyBacktestResponseSegmentsItemTradesItemExitFeeTypeDefault = `taker`;
+export const createStrategyBacktestResponseSegmentsItemTradesItemMakerFeeUsdtDefault = `0`;
+export const createStrategyBacktestResponseSegmentsItemTradesItemTakerFeeUsdtDefault = `0`;
+export const createStrategyBacktestResponseStatusHistoricalAiReviewEnabledDefault = false;
 
 export const CreateStrategyBacktestResponse = zod.object({
   "id": zod.string(),
@@ -720,12 +743,17 @@ export const CreateStrategyBacktestResponse = zod.object({
   "sampleSplit": zod.string(),
   "notionalUsdt": zod.union([zod.number(),zod.string()]),
   "leverage": zod.union([zod.number(),zod.string()]),
-  "spreadBps": zod.union([zod.number(),zod.string()]),
-  "slippageBps": zod.union([zod.number(),zod.string()]),
+  "spreadBps": zod.union([zod.number(),zod.string()]).default(createStrategyBacktestResponseStrategySpreadBpsDefault),
+  "slippageBps": zod.union([zod.number(),zod.string()]).default(createStrategyBacktestResponseStrategySlippageBpsDefault),
   "noLookaheadRule": zod.string(),
   "executionAssumptions": zod.array(zod.string()),
   "entryRules": zod.array(zod.string()),
-  "scoreGateEnabled": zod.boolean().default(createStrategyBacktestResponseStrategyScoreGateEnabledDefault)
+  "scoreGateEnabled": zod.boolean().default(createStrategyBacktestResponseStrategyScoreGateEnabledDefault),
+  "entryLimitRule": zod.string().default(createStrategyBacktestResponseStrategyEntryLimitRuleDefault),
+  "entryExpiryBars": zod.number().int().default(createStrategyBacktestResponseStrategyEntryExpiryBarsDefault),
+  "entryFeeType": zod.enum(['maker', 'taker']).default(createStrategyBacktestResponseStrategyEntryFeeTypeDefault),
+  "targetFeeType": zod.enum(['maker', 'taker']).default(createStrategyBacktestResponseStrategyTargetFeeTypeDefault),
+  "stopFeeType": zod.enum(['maker', 'taker']).default(createStrategyBacktestResponseStrategyStopFeeTypeDefault)
 }),
   "engineVersion": zod.string(),
   "requestedStart": zod.coerce.date(),
@@ -778,7 +806,10 @@ export const CreateStrategyBacktestResponse = zod.object({
   "totalFundingUsdt": zod.union([zod.number(),zod.string()]),
   "totalSpreadCostUsdt": zod.union([zod.number(),zod.string()]),
   "totalSlippageCostUsdt": zod.union([zod.number(),zod.string()]),
-  "excludedUnclosedTrades": zod.number().int()
+  "excludedUnclosedTrades": zod.number().int(),
+  "unfilledEntryOrders": zod.number().int().default(createStrategyBacktestResponseSegmentsItemMetricsUnfilledEntryOrdersDefault),
+  "totalMakerFeesUsdt": zod.union([zod.number(),zod.string()]).default(createStrategyBacktestResponseSegmentsItemMetricsTotalMakerFeesUsdtDefault),
+  "totalTakerFeesUsdt": zod.union([zod.number(),zod.string()]).default(createStrategyBacktestResponseSegmentsItemMetricsTotalTakerFeesUsdtDefault)
 }),
   "equityCurve": zod.array(zod.object({
   "at": zod.coerce.date(),
@@ -803,13 +834,31 @@ export const CreateStrategyBacktestResponse = zod.object({
   "spreadCostUsdt": zod.union([zod.number(),zod.string()]),
   "slippageCostUsdt": zod.union([zod.number(),zod.string()]),
   "netPnlUsdt": zod.union([zod.number(),zod.string()]),
-  "returnOnNotionalPct": zod.union([zod.number(),zod.string()])
+  "returnOnNotionalPct": zod.union([zod.number(),zod.string()]),
+  "entryOrderPrice": zod.union([zod.number(),zod.string(),zod.null()]),
+  "entryOrderType": zod.string().default(createStrategyBacktestResponseSegmentsItemTradesItemEntryOrderTypeDefault),
+  "entryFeeType": zod.enum(['maker', 'taker']).default(createStrategyBacktestResponseSegmentsItemTradesItemEntryFeeTypeDefault),
+  "exitOrderType": zod.string().default(createStrategyBacktestResponseSegmentsItemTradesItemExitOrderTypeDefault),
+  "exitFeeType": zod.enum(['maker', 'taker']).default(createStrategyBacktestResponseSegmentsItemTradesItemExitFeeTypeDefault),
+  "makerFeeUsdt": zod.union([zod.number(),zod.string()]).default(createStrategyBacktestResponseSegmentsItemTradesItemMakerFeeUsdtDefault),
+  "takerFeeUsdt": zod.union([zod.number(),zod.string()]).default(createStrategyBacktestResponseSegmentsItemTradesItemTakerFeeUsdtDefault)
 })),
-  "entryDiagnostics": zod.record(zod.string(), zod.number().int())
+  "entryDiagnostics": zod.record(zod.string(), zod.number().int()),
+  "entryOrders": zod.array(zod.object({
+  "signalAt": zod.coerce.date(),
+  "side": zod.enum(['long', 'short']),
+  "limitPrice": zod.union([zod.number(),zod.string()]),
+  "expiresAt": zod.coerce.date(),
+  "status": zod.enum(['filled', 'unfilled', 'cancelled']),
+  "filledAt": zod.union([zod.coerce.date(),zod.null()]),
+  "fillPrice": zod.union([zod.number(),zod.string(),zod.null()]),
+  "reason": zod.string()
+}))
 })),
   "notes": zod.array(zod.string()),
   "status": zod.object({
   "paidCommitteeReviewEnabled": zod.boolean(),
+  "historicalAiReviewEnabled": zod.boolean().default(createStrategyBacktestResponseStatusHistoricalAiReviewEnabledDefault),
   "tradingEnabled": zod.boolean(),
   "proposalCreationEnabled": zod.boolean(),
   "notice": zod.string()
@@ -824,7 +873,24 @@ export const GetStrategyBacktestParams = zod.object({
   "run_id": zod.coerce.string()
 })
 
+export const getStrategyBacktestResponseStrategySpreadBpsDefault = `0`;
+export const getStrategyBacktestResponseStrategySlippageBpsDefault = `0`;
 export const getStrategyBacktestResponseStrategyScoreGateEnabledDefault = true;
+export const getStrategyBacktestResponseStrategyEntryLimitRuleDefault = `Legacy next-15m-open entry.`;
+export const getStrategyBacktestResponseStrategyEntryExpiryBarsDefault = 0;
+export const getStrategyBacktestResponseStrategyEntryFeeTypeDefault = `taker`;
+export const getStrategyBacktestResponseStrategyTargetFeeTypeDefault = `taker`;
+export const getStrategyBacktestResponseStrategyStopFeeTypeDefault = `taker`;
+export const getStrategyBacktestResponseSegmentsItemMetricsUnfilledEntryOrdersDefault = 0;
+export const getStrategyBacktestResponseSegmentsItemMetricsTotalMakerFeesUsdtDefault = `0`;
+export const getStrategyBacktestResponseSegmentsItemMetricsTotalTakerFeesUsdtDefault = `0`;
+export const getStrategyBacktestResponseSegmentsItemTradesItemEntryOrderTypeDefault = `legacy_next_open`;
+export const getStrategyBacktestResponseSegmentsItemTradesItemEntryFeeTypeDefault = `taker`;
+export const getStrategyBacktestResponseSegmentsItemTradesItemExitOrderTypeDefault = `legacy_rule_exit`;
+export const getStrategyBacktestResponseSegmentsItemTradesItemExitFeeTypeDefault = `taker`;
+export const getStrategyBacktestResponseSegmentsItemTradesItemMakerFeeUsdtDefault = `0`;
+export const getStrategyBacktestResponseSegmentsItemTradesItemTakerFeeUsdtDefault = `0`;
+export const getStrategyBacktestResponseStatusHistoricalAiReviewEnabledDefault = false;
 
 export const GetStrategyBacktestResponse = zod.object({
   "id": zod.string(),
@@ -844,12 +910,17 @@ export const GetStrategyBacktestResponse = zod.object({
   "sampleSplit": zod.string(),
   "notionalUsdt": zod.union([zod.number(),zod.string()]),
   "leverage": zod.union([zod.number(),zod.string()]),
-  "spreadBps": zod.union([zod.number(),zod.string()]),
-  "slippageBps": zod.union([zod.number(),zod.string()]),
+  "spreadBps": zod.union([zod.number(),zod.string()]).default(getStrategyBacktestResponseStrategySpreadBpsDefault),
+  "slippageBps": zod.union([zod.number(),zod.string()]).default(getStrategyBacktestResponseStrategySlippageBpsDefault),
   "noLookaheadRule": zod.string(),
   "executionAssumptions": zod.array(zod.string()),
   "entryRules": zod.array(zod.string()),
-  "scoreGateEnabled": zod.boolean().default(getStrategyBacktestResponseStrategyScoreGateEnabledDefault)
+  "scoreGateEnabled": zod.boolean().default(getStrategyBacktestResponseStrategyScoreGateEnabledDefault),
+  "entryLimitRule": zod.string().default(getStrategyBacktestResponseStrategyEntryLimitRuleDefault),
+  "entryExpiryBars": zod.number().int().default(getStrategyBacktestResponseStrategyEntryExpiryBarsDefault),
+  "entryFeeType": zod.enum(['maker', 'taker']).default(getStrategyBacktestResponseStrategyEntryFeeTypeDefault),
+  "targetFeeType": zod.enum(['maker', 'taker']).default(getStrategyBacktestResponseStrategyTargetFeeTypeDefault),
+  "stopFeeType": zod.enum(['maker', 'taker']).default(getStrategyBacktestResponseStrategyStopFeeTypeDefault)
 }),
   "engineVersion": zod.string(),
   "requestedStart": zod.coerce.date(),
@@ -902,7 +973,10 @@ export const GetStrategyBacktestResponse = zod.object({
   "totalFundingUsdt": zod.union([zod.number(),zod.string()]),
   "totalSpreadCostUsdt": zod.union([zod.number(),zod.string()]),
   "totalSlippageCostUsdt": zod.union([zod.number(),zod.string()]),
-  "excludedUnclosedTrades": zod.number().int()
+  "excludedUnclosedTrades": zod.number().int(),
+  "unfilledEntryOrders": zod.number().int().default(getStrategyBacktestResponseSegmentsItemMetricsUnfilledEntryOrdersDefault),
+  "totalMakerFeesUsdt": zod.union([zod.number(),zod.string()]).default(getStrategyBacktestResponseSegmentsItemMetricsTotalMakerFeesUsdtDefault),
+  "totalTakerFeesUsdt": zod.union([zod.number(),zod.string()]).default(getStrategyBacktestResponseSegmentsItemMetricsTotalTakerFeesUsdtDefault)
 }),
   "equityCurve": zod.array(zod.object({
   "at": zod.coerce.date(),
@@ -927,17 +1001,104 @@ export const GetStrategyBacktestResponse = zod.object({
   "spreadCostUsdt": zod.union([zod.number(),zod.string()]),
   "slippageCostUsdt": zod.union([zod.number(),zod.string()]),
   "netPnlUsdt": zod.union([zod.number(),zod.string()]),
-  "returnOnNotionalPct": zod.union([zod.number(),zod.string()])
+  "returnOnNotionalPct": zod.union([zod.number(),zod.string()]),
+  "entryOrderPrice": zod.union([zod.number(),zod.string(),zod.null()]),
+  "entryOrderType": zod.string().default(getStrategyBacktestResponseSegmentsItemTradesItemEntryOrderTypeDefault),
+  "entryFeeType": zod.enum(['maker', 'taker']).default(getStrategyBacktestResponseSegmentsItemTradesItemEntryFeeTypeDefault),
+  "exitOrderType": zod.string().default(getStrategyBacktestResponseSegmentsItemTradesItemExitOrderTypeDefault),
+  "exitFeeType": zod.enum(['maker', 'taker']).default(getStrategyBacktestResponseSegmentsItemTradesItemExitFeeTypeDefault),
+  "makerFeeUsdt": zod.union([zod.number(),zod.string()]).default(getStrategyBacktestResponseSegmentsItemTradesItemMakerFeeUsdtDefault),
+  "takerFeeUsdt": zod.union([zod.number(),zod.string()]).default(getStrategyBacktestResponseSegmentsItemTradesItemTakerFeeUsdtDefault)
 })),
-  "entryDiagnostics": zod.record(zod.string(), zod.number().int())
+  "entryDiagnostics": zod.record(zod.string(), zod.number().int()),
+  "entryOrders": zod.array(zod.object({
+  "signalAt": zod.coerce.date(),
+  "side": zod.enum(['long', 'short']),
+  "limitPrice": zod.union([zod.number(),zod.string()]),
+  "expiresAt": zod.coerce.date(),
+  "status": zod.enum(['filled', 'unfilled', 'cancelled']),
+  "filledAt": zod.union([zod.coerce.date(),zod.null()]),
+  "fillPrice": zod.union([zod.number(),zod.string(),zod.null()]),
+  "reason": zod.string()
+}))
 })),
   "notes": zod.array(zod.string()),
   "status": zod.object({
   "paidCommitteeReviewEnabled": zod.boolean(),
+  "historicalAiReviewEnabled": zod.boolean().default(getStrategyBacktestResponseStatusHistoricalAiReviewEnabledDefault),
   "tradingEnabled": zod.boolean(),
   "proposalCreationEnabled": zod.boolean(),
   "notice": zod.string()
 })
+})
+
+
+/**
+ * @summary List completed historical AI reviews for one saved run
+ */
+export const ListStrategyBacktestReviewsParams = zod.object({
+  "run_id": zod.coerce.string()
+})
+
+export const listStrategyBacktestReviewsResponseAdvisoryOnlyDefault = true;
+
+export const ListStrategyBacktestReviewsResponseItem = zod.object({
+  "id": zod.string(),
+  "backtestId": zod.string(),
+  "dataSha256": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "question": zod.string(),
+  "model": zod.string(),
+  "inputTokens": zod.number().int(),
+  "outputTokens": zod.number().int(),
+  "costUsd": zod.union([zod.number(),zod.string()]),
+  "answer": zod.object({
+  "summary": zod.string(),
+  "observations": zod.array(zod.string()),
+  "risks": zod.array(zod.string()),
+  "limitations": zod.array(zod.string()),
+  "evidenceIds": zod.array(zod.string())
+}),
+  "advisoryOnly": zod.boolean().default(listStrategyBacktestReviewsResponseAdvisoryOnlyDefault)
+})
+export const ListStrategyBacktestReviewsResponse = zod.array(ListStrategyBacktestReviewsResponseItem)
+
+
+/**
+ * @summary Ask an authorized AI model about one immutable historical run
+ */
+export const CreateStrategyBacktestReviewParams = zod.object({
+  "run_id": zod.coerce.string()
+})
+
+export const createStrategyBacktestReviewBodyQuestionMax = 500;
+
+
+
+export const CreateStrategyBacktestReviewBody = zod.object({
+  "question": zod.string().min(1).max(createStrategyBacktestReviewBodyQuestionMax)
+})
+
+export const createStrategyBacktestReviewResponseAdvisoryOnlyDefault = true;
+
+export const CreateStrategyBacktestReviewResponse = zod.object({
+  "id": zod.string(),
+  "backtestId": zod.string(),
+  "dataSha256": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "question": zod.string(),
+  "model": zod.string(),
+  "inputTokens": zod.number().int(),
+  "outputTokens": zod.number().int(),
+  "costUsd": zod.union([zod.number(),zod.string()]),
+  "answer": zod.object({
+  "summary": zod.string(),
+  "observations": zod.array(zod.string()),
+  "risks": zod.array(zod.string()),
+  "limitations": zod.array(zod.string()),
+  "evidenceIds": zod.array(zod.string())
+}),
+  "advisoryOnly": zod.boolean().default(createStrategyBacktestReviewResponseAdvisoryOnlyDefault)
 })
 
 
