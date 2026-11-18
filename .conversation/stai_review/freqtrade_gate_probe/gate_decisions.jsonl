@@ -1,6 +1,0 @@
-{"utc": "11:26:52", "proposal": "prop-0001", "pair": "ETH/USDT:USDT", "side": "short", "notional": 100.0, "decision": "DENY", "reason": "no approval for this proposal id"}
-{"utc": "11:26:52", "proposal": "prop-0002", "pair": "ETH/USDT:USDT", "side": "short", "notional": 100.0, "decision": "DENY", "reason": "approval is for different parameters"}
-{"utc": "11:26:52", "proposal": "prop-0003", "pair": "ETH/USDT:USDT", "side": "short", "notional": 200.0, "decision": "DENY", "reason": "notional above approved amount"}
-{"utc": "11:26:53", "proposal": "prop-0003", "pair": "ETH/USDT:USDT", "side": "short", "notional": 100.0, "decision": "ALLOW", "reason": "approved"}
-{"utc": "11:30:57", "proposal": "prop-0004", "pair": "ETH/USDT:USDT", "side": "long", "notional": 100.0, "decision": "ALLOW", "reason": "approved"}
-{"utc": "11:30:58", "proposal": "prop-0005", "pair": "SOL/USDT:USDT", "side": "short", "notional": 100.0, "decision": "ALLOW", "reason": "approved"}
