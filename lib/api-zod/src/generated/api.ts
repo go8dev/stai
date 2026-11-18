@@ -589,3 +589,317 @@ export const RejectTradeProposalResponse = zod.object({
 })
 
 
+/**
+ * @summary Get the approved strategy setup and recent historical backtests
+ */
+export const GetStrategyLabOverviewResponse = zod.object({
+  "strategy": zod.object({
+  "strategyVersion": zod.string(),
+  "scoreThreshold": zod.number().int(),
+  "trendTimeframe": zod.string(),
+  "confirmationTimeframe": zod.string(),
+  "spotSides": zod.array(zod.enum(['long', 'short'])),
+  "futuresSides": zod.array(zod.enum(['long', 'short'])),
+  "takeProfitLevel": zod.string(),
+  "stopRule": zod.string(),
+  "maxHoldMinutes": zod.number().int(),
+  "sampleSplit": zod.string(),
+  "notionalUsdt": zod.union([zod.number(),zod.string()]),
+  "leverage": zod.union([zod.number(),zod.string()]),
+  "spreadBps": zod.union([zod.number(),zod.string()]),
+  "slippageBps": zod.union([zod.number(),zod.string()]),
+  "noLookaheadRule": zod.string(),
+  "executionAssumptions": zod.array(zod.string())
+}),
+  "status": zod.object({
+  "paidCommitteeReviewEnabled": zod.boolean(),
+  "tradingEnabled": zod.boolean(),
+  "proposalCreationEnabled": zod.boolean(),
+  "notice": zod.string()
+}),
+  "recentRuns": zod.array(zod.object({
+  "id": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "symbol": zod.enum(['BTCUSDT', 'ETHUSDT', 'SOLUSDT']),
+  "requestedDays": zod.number().int(),
+  "strategyVersion": zod.string(),
+  "dataSha256": zod.string(),
+  "tradeCount": zod.number().int(),
+  "developmentEnd": zod.coerce.date(),
+  "outOfSampleStart": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary List recent owner Strategy Laboratory runs
+ */
+export const ListStrategyBacktestsResponseItem = zod.object({
+  "id": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "symbol": zod.enum(['BTCUSDT', 'ETHUSDT', 'SOLUSDT']),
+  "requestedDays": zod.number().int(),
+  "strategyVersion": zod.string(),
+  "dataSha256": zod.string(),
+  "tradeCount": zod.number().int(),
+  "developmentEnd": zod.coerce.date(),
+  "outOfSampleStart": zod.coerce.date()
+})
+export const ListStrategyBacktestsResponse = zod.array(ListStrategyBacktestsResponseItem)
+
+
+/**
+ * @summary Run and save a deterministic OKX historical backtest
+ */
+export const createStrategyBacktestBodySymbolDefault = `BTCUSDT`;
+export const createStrategyBacktestBodyDaysDefault = 30;
+export const createStrategyBacktestBodyDaysMin = 7;
+export const createStrategyBacktestBodyDaysMax = 30;
+
+export const createStrategyBacktestBodySpreadBpsOneMin = 0;
+export const createStrategyBacktestBodySpreadBpsOneMax = 50;
+
+export const createStrategyBacktestBodySpreadBpsDefault = `5`;
+export const createStrategyBacktestBodySlippageBpsOneMin = 0;
+export const createStrategyBacktestBodySlippageBpsOneMax = 50;
+
+export const createStrategyBacktestBodySlippageBpsDefault = `5`;
+
+export const CreateStrategyBacktestBody = zod.object({
+  "symbol": zod.enum(['BTCUSDT', 'ETHUSDT', 'SOLUSDT']).default(createStrategyBacktestBodySymbolDefault),
+  "days": zod.number().int().min(createStrategyBacktestBodyDaysMin).max(createStrategyBacktestBodyDaysMax).default(createStrategyBacktestBodyDaysDefault),
+  "spreadBps": zod.union([zod.number().min(createStrategyBacktestBodySpreadBpsOneMin).max(createStrategyBacktestBodySpreadBpsOneMax),zod.string()]).default(createStrategyBacktestBodySpreadBpsDefault),
+  "slippageBps": zod.union([zod.number().min(createStrategyBacktestBodySlippageBpsOneMin).max(createStrategyBacktestBodySlippageBpsOneMax),zod.string()]).default(createStrategyBacktestBodySlippageBpsDefault)
+})
+
+export const CreateStrategyBacktestResponse = zod.object({
+  "id": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "symbol": zod.enum(['BTCUSDT', 'ETHUSDT', 'SOLUSDT']),
+  "requestedDays": zod.number().int(),
+  "strategy": zod.object({
+  "strategyVersion": zod.string(),
+  "scoreThreshold": zod.number().int(),
+  "trendTimeframe": zod.string(),
+  "confirmationTimeframe": zod.string(),
+  "spotSides": zod.array(zod.enum(['long', 'short'])),
+  "futuresSides": zod.array(zod.enum(['long', 'short'])),
+  "takeProfitLevel": zod.string(),
+  "stopRule": zod.string(),
+  "maxHoldMinutes": zod.number().int(),
+  "sampleSplit": zod.string(),
+  "notionalUsdt": zod.union([zod.number(),zod.string()]),
+  "leverage": zod.union([zod.number(),zod.string()]),
+  "spreadBps": zod.union([zod.number(),zod.string()]),
+  "slippageBps": zod.union([zod.number(),zod.string()]),
+  "noLookaheadRule": zod.string(),
+  "executionAssumptions": zod.array(zod.string())
+}),
+  "engineVersion": zod.string(),
+  "requestedStart": zod.coerce.date(),
+  "requestedEnd": zod.coerce.date(),
+  "developmentEnd": zod.coerce.date(),
+  "outOfSampleStart": zod.coerce.date(),
+  "dataSha256": zod.string(),
+  "candleCoverage": zod.array(zod.object({
+  "symbol": zod.enum(['BTCUSDT', 'ETHUSDT', 'SOLUSDT']),
+  "marketType": zod.enum(['spot', 'futures']),
+  "requestedStart": zod.coerce.date(),
+  "requestedEnd": zod.coerce.date(),
+  "firstCandleAt": zod.union([zod.coerce.date(),zod.null()]),
+  "lastCandleAt": zod.union([zod.coerce.date(),zod.null()]),
+  "actualClosedCandles": zod.number().int(),
+  "expectedCandles": zod.number().int(),
+  "missingCandles": zod.number().int(),
+  "coveragePct": zod.union([zod.number(),zod.string()]),
+  "gapRanges": zod.array(zod.string())
+})),
+  "fundingCoverage": zod.object({
+  "status": zod.enum(['not_applicable', 'available', 'partial', 'unavailable']),
+  "records": zod.number().int(),
+  "firstEventAt": zod.union([zod.coerce.date(),zod.null()]),
+  "lastEventAt": zod.union([zod.coerce.date(),zod.null()]),
+  "note": zod.string()
+}),
+  "segments": zod.array(zod.object({
+  "marketType": zod.enum(['spot', 'futures']),
+  "side": zod.enum(['long', 'short']),
+  "period": zod.enum(['development', 'out_of_sample']),
+  "periodStart": zod.coerce.date(),
+  "periodEnd": zod.coerce.date(),
+  "metrics": zod.object({
+  "tradeCount": zod.number().int(),
+  "wins": zod.number().int(),
+  "losses": zod.number().int(),
+  "breakeven": zod.number().int(),
+  "winRatePct": zod.union([zod.number(),zod.string(),zod.null()]),
+  "expectancyUsdt": zod.union([zod.number(),zod.string(),zod.null()]),
+  "expectancyPctOfNotional": zod.union([zod.number(),zod.string(),zod.null()]),
+  "profitFactor": zod.union([zod.number(),zod.string(),zod.null()]),
+  "profitFactorNote": zod.union([zod.string(),zod.null()]),
+  "maxDrawdownUsdt": zod.union([zod.number(),zod.string()]),
+  "maxDrawdownPct": zod.union([zod.number(),zod.string()]),
+  "cumulativePnlUsdt": zod.union([zod.number(),zod.string()]),
+  "cumulativeReturnPct": zod.union([zod.number(),zod.string()]),
+  "endingEquityUsdt": zod.union([zod.number(),zod.string()]),
+  "totalFeesUsdt": zod.union([zod.number(),zod.string()]),
+  "totalFundingUsdt": zod.union([zod.number(),zod.string()]),
+  "totalSpreadCostUsdt": zod.union([zod.number(),zod.string()]),
+  "totalSlippageCostUsdt": zod.union([zod.number(),zod.string()]),
+  "excludedUnclosedTrades": zod.number().int()
+}),
+  "equityCurve": zod.array(zod.object({
+  "at": zod.coerce.date(),
+  "equityUsdt": zod.union([zod.number(),zod.string()]),
+  "cumulativePnlUsdt": zod.union([zod.number(),zod.string()])
+})),
+  "trades": zod.array(zod.object({
+  "signalAt": zod.coerce.date(),
+  "enteredAt": zod.coerce.date(),
+  "exitedAt": zod.coerce.date(),
+  "side": zod.enum(['long', 'short']),
+  "score": zod.union([zod.number(),zod.string()]),
+  "entryPrice": zod.union([zod.number(),zod.string()]),
+  "stopPrice": zod.union([zod.number(),zod.string()]),
+  "targetPrice": zod.union([zod.number(),zod.string()]),
+  "exitPrice": zod.union([zod.number(),zod.string()]),
+  "exitReason": zod.enum(['stop_loss', 'take_profit_1', 'time_limit']),
+  "holdingMinutes": zod.number().int(),
+  "grossPnlUsdt": zod.union([zod.number(),zod.string()]),
+  "feeUsdt": zod.union([zod.number(),zod.string()]),
+  "fundingUsdt": zod.union([zod.number(),zod.string()]),
+  "spreadCostUsdt": zod.union([zod.number(),zod.string()]),
+  "slippageCostUsdt": zod.union([zod.number(),zod.string()]),
+  "netPnlUsdt": zod.union([zod.number(),zod.string()]),
+  "returnOnNotionalPct": zod.union([zod.number(),zod.string()])
+}))
+})),
+  "notes": zod.array(zod.string()),
+  "status": zod.object({
+  "paidCommitteeReviewEnabled": zod.boolean(),
+  "tradingEnabled": zod.boolean(),
+  "proposalCreationEnabled": zod.boolean(),
+  "notice": zod.string()
+})
+})
+
+
+/**
+ * @summary Get one saved historical Strategy Laboratory run
+ */
+export const GetStrategyBacktestParams = zod.object({
+  "run_id": zod.coerce.string()
+})
+
+export const GetStrategyBacktestResponse = zod.object({
+  "id": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "symbol": zod.enum(['BTCUSDT', 'ETHUSDT', 'SOLUSDT']),
+  "requestedDays": zod.number().int(),
+  "strategy": zod.object({
+  "strategyVersion": zod.string(),
+  "scoreThreshold": zod.number().int(),
+  "trendTimeframe": zod.string(),
+  "confirmationTimeframe": zod.string(),
+  "spotSides": zod.array(zod.enum(['long', 'short'])),
+  "futuresSides": zod.array(zod.enum(['long', 'short'])),
+  "takeProfitLevel": zod.string(),
+  "stopRule": zod.string(),
+  "maxHoldMinutes": zod.number().int(),
+  "sampleSplit": zod.string(),
+  "notionalUsdt": zod.union([zod.number(),zod.string()]),
+  "leverage": zod.union([zod.number(),zod.string()]),
+  "spreadBps": zod.union([zod.number(),zod.string()]),
+  "slippageBps": zod.union([zod.number(),zod.string()]),
+  "noLookaheadRule": zod.string(),
+  "executionAssumptions": zod.array(zod.string())
+}),
+  "engineVersion": zod.string(),
+  "requestedStart": zod.coerce.date(),
+  "requestedEnd": zod.coerce.date(),
+  "developmentEnd": zod.coerce.date(),
+  "outOfSampleStart": zod.coerce.date(),
+  "dataSha256": zod.string(),
+  "candleCoverage": zod.array(zod.object({
+  "symbol": zod.enum(['BTCUSDT', 'ETHUSDT', 'SOLUSDT']),
+  "marketType": zod.enum(['spot', 'futures']),
+  "requestedStart": zod.coerce.date(),
+  "requestedEnd": zod.coerce.date(),
+  "firstCandleAt": zod.union([zod.coerce.date(),zod.null()]),
+  "lastCandleAt": zod.union([zod.coerce.date(),zod.null()]),
+  "actualClosedCandles": zod.number().int(),
+  "expectedCandles": zod.number().int(),
+  "missingCandles": zod.number().int(),
+  "coveragePct": zod.union([zod.number(),zod.string()]),
+  "gapRanges": zod.array(zod.string())
+})),
+  "fundingCoverage": zod.object({
+  "status": zod.enum(['not_applicable', 'available', 'partial', 'unavailable']),
+  "records": zod.number().int(),
+  "firstEventAt": zod.union([zod.coerce.date(),zod.null()]),
+  "lastEventAt": zod.union([zod.coerce.date(),zod.null()]),
+  "note": zod.string()
+}),
+  "segments": zod.array(zod.object({
+  "marketType": zod.enum(['spot', 'futures']),
+  "side": zod.enum(['long', 'short']),
+  "period": zod.enum(['development', 'out_of_sample']),
+  "periodStart": zod.coerce.date(),
+  "periodEnd": zod.coerce.date(),
+  "metrics": zod.object({
+  "tradeCount": zod.number().int(),
+  "wins": zod.number().int(),
+  "losses": zod.number().int(),
+  "breakeven": zod.number().int(),
+  "winRatePct": zod.union([zod.number(),zod.string(),zod.null()]),
+  "expectancyUsdt": zod.union([zod.number(),zod.string(),zod.null()]),
+  "expectancyPctOfNotional": zod.union([zod.number(),zod.string(),zod.null()]),
+  "profitFactor": zod.union([zod.number(),zod.string(),zod.null()]),
+  "profitFactorNote": zod.union([zod.string(),zod.null()]),
+  "maxDrawdownUsdt": zod.union([zod.number(),zod.string()]),
+  "maxDrawdownPct": zod.union([zod.number(),zod.string()]),
+  "cumulativePnlUsdt": zod.union([zod.number(),zod.string()]),
+  "cumulativeReturnPct": zod.union([zod.number(),zod.string()]),
+  "endingEquityUsdt": zod.union([zod.number(),zod.string()]),
+  "totalFeesUsdt": zod.union([zod.number(),zod.string()]),
+  "totalFundingUsdt": zod.union([zod.number(),zod.string()]),
+  "totalSpreadCostUsdt": zod.union([zod.number(),zod.string()]),
+  "totalSlippageCostUsdt": zod.union([zod.number(),zod.string()]),
+  "excludedUnclosedTrades": zod.number().int()
+}),
+  "equityCurve": zod.array(zod.object({
+  "at": zod.coerce.date(),
+  "equityUsdt": zod.union([zod.number(),zod.string()]),
+  "cumulativePnlUsdt": zod.union([zod.number(),zod.string()])
+})),
+  "trades": zod.array(zod.object({
+  "signalAt": zod.coerce.date(),
+  "enteredAt": zod.coerce.date(),
+  "exitedAt": zod.coerce.date(),
+  "side": zod.enum(['long', 'short']),
+  "score": zod.union([zod.number(),zod.string()]),
+  "entryPrice": zod.union([zod.number(),zod.string()]),
+  "stopPrice": zod.union([zod.number(),zod.string()]),
+  "targetPrice": zod.union([zod.number(),zod.string()]),
+  "exitPrice": zod.union([zod.number(),zod.string()]),
+  "exitReason": zod.enum(['stop_loss', 'take_profit_1', 'time_limit']),
+  "holdingMinutes": zod.number().int(),
+  "grossPnlUsdt": zod.union([zod.number(),zod.string()]),
+  "feeUsdt": zod.union([zod.number(),zod.string()]),
+  "fundingUsdt": zod.union([zod.number(),zod.string()]),
+  "spreadCostUsdt": zod.union([zod.number(),zod.string()]),
+  "slippageCostUsdt": zod.union([zod.number(),zod.string()]),
+  "netPnlUsdt": zod.union([zod.number(),zod.string()]),
+  "returnOnNotionalPct": zod.union([zod.number(),zod.string()])
+}))
+})),
+  "notes": zod.array(zod.string()),
+  "status": zod.object({
+  "paidCommitteeReviewEnabled": zod.boolean(),
+  "tradingEnabled": zod.boolean(),
+  "proposalCreationEnabled": zod.boolean(),
+  "notice": zod.string()
+})
+})
+
+

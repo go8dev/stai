@@ -23,6 +23,7 @@ import MarketScannerPage from '@/pages/market-scanner';
 import ProposalsPage from '@/pages/proposals';
 import PortfolioPage from '@/pages/portfolio';
 import AiCommitteePage from '@/pages/ai-committee';
+import StrategyLabPage from '@/pages/strategy-lab';
 import { NotBuiltPage } from '@/pages/not-built';
 import { LoadingScreen, SignInScreen } from '@/pages/sign-in';
 import { MODULES, SYSTEM_STATUS_PATH } from '@/lib/modules';
@@ -65,6 +66,7 @@ function Router() {
         <Route path="/proposals" component={ProposalsPage} />
         <Route path="/portfolio" component={PortfolioPage} />
         <Route path="/ai-committee" component={AiCommitteePage} />
+        <Route path="/strategy-lab" component={StrategyLabPage} />
         {MODULES.map((m) => (
           <Route key={m.id} path={m.path}>
             <NotBuiltPage module={m} />

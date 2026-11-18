@@ -32,9 +32,11 @@ MARKET_PATHS = frozenset(
     {
         "/api/v5/market/ticker",
         "/api/v5/market/candles",
+        "/api/v5/market/history-candles",
         "/api/v5/market/books",
         "/api/v5/public/instruments",
         "/api/v5/public/funding-rate",
+        "/api/v5/public/funding-rate-history",
     }
 )
 MAX_RESPONSE_BYTES = 1_000_000
@@ -179,6 +181,115 @@ class OkxMarketData:
         except (KeyError, IndexError, MarketDataUnavailable):
             logger.warning("OKX candles unavailable", symbol=symbol, timeframe=timeframe)
             return []
+
+    async def get_historical_candles(
+        self,
+        symbol: str,
+        market_type: MarketType,
+        start_at: datetime,
+        end_at: datetime,
+    ) -> list[CandlePoint]:
+        """Fetch a bounded, timestamped set of closed 15-minute OKX candles."""
+        if symbol not in SYMBOLS or market_type not in {"spot", "futures"}:
+            raise ValueError("Unsupported historical market.")
+        if start_at.tzinfo is None or end_at.tzinfo is None or start_at >= end_at:
+            raise ValueError("Historical candle bounds must be ordered timezone-aware times.")
+        instrument_id = _instrument_id(symbol, market_type)
+        start_ms = int(start_at.timestamp() * 1000)
+        end_ms = int(end_at.timestamp() * 1000)
+        cursor = end_ms
+        by_open_time: dict[int, CandlePoint] = {}
+
+        # 30 requested days plus warm-up is below this defensive page ceiling.
+        for _ in range(45):
+            payload = await self._get(
+                "/api/v5/market/history-candles",
+                {
+                    "instId": instrument_id,
+                    "bar": "15m",
+                    "limit": "100",
+                    "after": str(cursor),
+                },
+            )
+            rows = payload["data"]
+            if not rows:
+                break
+            timestamps: list[int] = []
+            for row in rows:
+                if len(row) < 9:
+                    raise MarketDataUnavailable("OKX historical candle data is incomplete.")
+                opened_ms = int(str(row[0]))
+                timestamps.append(opened_ms)
+                if not start_ms <= opened_ms < end_ms or str(row[8]) != "1":
+                    continue
+                opened_at = _moment(opened_ms, "historical candle time")
+                by_open_time[opened_ms] = CandlePoint(
+                    opened_at=opened_at,
+                    open=_decimal(row[1], "historical candle open"),
+                    high=_decimal(row[2], "historical candle high"),
+                    low=_decimal(row[3], "historical candle low"),
+                    close=_decimal(row[4], "historical candle close"),
+                    volume=_decimal(row[5], "historical candle volume"),
+                    quote_volume=_decimal(row[7], "historical candle quote volume"),
+                    complete=True,
+                )
+            oldest_ms = min(timestamps)
+            if oldest_ms <= start_ms or oldest_ms >= cursor:
+                break
+            cursor = oldest_ms
+            await asyncio.sleep(0.12)
+
+        if not by_open_time:
+            raise MarketDataUnavailable("OKX returned no closed candles for this period.")
+        return [by_open_time[key] for key in sorted(by_open_time)]
+
+    async def get_historical_funding(
+        self,
+        symbol: str,
+        start_at: datetime,
+        end_at: datetime,
+    ) -> list[tuple[datetime, Decimal]]:
+        """Fetch historical OKX swap funding observations without exchange credentials."""
+        if symbol not in SYMBOLS:
+            raise ValueError("Unsupported historical market.")
+        if start_at.tzinfo is None or end_at.tzinfo is None or start_at >= end_at:
+            raise ValueError("Historical funding bounds must be ordered timezone-aware times.")
+        instrument_id = _instrument_id(symbol, "futures")
+        start_ms = int(start_at.timestamp() * 1000)
+        end_ms = int(end_at.timestamp() * 1000)
+        cursor = end_ms
+        by_funding_time: dict[int, Decimal] = {}
+
+        for _ in range(10):
+            payload = await self._get(
+                "/api/v5/public/funding-rate-history",
+                {"instId": instrument_id, "limit": "100", "after": str(cursor)},
+            )
+            rows = payload["data"]
+            if not rows:
+                break
+            timestamps: list[int] = []
+            for row in rows:
+                try:
+                    funding_ms = int(str(row["fundingTime"]))
+                    rate = _decimal(row["fundingRate"], "historical funding rate")
+                except (KeyError, TypeError, ValueError) as exc:
+                    raise MarketDataUnavailable(
+                        "OKX historical funding data is incomplete."
+                    ) from exc
+                timestamps.append(funding_ms)
+                if start_ms <= funding_ms < end_ms:
+                    by_funding_time[funding_ms] = rate
+            oldest_ms = min(timestamps)
+            if oldest_ms <= start_ms or oldest_ms >= cursor:
+                break
+            cursor = oldest_ms
+            await asyncio.sleep(0.12)
+
+        return [
+            (_moment(timestamp, "historical funding time"), by_funding_time[timestamp])
+            for timestamp in sorted(by_funding_time)
+        ]
 
     async def _instrument_rules(
         self, market_type: MarketType, instrument_id: str

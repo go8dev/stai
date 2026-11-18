@@ -30,6 +30,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from stai.committee import models as committee_models  # noqa: F401
 from stai.db.base import Base, UtcDateTime
+from stai.strategy_lab import models as strategy_lab_models  # noqa: F401
 
 
 class User(Base):

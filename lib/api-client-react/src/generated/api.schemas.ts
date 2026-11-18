@@ -109,6 +109,267 @@ export interface BackendCheck {
   pythonVersion: string;
 }
 
+export type BacktestInputSymbol = typeof BacktestInputSymbol[keyof typeof BacktestInputSymbol];
+
+
+export const BacktestInputSymbol = {
+  BTCUSDT: 'BTCUSDT',
+  ETHUSDT: 'ETHUSDT',
+  SOLUSDT: 'SOLUSDT',
+} as const;
+
+export interface BacktestInput {
+  symbol?: BacktestInputSymbol;
+  /**
+     * @minimum 7
+     * @maximum 30
+     */
+  days?: number;
+  spreadBps?: number | string;
+  slippageBps?: number | string;
+}
+
+export type BacktestListItemSymbol = typeof BacktestListItemSymbol[keyof typeof BacktestListItemSymbol];
+
+
+export const BacktestListItemSymbol = {
+  BTCUSDT: 'BTCUSDT',
+  ETHUSDT: 'ETHUSDT',
+  SOLUSDT: 'SOLUSDT',
+} as const;
+
+export interface BacktestListItem {
+  id: string;
+  createdAt: string;
+  symbol: BacktestListItemSymbol;
+  requestedDays: number;
+  strategyVersion: string;
+  dataSha256: string;
+  tradeCount: number;
+  developmentEnd: string;
+  outOfSampleStart: string;
+}
+
+export interface BacktestMetrics {
+  tradeCount: number;
+  wins: number;
+  losses: number;
+  breakeven: number;
+  winRatePct: number | string | null;
+  expectancyUsdt: number | string | null;
+  expectancyPctOfNotional: number | string | null;
+  profitFactor: number | string | null;
+  profitFactorNote: string | null;
+  maxDrawdownUsdt: number | string;
+  maxDrawdownPct: number | string;
+  cumulativePnlUsdt: number | string;
+  cumulativeReturnPct: number | string;
+  endingEquityUsdt: number | string;
+  totalFeesUsdt: number | string;
+  totalFundingUsdt: number | string;
+  totalSpreadCostUsdt: number | string;
+  totalSlippageCostUsdt: number | string;
+  excludedUnclosedTrades: number;
+}
+
+export type BacktestResultSymbol = typeof BacktestResultSymbol[keyof typeof BacktestResultSymbol];
+
+
+export const BacktestResultSymbol = {
+  BTCUSDT: 'BTCUSDT',
+  ETHUSDT: 'ETHUSDT',
+  SOLUSDT: 'SOLUSDT',
+} as const;
+
+export type StrategyConfigurationSpotSidesItem = typeof StrategyConfigurationSpotSidesItem[keyof typeof StrategyConfigurationSpotSidesItem];
+
+
+export const StrategyConfigurationSpotSidesItem = {
+  long: 'long',
+  short: 'short',
+} as const;
+
+export type StrategyConfigurationFuturesSidesItem = typeof StrategyConfigurationFuturesSidesItem[keyof typeof StrategyConfigurationFuturesSidesItem];
+
+
+export const StrategyConfigurationFuturesSidesItem = {
+  long: 'long',
+  short: 'short',
+} as const;
+
+export interface StrategyConfiguration {
+  strategyVersion: string;
+  scoreThreshold: number;
+  trendTimeframe: string;
+  confirmationTimeframe: string;
+  spotSides: StrategyConfigurationSpotSidesItem[];
+  futuresSides: StrategyConfigurationFuturesSidesItem[];
+  takeProfitLevel: string;
+  stopRule: string;
+  maxHoldMinutes: number;
+  sampleSplit: string;
+  notionalUsdt: number | string;
+  leverage: number | string;
+  spreadBps: number | string;
+  slippageBps: number | string;
+  noLookaheadRule: string;
+  executionAssumptions: string[];
+}
+
+export type CandleCoverageSymbol = typeof CandleCoverageSymbol[keyof typeof CandleCoverageSymbol];
+
+
+export const CandleCoverageSymbol = {
+  BTCUSDT: 'BTCUSDT',
+  ETHUSDT: 'ETHUSDT',
+  SOLUSDT: 'SOLUSDT',
+} as const;
+
+export type CandleCoverageMarketType = typeof CandleCoverageMarketType[keyof typeof CandleCoverageMarketType];
+
+
+export const CandleCoverageMarketType = {
+  spot: 'spot',
+  futures: 'futures',
+} as const;
+
+export interface CandleCoverage {
+  symbol: CandleCoverageSymbol;
+  marketType: CandleCoverageMarketType;
+  requestedStart: string;
+  requestedEnd: string;
+  firstCandleAt: string | null;
+  lastCandleAt: string | null;
+  actualClosedCandles: number;
+  expectedCandles: number;
+  missingCandles: number;
+  coveragePct: number | string;
+  gapRanges: string[];
+}
+
+export type FundingCoverageStatus = typeof FundingCoverageStatus[keyof typeof FundingCoverageStatus];
+
+
+export const FundingCoverageStatus = {
+  not_applicable: 'not_applicable',
+  available: 'available',
+  partial: 'partial',
+  unavailable: 'unavailable',
+} as const;
+
+export interface FundingCoverage {
+  status: FundingCoverageStatus;
+  records: number;
+  firstEventAt: string | null;
+  lastEventAt: string | null;
+  note: string;
+}
+
+export type BacktestSegmentMarketType = typeof BacktestSegmentMarketType[keyof typeof BacktestSegmentMarketType];
+
+
+export const BacktestSegmentMarketType = {
+  spot: 'spot',
+  futures: 'futures',
+} as const;
+
+export type BacktestSegmentSide = typeof BacktestSegmentSide[keyof typeof BacktestSegmentSide];
+
+
+export const BacktestSegmentSide = {
+  long: 'long',
+  short: 'short',
+} as const;
+
+export type BacktestSegmentPeriod = typeof BacktestSegmentPeriod[keyof typeof BacktestSegmentPeriod];
+
+
+export const BacktestSegmentPeriod = {
+  development: 'development',
+  out_of_sample: 'out_of_sample',
+} as const;
+
+export interface EquityPoint {
+  at: string;
+  equityUsdt: number | string;
+  cumulativePnlUsdt: number | string;
+}
+
+export type BacktestTradeSide = typeof BacktestTradeSide[keyof typeof BacktestTradeSide];
+
+
+export const BacktestTradeSide = {
+  long: 'long',
+  short: 'short',
+} as const;
+
+export type BacktestTradeExitReason = typeof BacktestTradeExitReason[keyof typeof BacktestTradeExitReason];
+
+
+export const BacktestTradeExitReason = {
+  stop_loss: 'stop_loss',
+  take_profit_1: 'take_profit_1',
+  time_limit: 'time_limit',
+} as const;
+
+export interface BacktestTrade {
+  signalAt: string;
+  enteredAt: string;
+  exitedAt: string;
+  side: BacktestTradeSide;
+  score: number | string;
+  entryPrice: number | string;
+  stopPrice: number | string;
+  targetPrice: number | string;
+  exitPrice: number | string;
+  exitReason: BacktestTradeExitReason;
+  holdingMinutes: number;
+  grossPnlUsdt: number | string;
+  feeUsdt: number | string;
+  fundingUsdt: number | string;
+  spreadCostUsdt: number | string;
+  slippageCostUsdt: number | string;
+  netPnlUsdt: number | string;
+  returnOnNotionalPct: number | string;
+}
+
+export interface BacktestSegment {
+  marketType: BacktestSegmentMarketType;
+  side: BacktestSegmentSide;
+  period: BacktestSegmentPeriod;
+  periodStart: string;
+  periodEnd: string;
+  metrics: BacktestMetrics;
+  equityCurve: EquityPoint[];
+  trades: BacktestTrade[];
+}
+
+export interface StrategyLabStatus {
+  paidCommitteeReviewEnabled: boolean;
+  tradingEnabled: boolean;
+  proposalCreationEnabled: boolean;
+  notice: string;
+}
+
+export interface BacktestResult {
+  id: string;
+  createdAt: string;
+  symbol: BacktestResultSymbol;
+  requestedDays: number;
+  strategy: StrategyConfiguration;
+  engineVersion: string;
+  requestedStart: string;
+  requestedEnd: string;
+  developmentEnd: string;
+  outOfSampleStart: string;
+  dataSha256: string;
+  candleCoverage: CandleCoverage[];
+  fundingCoverage: FundingCoverage;
+  segments: BacktestSegment[];
+  notes: string[];
+  status: StrategyLabStatus;
+}
+
 export interface BookLevel {
   price: number | string;
   size: number | string;
@@ -399,6 +660,20 @@ export interface ErrorResponse {
   details?: ErrorResponseDetails;
 }
 
+export type ValidationErrorCtx = { [key: string]: unknown };
+
+export interface ValidationError {
+  loc: (string | number)[];
+  msg: string;
+  type: string;
+  input?: unknown;
+  ctx?: ValidationErrorCtx;
+}
+
+export interface HTTPValidationError {
+  detail?: ValidationError[];
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -623,6 +898,12 @@ export interface ProposalCenterOverview {
 export interface ProposalDecision {
   /** @maxLength 500 */
   reason: string;
+}
+
+export interface StrategyLabOverview {
+  strategy: StrategyConfiguration;
+  status: StrategyLabStatus;
+  recentRuns: BacktestListItem[];
 }
 
 /**

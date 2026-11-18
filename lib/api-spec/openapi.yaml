@@ -477,6 +477,125 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /strategy-lab:
+    get:
+      tags:
+      - strategy-lab
+      summary: Get the approved strategy setup and recent historical backtests
+      operationId: getStrategyLabOverview
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StrategyLabOverview'
+        '401':
+          description: Owner session required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /strategy-lab/backtests:
+    get:
+      tags:
+      - strategy-lab
+      summary: List recent owner Strategy Laboratory runs
+      operationId: listStrategyBacktests
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/BacktestListItem'
+                type: array
+        '401':
+          description: Owner session required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags:
+      - strategy-lab
+      summary: Run and save a deterministic OKX historical backtest
+      operationId: createStrategyBacktest
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BacktestInput'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BacktestResult'
+        '401':
+          description: Owner session required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Same-origin CSRF check failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Backtest inputs are invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Historical OKX data is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /strategy-lab/backtests/{run_id}:
+    get:
+      tags:
+      - strategy-lab
+      summary: Get one saved historical Strategy Laboratory run
+      operationId: getStrategyBacktest
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BacktestResult'
+        '401':
+          description: Owner session required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Backtest was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AllocationBalance:
@@ -694,6 +813,368 @@ components:
       - environment
       - uptimeSeconds
       - pythonVersion
+    BacktestInput:
+      properties:
+        symbol:
+          type: string
+          enum:
+          - BTCUSDT
+          - ETHUSDT
+          - SOLUSDT
+          default: BTCUSDT
+        days:
+          type: integer
+          maximum: 30.0
+          minimum: 7.0
+          default: 30
+        spreadBps:
+          anyOf:
+          - type: number
+            maximum: 50.0
+            minimum: 0.0
+          - type: string
+          default: '5'
+        slippageBps:
+          anyOf:
+          - type: number
+            maximum: 50.0
+            minimum: 0.0
+          - type: string
+          default: '5'
+      type: object
+    BacktestListItem:
+      properties:
+        id:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        symbol:
+          type: string
+          enum:
+          - BTCUSDT
+          - ETHUSDT
+          - SOLUSDT
+        requestedDays:
+          type: integer
+        strategyVersion:
+          type: string
+        dataSha256:
+          type: string
+        tradeCount:
+          type: integer
+        developmentEnd:
+          type: string
+          format: date-time
+        outOfSampleStart:
+          type: string
+          format: date-time
+      type: object
+      required:
+      - id
+      - createdAt
+      - symbol
+      - requestedDays
+      - strategyVersion
+      - dataSha256
+      - tradeCount
+      - developmentEnd
+      - outOfSampleStart
+    BacktestMetrics:
+      properties:
+        tradeCount:
+          type: integer
+        wins:
+          type: integer
+        losses:
+          type: integer
+        breakeven:
+          type: integer
+        winRatePct:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        expectancyUsdt:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        expectancyPctOfNotional:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        profitFactor:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        profitFactorNote:
+          anyOf:
+          - type: string
+          - type: 'null'
+        maxDrawdownUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        maxDrawdownPct:
+          anyOf:
+          - type: number
+          - type: string
+        cumulativePnlUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        cumulativeReturnPct:
+          anyOf:
+          - type: number
+          - type: string
+        endingEquityUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        totalFeesUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        totalFundingUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        totalSpreadCostUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        totalSlippageCostUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        excludedUnclosedTrades:
+          type: integer
+      type: object
+      required:
+      - tradeCount
+      - wins
+      - losses
+      - breakeven
+      - winRatePct
+      - expectancyUsdt
+      - expectancyPctOfNotional
+      - profitFactor
+      - profitFactorNote
+      - maxDrawdownUsdt
+      - maxDrawdownPct
+      - cumulativePnlUsdt
+      - cumulativeReturnPct
+      - endingEquityUsdt
+      - totalFeesUsdt
+      - totalFundingUsdt
+      - totalSpreadCostUsdt
+      - totalSlippageCostUsdt
+      - excludedUnclosedTrades
+    BacktestResult:
+      properties:
+        id:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        symbol:
+          type: string
+          enum:
+          - BTCUSDT
+          - ETHUSDT
+          - SOLUSDT
+        requestedDays:
+          type: integer
+        strategy:
+          $ref: '#/components/schemas/StrategyConfiguration'
+        engineVersion:
+          type: string
+        requestedStart:
+          type: string
+          format: date-time
+        requestedEnd:
+          type: string
+          format: date-time
+        developmentEnd:
+          type: string
+          format: date-time
+        outOfSampleStart:
+          type: string
+          format: date-time
+        dataSha256:
+          type: string
+        candleCoverage:
+          items:
+            $ref: '#/components/schemas/CandleCoverage'
+          type: array
+        fundingCoverage:
+          $ref: '#/components/schemas/FundingCoverage'
+        segments:
+          items:
+            $ref: '#/components/schemas/BacktestSegment'
+          type: array
+        notes:
+          items:
+            type: string
+          type: array
+        status:
+          $ref: '#/components/schemas/StrategyLabStatus'
+      type: object
+      required:
+      - id
+      - createdAt
+      - symbol
+      - requestedDays
+      - strategy
+      - engineVersion
+      - requestedStart
+      - requestedEnd
+      - developmentEnd
+      - outOfSampleStart
+      - dataSha256
+      - candleCoverage
+      - fundingCoverage
+      - segments
+      - notes
+      - status
+    BacktestSegment:
+      properties:
+        marketType:
+          type: string
+          enum:
+          - spot
+          - futures
+        side:
+          type: string
+          enum:
+          - long
+          - short
+        period:
+          type: string
+          enum:
+          - development
+          - out_of_sample
+        periodStart:
+          type: string
+          format: date-time
+        periodEnd:
+          type: string
+          format: date-time
+        metrics:
+          $ref: '#/components/schemas/BacktestMetrics'
+        equityCurve:
+          items:
+            $ref: '#/components/schemas/EquityPoint'
+          type: array
+        trades:
+          items:
+            $ref: '#/components/schemas/BacktestTrade'
+          type: array
+      type: object
+      required:
+      - marketType
+      - side
+      - period
+      - periodStart
+      - periodEnd
+      - metrics
+      - equityCurve
+      - trades
+    BacktestTrade:
+      properties:
+        signalAt:
+          type: string
+          format: date-time
+        enteredAt:
+          type: string
+          format: date-time
+        exitedAt:
+          type: string
+          format: date-time
+        side:
+          type: string
+          enum:
+          - long
+          - short
+        score:
+          anyOf:
+          - type: number
+          - type: string
+        entryPrice:
+          anyOf:
+          - type: number
+          - type: string
+        stopPrice:
+          anyOf:
+          - type: number
+          - type: string
+        targetPrice:
+          anyOf:
+          - type: number
+          - type: string
+        exitPrice:
+          anyOf:
+          - type: number
+          - type: string
+        exitReason:
+          type: string
+          enum:
+          - stop_loss
+          - take_profit_1
+          - time_limit
+        holdingMinutes:
+          type: integer
+        grossPnlUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        feeUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        fundingUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        spreadCostUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        slippageCostUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        netPnlUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        returnOnNotionalPct:
+          anyOf:
+          - type: number
+          - type: string
+      type: object
+      required:
+      - signalAt
+      - enteredAt
+      - exitedAt
+      - side
+      - score
+      - entryPrice
+      - stopPrice
+      - targetPrice
+      - exitPrice
+      - exitReason
+      - holdingMinutes
+      - grossPnlUsdt
+      - feeUsdt
+      - fundingUsdt
+      - spreadCostUsdt
+      - slippageCostUsdt
+      - netPnlUsdt
+      - returnOnNotionalPct
     BookLevel:
       properties:
         price:
@@ -769,6 +1250,62 @@ components:
       - createdAt
       - expiresAt
       - details
+    CandleCoverage:
+      properties:
+        symbol:
+          type: string
+          enum:
+          - BTCUSDT
+          - ETHUSDT
+          - SOLUSDT
+        marketType:
+          type: string
+          enum:
+          - spot
+          - futures
+        requestedStart:
+          type: string
+          format: date-time
+        requestedEnd:
+          type: string
+          format: date-time
+        firstCandleAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+        lastCandleAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+        actualClosedCandles:
+          type: integer
+        expectedCandles:
+          type: integer
+        missingCandles:
+          type: integer
+        coveragePct:
+          anyOf:
+          - type: number
+          - type: string
+        gapRanges:
+          items:
+            type: string
+          type: array
+      type: object
+      required:
+      - symbol
+      - marketType
+      - requestedStart
+      - requestedEnd
+      - firstCandleAt
+      - lastCandleAt
+      - actualClosedCandles
+      - expectedCandles
+      - missingCandles
+      - coveragePct
+      - gapRanges
     CandlePoint:
       properties:
         openedAt:
@@ -1084,6 +1621,24 @@ components:
       - missingTables
       - migrationRevision
       - detail
+    EquityPoint:
+      properties:
+        at:
+          type: string
+          format: date-time
+        equityUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        cumulativePnlUsdt:
+          anyOf:
+          - type: number
+          - type: string
+      type: object
+      required:
+      - at
+      - equityUsdt
+      - cumulativePnlUsdt
     ErrorResponse:
       properties:
         error:
@@ -1192,6 +1747,43 @@ components:
       - uncertainties
       - evidenceIds
       - confidence
+    FundingCoverage:
+      properties:
+        status:
+          type: string
+          enum:
+          - not_applicable
+          - available
+          - partial
+          - unavailable
+        records:
+          type: integer
+        firstEventAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+        lastEventAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+        note:
+          type: string
+      type: object
+      required:
+      - status
+      - records
+      - firstEventAt
+      - lastEventAt
+      - note
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+      type: object
     HealthStatus:
       properties:
         status:
@@ -1893,6 +2485,109 @@ components:
       enum:
       - development
       - production
+    StrategyConfiguration:
+      properties:
+        strategyVersion:
+          type: string
+        scoreThreshold:
+          type: integer
+        trendTimeframe:
+          type: string
+        confirmationTimeframe:
+          type: string
+        spotSides:
+          items:
+            type: string
+            enum:
+            - long
+            - short
+          type: array
+        futuresSides:
+          items:
+            type: string
+            enum:
+            - long
+            - short
+          type: array
+        takeProfitLevel:
+          type: string
+        stopRule:
+          type: string
+        maxHoldMinutes:
+          type: integer
+        sampleSplit:
+          type: string
+        notionalUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        leverage:
+          anyOf:
+          - type: number
+          - type: string
+        spreadBps:
+          anyOf:
+          - type: number
+          - type: string
+        slippageBps:
+          anyOf:
+          - type: number
+          - type: string
+        noLookaheadRule:
+          type: string
+        executionAssumptions:
+          items:
+            type: string
+          type: array
+      type: object
+      required:
+      - strategyVersion
+      - scoreThreshold
+      - trendTimeframe
+      - confirmationTimeframe
+      - spotSides
+      - futuresSides
+      - takeProfitLevel
+      - stopRule
+      - maxHoldMinutes
+      - sampleSplit
+      - notionalUsdt
+      - leverage
+      - spreadBps
+      - slippageBps
+      - noLookaheadRule
+      - executionAssumptions
+    StrategyLabOverview:
+      properties:
+        strategy:
+          $ref: '#/components/schemas/StrategyConfiguration'
+        status:
+          $ref: '#/components/schemas/StrategyLabStatus'
+        recentRuns:
+          items:
+            $ref: '#/components/schemas/BacktestListItem'
+          type: array
+      type: object
+      required:
+      - strategy
+      - status
+      - recentRuns
+    StrategyLabStatus:
+      properties:
+        paidCommitteeReviewEnabled:
+          type: boolean
+        tradingEnabled:
+          type: boolean
+        proposalCreationEnabled:
+          type: boolean
+        notice:
+          type: string
+      type: object
+      required:
+      - paidCommitteeReviewEnabled
+      - tradingEnabled
+      - proposalCreationEnabled
+      - notice
     SystemStatus:
       properties:
         overall:
@@ -1945,6 +2640,26 @@ components:
       enum:
       - paper
       description: STAI has one mode. There is no live value and no switch to add one.
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+        msg:
+          type: string
+        type:
+          type: string
+        input: {}
+        ctx:
+          type: object
+      type: object
+      required:
+      - loc
+      - msg
+      - type
 tags:
 - name: health
   description: Health check.
