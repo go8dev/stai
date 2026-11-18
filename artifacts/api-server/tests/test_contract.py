@@ -42,6 +42,9 @@ OPERATIONS = {
     ("GET", "/portfolio/ledger/verify"): "verifyPortfolioLedger",
     ("GET", "/committee"): "getCommitteeOverview",
     ("GET", "/committee/{run_id}"): "getCommitteeRun",
+    ("GET", "/proposal-center"): "getProposalCenter",
+    ("POST", "/proposals/{proposal_id}/approve"): "approveTradeProposal",
+    ("POST", "/proposals/{proposal_id}/reject"): "rejectTradeProposal",
 }
 
 
@@ -234,7 +237,11 @@ def test_every_operation_that_changes_something_documents_the_csrf_refusal(
 ) -> None:
     changing = {key for key in operations(stored) if key[0] not in {"GET", "HEAD", "OPTIONS"}}
 
-    assert changing == {("POST", "/audit/verify")}
+    assert changing == {
+        ("POST", "/audit/verify"),
+        ("POST", "/proposals/{proposal_id}/approve"),
+        ("POST", "/proposals/{proposal_id}/reject"),
+    }
     for key in changing:
         assert "403" in operations(stored)[key]["responses"], key
 

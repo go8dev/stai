@@ -59,6 +59,8 @@ _TABLES = (
     "committee_findings",
     "committee_runs",
     "committee_agents",
+    "trade_proposals",
+    "setup_candidates",
     "market_snapshots",
     "paper_fills",
     "paper_positions",

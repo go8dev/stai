@@ -104,6 +104,9 @@ function liveRow(
       status === MarketScannerRowStatus.stale
         ? 'Last tick is older than the freshness limit.'
         : null,
+    setupScores: null,
+    candidateId: null,
+    candidateStatus: null,
   };
 }
 
@@ -133,6 +136,9 @@ function deadRow(
     bids: [],
     asks: [],
     detail: 'Instrument not returned by the provider.',
+    setupScores: null,
+    candidateId: null,
+    candidateStatus: null,
   };
 }
 

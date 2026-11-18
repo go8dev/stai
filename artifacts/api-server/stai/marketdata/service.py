@@ -45,6 +45,9 @@ def persist_market_rows(session: Session, rows: list[MarketScannerRow]) -> list[
                     "fundingRate": (
                         None if row.funding_rate is None else format(row.funding_rate, "f")
                     ),
+                    "nextFundingAt": (
+                        None if row.next_funding_at is None else row.next_funding_at.isoformat()
+                    ),
                     "instrument": instrument,
                     "indicators": indicators,
                     "bids": [level.model_dump(mode="json") for level in row.bids],

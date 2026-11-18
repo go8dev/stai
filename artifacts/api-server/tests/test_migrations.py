@@ -25,6 +25,8 @@ APPLICATION_TABLES = {
     "committee_runs",
     "committee_findings",
     "committee_calls",
+    "setup_candidates",
+    "trade_proposals",
     "users",
     "auth_sessions",
     "audit_events",
@@ -80,7 +82,7 @@ def test_a_new_database_gets_exactly_the_migrated_tables(fresh: tuple[str, Engin
     command.upgrade(alembic_config(url), "head")
 
     assert public_tables(engine) == APPLICATION_TABLES | {"alembic_version"}
-    assert scalar(engine, "SELECT version_num FROM alembic_version") == "0003"
+    assert scalar(engine, "SELECT version_num FROM alembic_version") == "0004"
     for table in APPLICATION_TABLES:
         assert scalar(engine, f"SELECT count(*) FROM {table}") == 0
 
@@ -171,6 +173,29 @@ def test_keys_checks_and_indexes_have_their_explicit_names(_admin_engine: Engine
         "fk_committee_findings_role_id_committee_agents",
         "pk_committee_calls",
         "fk_committee_calls_run_id_committee_runs",
+        "pk_setup_candidates",
+        "uq_setup_candidates_fingerprint",
+        "fk_setup_candidates_snapshot_id_market_snapshots",
+        "ck_setup_candidates_market_type",
+        "ck_setup_candidates_side",
+        "ck_setup_candidates_score_eligible",
+        "ck_setup_candidates_status",
+        "pk_trade_proposals",
+        "fk_trade_proposals_candidate_id_setup_candidates",
+        "fk_trade_proposals_committee_run_id_committee_runs",
+        "fk_trade_proposals_snapshot_id_market_snapshots",
+        "fk_trade_proposals_permit_id_trading_permits",
+        "uq_trade_proposals_permit_id",
+        "ck_trade_proposals_market_type",
+        "ck_trade_proposals_side",
+        "ck_trade_proposals_status",
+        "ck_trade_proposals_entry_positive",
+        "ck_trade_proposals_stop_positive",
+        "ck_trade_proposals_target_positive",
+        "ck_trade_proposals_notional_range",
+        "ck_trade_proposals_leverage_range",
+        "ck_trade_proposals_cost_nonnegative",
+        "ck_trade_proposals_reward_risk_nonnegative",
     }
     assert set(indexes) == {
         "pk_users",
@@ -204,6 +229,15 @@ def test_keys_checks_and_indexes_have_their_explicit_names(_admin_engine: Engine
         "ix_committee_runs_started",
         "pk_committee_findings",
         "pk_committee_calls",
+        "pk_setup_candidates",
+        "uq_setup_candidates_fingerprint",
+        "ix_setup_candidates_status_created",
+        "ix_setup_candidates_symbol_market",
+        "pk_trade_proposals",
+        "uq_trade_proposals_candidate",
+        "uq_trade_proposals_committee_run",
+        "uq_trade_proposals_permit_id",
+        "ix_trade_proposals_status_expiry",
     }
     assert "UNIQUE" in indexes["uq_audit_events_prev_hash"]
     assert "UNIQUE" in indexes["uq_audit_events_hash"]
@@ -247,14 +281,15 @@ def test_running_the_migrations_twice_changes_nothing(fresh: tuple[str, Engine])
 def test_the_revisions_form_one_line(database_url: str) -> None:
     scripts = ScriptDirectory.from_config(alembic_config(database_url))
 
-    assert scripts.get_heads() == ["0003"]
+    assert scripts.get_heads() == ["0004"]
     assert scripts.get_bases() == ["0001"]
     revisions = list(scripts.walk_revisions())
-    assert [revision.revision for revision in revisions] == ["0003", "10af905d740f", "0001"]
+    assert [revision.revision for revision in revisions] == ["0004", "0003", "10af905d740f", "0001"]
     # Alembic follows the revision chain, not lexical filename order.
     assert sorted(path.name for path in VERSIONS.glob("*.py")) == [
         "0001_users_sessions_audit.py",
         "0003_committee.py",
+        "0004_owner_proposals.py",
         "10af905d740f_phase2_fund_ledger_market_data.py",
     ]
 
@@ -353,6 +388,11 @@ def test_every_timestamp_carries_a_time_zone(_admin_engine: Engine) -> None:
         ("paper_positions", "opened_at"),
         ("paper_positions", "closed_at"),
         ("paper_fills", "occurred_at"),
+        ("setup_candidates", "created_at"),
+        ("setup_candidates", "updated_at"),
+        ("trade_proposals", "created_at"),
+        ("trade_proposals", "expires_at"),
+        ("trade_proposals", "decided_at"),
     }
     assert {row.data_type for row in timestamps} == {"timestamp with time zone"}
 

@@ -20,6 +20,7 @@ import { AppShell } from '@/components/app-shell';
 import NotFound from '@/pages/not-found';
 import SystemStatusPage from '@/pages/system-status';
 import MarketScannerPage from '@/pages/market-scanner';
+import ProposalsPage from '@/pages/proposals';
 import PortfolioPage from '@/pages/portfolio';
 import AiCommitteePage from '@/pages/ai-committee';
 import { NotBuiltPage } from '@/pages/not-built';
@@ -61,6 +62,7 @@ function Router() {
         </Route>
         <Route path={SYSTEM_STATUS_PATH} component={SystemStatusPage} />
         <Route path="/market-scanner" component={MarketScannerPage} />
+        <Route path="/proposals" component={ProposalsPage} />
         <Route path="/portfolio" component={PortfolioPage} />
         <Route path="/ai-committee" component={AiCommitteePage} />
         {MODULES.map((m) => (

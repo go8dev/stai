@@ -14,7 +14,7 @@ from decimal import Decimal
 import pytest
 from sqlalchemy import func, select, text
 
-from stai.db.models import BotState, LedgerEntry, PaperFill, TradingPermit
+from stai.db.models import AuditEvent, BotState, LedgerEntry, PaperFill, TradingPermit
 from stai.marketdata.schemas import BookLevel
 from stai.marketdata.service import persist_market_rows
 from stai.trading.accounting import (
@@ -280,9 +280,22 @@ def test_single_use_exact_permit(owner: Harness) -> None:
     request = _permit(owner)
     with owner.runtime.database.session() as session:
         consume_permit(session, request, now=owner.clock())
+        event = session.scalar(
+            select(AuditEvent).where(AuditEvent.event_type == "trading_permit.consumed")
+        )
+        assert event is not None
+        assert event.payload["permitId"] == request.permit_id
     with owner.runtime.database.session() as session:
         with pytest.raises(PermitDenied, match="already"):
             consume_permit(session, request, now=owner.clock())
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(AuditEvent)
+                .where(AuditEvent.event_type == "trading_permit.consumed")
+            )
+            == 1
+        )
 
 
 @pytest.mark.parametrize(

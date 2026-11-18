@@ -21,6 +21,7 @@ TAGS = [
     {"name": "market-data", "description": "Public OKX market observations."},
     {"name": "portfolio", "description": "Virtual fund and paper ledger."},
     {"name": "committee", "description": "Read-only AI research and measured operating costs."},
+    {"name": "proposals", "description": "Qualified paper setups and explicit owner decisions."},
 ]
 
 

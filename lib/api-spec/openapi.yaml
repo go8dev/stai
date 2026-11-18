@@ -342,6 +342,141 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Unprocessable Entity
+  /proposal-center:
+    get:
+      tags:
+      - proposals
+      summary: Get qualified candidates and owner-facing paper proposals
+      operationId: getProposalCenter
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProposalCenterOverview'
+        '401':
+          description: Owner session required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /proposals/{proposal_id}/approve:
+    post:
+      tags:
+      - proposals
+      summary: Approve exact proposal terms for paper mode
+      operationId: approveTradeProposal
+      parameters:
+      - name: proposal_id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProposalDecision'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProposalView'
+        '401':
+          description: Owner session required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Same-origin CSRF check failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Proposal was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Proposal failed a final safety check.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Fresh market data is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request could not be validated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /proposals/{proposal_id}/reject:
+    post:
+      tags:
+      - proposals
+      summary: Reject a paper trade proposal
+      operationId: rejectTradeProposal
+      parameters:
+      - name: proposal_id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProposalDecision'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProposalView'
+        '401':
+          description: Owner session required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Same-origin CSRF check failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Proposal was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Proposal is no longer pending.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Request could not be validated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
     AllocationBalance:
@@ -589,6 +724,51 @@ components:
       - version
       - commit
       - startedAt
+    CandidateView:
+      properties:
+        id:
+          type: string
+        symbol:
+          type: string
+        marketType:
+          type: string
+          enum:
+          - spot
+          - futures
+        side:
+          type: string
+          enum:
+          - long
+          - short
+        score:
+          anyOf:
+          - type: number
+          - type: string
+        status:
+          type: string
+        strategyVersion:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        details:
+          additionalProperties: true
+          type: object
+      type: object
+      required:
+      - id
+      - symbol
+      - marketType
+      - side
+      - score
+      - status
+      - strategyVersion
+      - createdAt
+      - expiresAt
+      - details
     CandlePoint:
       properties:
         openedAt:
@@ -1343,6 +1523,19 @@ components:
           anyOf:
           - type: string
           - type: 'null'
+        setupScores:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+        candidateId:
+          anyOf:
+          - type: string
+          - type: 'null'
+        candidateStatus:
+          anyOf:
+          - type: string
+          - type: 'null'
       type: object
       required:
       - symbol
@@ -1366,6 +1559,9 @@ components:
       - bids
       - asks
       - detail
+      - setupScores
+      - candidateId
+      - candidateStatus
     PortfolioSummary:
       properties:
         fundId:
@@ -1433,6 +1629,150 @@ components:
       - ledgerVerified
       - ledgerEvents
       - updatedAt
+    ProposalCenterOverview:
+      properties:
+        candidates:
+          items:
+            $ref: '#/components/schemas/CandidateView'
+          type: array
+        proposals:
+          items:
+            $ref: '#/components/schemas/ProposalView'
+          type: array
+        paidCommitteeEnabled:
+          type: boolean
+          const: false
+        ownerApprovalRequired:
+          type: boolean
+          const: true
+        strategyThreshold:
+          type: integer
+        gateStatus:
+          type: string
+        gateMessage:
+          type: string
+      type: object
+      required:
+      - candidates
+      - proposals
+      - paidCommitteeEnabled
+      - ownerApprovalRequired
+      - strategyThreshold
+      - gateStatus
+      - gateMessage
+    ProposalDecision:
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+      type: object
+      required:
+      - reason
+    ProposalView:
+      properties:
+        id:
+          type: string
+        candidateId:
+          type: string
+        committeeRunId:
+          type: string
+        instrument:
+          type: string
+        marketType:
+          type: string
+          enum:
+          - spot
+          - futures
+        side:
+          type: string
+          enum:
+          - long
+          - short
+        status:
+          type: string
+          enum:
+          - pending
+          - approved
+          - rejected
+          - expired
+          - vetoed
+        entryPrice:
+          anyOf:
+          - type: number
+          - type: string
+        stopPrice:
+          anyOf:
+          - type: number
+          - type: string
+        targetPrice:
+          anyOf:
+          - type: number
+          - type: string
+        notionalUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        leverage:
+          anyOf:
+          - type: number
+          - type: string
+        plannedLossUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        estimatedCostUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        rewardRisk:
+          anyOf:
+          - type: number
+          - type: string
+        expiresAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        decidedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+        decisionReason:
+          anyOf:
+          - type: string
+          - type: 'null'
+        permitId:
+          anyOf:
+          - type: string
+          - type: 'null'
+        details:
+          additionalProperties: true
+          type: object
+      type: object
+      required:
+      - id
+      - candidateId
+      - committeeRunId
+      - instrument
+      - marketType
+      - side
+      - status
+      - entryPrice
+      - stopPrice
+      - targetPrice
+      - notionalUsdt
+      - leverage
+      - plannedLossUsdt
+      - estimatedCostUsdt
+      - rewardRisk
+      - expiresAt
+      - createdAt
+      - decidedAt
+      - decisionReason
+      - permitId
+      - details
     Recommendation:
       properties:
         action:
@@ -1620,3 +1960,5 @@ tags:
   description: Virtual fund and paper ledger.
 - name: committee
   description: Read-only AI research and measured operating costs.
+- name: proposals
+  description: Qualified paper setups and explicit owner decisions.

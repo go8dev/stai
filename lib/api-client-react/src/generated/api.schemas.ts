@@ -120,6 +120,37 @@ export interface BuildInfo {
   startedAt: string;
 }
 
+export type CandidateViewMarketType = typeof CandidateViewMarketType[keyof typeof CandidateViewMarketType];
+
+
+export const CandidateViewMarketType = {
+  spot: 'spot',
+  futures: 'futures',
+} as const;
+
+export type CandidateViewSide = typeof CandidateViewSide[keyof typeof CandidateViewSide];
+
+
+export const CandidateViewSide = {
+  long: 'long',
+  short: 'short',
+} as const;
+
+export type CandidateViewDetails = { [key: string]: unknown };
+
+export interface CandidateView {
+  id: string;
+  symbol: string;
+  marketType: CandidateViewMarketType;
+  side: CandidateViewSide;
+  score: number | string;
+  status: string;
+  strategyVersion: string;
+  createdAt: string;
+  expiresAt: string;
+  details: CandidateViewDetails;
+}
+
 export interface CandlePoint {
   openedAt: string;
   open: number | string;
@@ -470,6 +501,8 @@ export const MarketScannerRowStatus = {
   unavailable: 'unavailable',
 } as const;
 
+export type MarketScannerRowSetupScores = { [key: string]: unknown } | null;
+
 export interface MarketScannerRow {
   symbol: string;
   marketType: MarketScannerRowMarketType;
@@ -492,6 +525,9 @@ export interface MarketScannerRow {
   bids: BookLevel[];
   asks: BookLevel[];
   detail: string | null;
+  setupScores: MarketScannerRowSetupScores;
+  candidateId: string | null;
+  candidateStatus: string | null;
 }
 
 export interface MarketScannerResponse {
@@ -519,6 +555,74 @@ export interface PortfolioSummary {
   ledgerVerified: boolean;
   ledgerEvents: number;
   updatedAt: string;
+}
+
+export type ProposalViewMarketType = typeof ProposalViewMarketType[keyof typeof ProposalViewMarketType];
+
+
+export const ProposalViewMarketType = {
+  spot: 'spot',
+  futures: 'futures',
+} as const;
+
+export type ProposalViewSide = typeof ProposalViewSide[keyof typeof ProposalViewSide];
+
+
+export const ProposalViewSide = {
+  long: 'long',
+  short: 'short',
+} as const;
+
+export type ProposalViewStatus = typeof ProposalViewStatus[keyof typeof ProposalViewStatus];
+
+
+export const ProposalViewStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+  expired: 'expired',
+  vetoed: 'vetoed',
+} as const;
+
+export type ProposalViewDetails = { [key: string]: unknown };
+
+export interface ProposalView {
+  id: string;
+  candidateId: string;
+  committeeRunId: string;
+  instrument: string;
+  marketType: ProposalViewMarketType;
+  side: ProposalViewSide;
+  status: ProposalViewStatus;
+  entryPrice: number | string;
+  stopPrice: number | string;
+  targetPrice: number | string;
+  notionalUsdt: number | string;
+  leverage: number | string;
+  plannedLossUsdt: number | string;
+  estimatedCostUsdt: number | string;
+  rewardRisk: number | string;
+  expiresAt: string;
+  createdAt: string;
+  decidedAt: string | null;
+  decisionReason: string | null;
+  permitId: string | null;
+  details: ProposalViewDetails;
+}
+
+export interface ProposalCenterOverview {
+  candidates: CandidateView[];
+  proposals: ProposalView[];
+  paidCommitteeEnabled: false;
+  ownerApprovalRequired: true;
+  strategyThreshold: number;
+  gateStatus: string;
+  gateMessage: string;
+}
+
+export interface ProposalDecision {
+  /** @maxLength 500 */
+  reason: string;
 }
 
 /**

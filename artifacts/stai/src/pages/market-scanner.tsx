@@ -45,6 +45,21 @@ function rowKey(r: MarketScannerRow) {
   return `${r.symbol}-${r.marketType}`;
 }
 
+function scoreSummary(scores: MarketScannerRow['setupScores']) {
+  if (!scores || typeof scores !== 'object') return null;
+  const sides = scores.scores;
+  if (!sides || typeof sides !== 'object') return null;
+  return (
+    Object.entries(sides as Record<string, unknown>)
+      .filter(([, setup]) => setup && typeof setup === 'object')
+      .map(([side, setup]) => {
+        const score = (setup as Record<string, unknown>).score;
+        return `${side} ${typeof score === 'number' || typeof score === 'string' ? score : 'n/a'}/100`;
+      })
+      .join(' · ') || null
+  );
+}
+
 function Val({ v, className }: { v: string | null; className?: string }) {
   return v === null ? (
     <NotAvailable>n/a</NotAvailable>
@@ -195,6 +210,24 @@ function Candles({
 function RowDetail({ row }: { row: MarketScannerRow }) {
   const ind = row.indicators;
   const ins = row.instrument;
+  const scores =
+    row.setupScores?.scores && typeof row.setupScores.scores === 'object'
+      ? (row.setupScores.scores as Record<string, Record<string, unknown>>)
+      : {};
+  const h1 =
+    row.setupScores?.h1Snapshot &&
+    typeof row.setupScores.h1Snapshot === 'object'
+      ? (row.setupScores.h1Snapshot as Record<string, unknown>)
+      : {};
+  const m15 =
+    row.setupScores?.m15Snapshot &&
+    typeof row.setupScores.m15Snapshot === 'object'
+      ? (row.setupScores.m15Snapshot as Record<string, unknown>)
+      : {};
+  const btc =
+    row.setupScores?.btcRegime && typeof row.setupScores.btcRegime === 'object'
+      ? (row.setupScores.btcRegime as Record<string, unknown>)
+      : {};
   return (
     <div className="rise grid gap-5 border-t border-border bg-background/40 px-4 py-4 lg:grid-cols-[1fr_1fr_1.3fr]">
       <div>
@@ -281,6 +314,77 @@ function RowDetail({ row }: { row: MarketScannerRow }) {
             {row.detail}
           </p>
         )}
+        <p className="eyebrow mb-1 mt-4">Deterministic screening</p>
+        {Object.keys(scores).length > 0 ? (
+          <div className="space-y-3">
+            <dl>
+              <KV label="BTC regime">
+                {String(btc.regime ?? 'unavailable')} ·{' '}
+                {String(btc.status ?? 'unavailable')}
+              </KV>
+              <KV label="1H trend">
+                {String(h1.ema_alignment ?? 'unavailable')}
+              </KV>
+              <KV label="15M confirmation">
+                {String(m15.ema_alignment ?? 'unavailable')} /{' '}
+                {String(m15.macd_direction ?? 'unavailable')} /{' '}
+                {String(m15.candle_behavior ?? 'unavailable')}
+              </KV>
+            </dl>
+            {Object.entries(scores).map(([side, setup]) => (
+              <div
+                key={side}
+                className="rounded border border-border/60 px-3 py-2"
+                data-testid={`screen-setup-${rowKey(row)}-${side}`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-medium uppercase">
+                    {side} setup
+                  </span>
+                  <span className="num text-teal">
+                    {String(setup.score ?? 'n/a')} / 100
+                  </span>
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {String(setup.strategy_type ?? 'strategy unavailable')}
+                </p>
+                <dl className="mt-2">
+                  <KV label="Entry zone">
+                    {String(setup.entry_zone_low ?? 'n/a')} –{' '}
+                    {String(setup.entry_zone_high ?? 'n/a')}
+                  </KV>
+                  <KV label="Stop reference">
+                    {String(setup.stop_loss ?? 'n/a')}
+                  </KV>
+                  <KV label="First target reference">
+                    {String(setup.tp1 ?? 'n/a')}
+                  </KV>
+                </dl>
+                {Array.isArray(setup.reasons) && (
+                  <ul className="mt-2 space-y-1 text-[11px] leading-relaxed text-muted-foreground">
+                    {setup.reasons.slice(0, 4).map((reason, index) => (
+                      <li key={`${side}-${index}`}>{String(reason)}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            No screening score evidence in this snapshot.
+          </p>
+        )}
+        <p className="mt-2 text-[11.5px] leading-relaxed text-muted-foreground">
+          Scores are screening evidence only, not trade advice. A scanner row is
+          not a proposal.
+        </p>
+        <dl className="mt-2">
+          <KV label="Candidate status">
+            {row.candidateStatus ?? 'not qualified'}
+          </KV>
+          {row.candidateId && <KV label="Candidate ID">{row.candidateId}</KV>}
+        </dl>
         <p className="eyebrow mb-1 mt-4">Order book top</p>
         <Book bids={row.bids} asks={row.asks} />
       </div>
@@ -399,13 +503,43 @@ function ScannerRow({
             <NotAvailable>n/a</NotAvailable>
           )}
         </td>
+        <td className="hidden px-2 py-2.5 text-right sm:table-cell">
+          {scoreSummary(row.setupScores) ? (
+            <span
+              className="num text-teal"
+              title={scoreSummary(row.setupScores) ?? undefined}
+              data-testid={`text-screen-score-${k}`}
+            >
+              {scoreSummary(row.setupScores)}
+            </span>
+          ) : (
+            <NotAvailable>n/a</NotAvailable>
+          )}
+        </td>
+        <td
+          className="hidden px-2 py-2.5 text-[11px] md:table-cell"
+          data-testid={`status-candidate-${k}`}
+        >
+          {row.candidateId ? (
+            <span className="text-teal">
+              {row.candidateStatus ?? 'qualified'}{' '}
+              <span className="font-mono text-muted-foreground">
+                {row.candidateId}
+              </span>
+            </span>
+          ) : (
+            <span className="text-muted-foreground">
+              {row.candidateStatus ?? 'not qualified'}
+            </span>
+          )}
+        </td>
         <td className="py-2.5 pl-2 pr-3 text-right">
           <Freshness row={row} />
         </td>
       </tr>
       {open && (
         <tr>
-          <td colSpan={11} className="p-0">
+          <td colSpan={13} className="p-0">
             <RowDetail row={row} />
           </td>
         </tr>
@@ -449,9 +583,9 @@ export default function MarketScannerPage() {
             Market Scanner <PaperLabel />
           </h1>
           <p className="mt-1 max-w-xl text-[12.5px] text-muted-foreground">
-            Public OKX data only. Indicators are screening evidence, not trade
-            signals. Entries are disabled until the owner approval workflow
-            ships.
+            Public OKX spot and perpetual data. Deterministic scores are
+            screening evidence, not trade advice. Only persisted proposals can
+            receive owner decisions; the entry engine remains fail-closed.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -600,6 +734,12 @@ export default function MarketScannerPage() {
                       </th>
                       <th className="eyebrow hidden px-2 py-2 font-normal sm:table-cell">
                         Screen
+                      </th>
+                      <th className="eyebrow hidden px-2 py-2 text-right font-normal sm:table-cell">
+                        Score evidence
+                      </th>
+                      <th className="eyebrow hidden px-2 py-2 font-normal md:table-cell">
+                        Candidate
                       </th>
                       <th className="eyebrow py-2 pl-2 pr-3 text-right font-normal">
                         Data

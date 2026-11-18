@@ -10,6 +10,7 @@ import type { CandlePoint } from './candlePoint';
 import type { InstrumentRules } from './instrumentRules';
 import type { MarketIndicators } from './marketIndicators';
 import type { MarketScannerRowMarketType } from './marketScannerRowMarketType';
+import type { MarketScannerRowSetupScores } from './marketScannerRowSetupScores';
 import type { MarketScannerRowStatus } from './marketScannerRowStatus';
 
 export interface MarketScannerRow {
@@ -34,4 +35,7 @@ export interface MarketScannerRow {
   bids: BookLevel[];
   asks: BookLevel[];
   detail: string | null;
+  setupScores: MarketScannerRowSetupScores;
+  candidateId: string | null;
+  candidateStatus: string | null;
 }

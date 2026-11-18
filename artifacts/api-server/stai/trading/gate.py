@@ -13,6 +13,7 @@ from decimal import Decimal
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
+from stai.audit.service import append_event
 from stai.core.time import as_utc, utcnow
 from stai.db.models import BotState, MarketSnapshot, PaperPosition, TradingPermit
 from stai.trading.accounting import accounting_reconciles
@@ -126,4 +127,21 @@ def consume_permit(
     permit.consumed = True
     permit.consumed_at = moment
     session.flush()
+    append_event(
+        session,
+        event_type="trading_permit.consumed",
+        actor_type="system",
+        payload={
+            "permitId": permit.id,
+            "instrument": permit.instrument,
+            "marketType": permit.market_type,
+            "side": permit.side,
+            "notionalUsdt": str(request.notional),
+            "price": str(request.price),
+            "leverage": str(request.leverage),
+            "stop": str(request.stop_price),
+            "target": str(request.target_price),
+        },
+        occurred_at=moment,
+    )
     return permit

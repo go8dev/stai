@@ -46,10 +46,15 @@ def get_committee_overview(runtime: Runtime = Depends(get_runtime)) -> Committee
             ],
             runs=[summary(r, counts.get(r.id, 0)) for r in runs],
             benchmark_state=runs[0].status if runs else "not_started",
-            limits_status="Awaiting owner approval; no threshold or daily caps selected",
-            next_step="Review benchmark cost and duration, then approve limits in conversation."
-            if runs
-            else "The single workspace benchmark has not run yet.",
+            limits_status=(
+                "Scanner threshold set to 70/100; paid reviews remain disabled until a supported "
+                "model and daily run/spend caps are authorized"
+            ),
+            next_step=(
+                "Authorize a supported model and daily run/spend caps before enabling paid reviews."
+                if runs
+                else "The single workspace benchmark has not run yet."
+            ),
         )
 
 

@@ -289,3 +289,97 @@ class TradingPermit(Base):
         CheckConstraint("leverage >= 1 AND leverage <= 2", name="leverage_range"),
         Index("ix_trading_permits_expiry", "expires_at"),
     )
+
+
+class SetupCandidate(Base):
+    """One deduplicated, rules-qualified market setup waiting for committee review."""
+
+    __tablename__ = "setup_candidates"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    fingerprint: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    snapshot_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("market_snapshots.id", ondelete="RESTRICT"), nullable=False
+    )
+    symbol: Mapped[str] = mapped_column(String(24), nullable=False)
+    market_type: Mapped[str] = mapped_column(String(12), nullable=False)
+    side: Mapped[str] = mapped_column(String(8), nullable=False)
+    score: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    strategy_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+    details: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("market_type IN ('spot', 'futures')", name="market_type"),
+        CheckConstraint("side IN ('long', 'short')", name="side"),
+        CheckConstraint("score >= 70 AND score <= 100", name="score_eligible"),
+        CheckConstraint(
+            "status IN ('awaiting_ai_authorization','proposed','approved','rejected',"
+            "'expired','vetoed')",
+            name="status",
+        ),
+        Index("ix_setup_candidates_status_created", "status", "created_at"),
+        Index("ix_setup_candidates_symbol_market", "symbol", "market_type", "created_at"),
+    )
+
+
+class TradeProposal(Base):
+    """Exact, expiring terms presented for the owner's explicit decision."""
+
+    __tablename__ = "trade_proposals"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    candidate_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("setup_candidates.id", ondelete="RESTRICT"), nullable=False
+    )
+    committee_run_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("committee_runs.id", ondelete="RESTRICT"), nullable=False
+    )
+    snapshot_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("market_snapshots.id", ondelete="RESTRICT"), nullable=False
+    )
+    permit_id: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("trading_permits.id", ondelete="RESTRICT"), unique=True
+    )
+    instrument: Mapped[str] = mapped_column(String(24), nullable=False)
+    market_type: Mapped[str] = mapped_column(String(12), nullable=False)
+    side: Mapped[str] = mapped_column(String(8), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    entry_price: Mapped[Decimal] = mapped_column(Numeric(30, 12), nullable=False)
+    stop_price: Mapped[Decimal] = mapped_column(Numeric(30, 12), nullable=False)
+    target_price: Mapped[Decimal] = mapped_column(Numeric(30, 12), nullable=False)
+    notional_usdt: Mapped[Decimal] = mapped_column(Numeric(30, 12), nullable=False)
+    leverage: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
+    planned_loss_usdt: Mapped[Decimal] = mapped_column(Numeric(30, 12), nullable=False)
+    estimated_cost_usdt: Mapped[Decimal] = mapped_column(Numeric(30, 12), nullable=False)
+    reward_risk: Mapped[Decimal] = mapped_column(Numeric(12, 6), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+    decided_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
+    decided_by: Mapped[str | None] = mapped_column(Text)
+    decision_reason: Mapped[str | None] = mapped_column(Text)
+    details: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+
+    __table_args__ = (
+        Index("uq_trade_proposals_candidate", "candidate_id", unique=True),
+        Index("uq_trade_proposals_committee_run", "committee_run_id", unique=True),
+        Index("ix_trade_proposals_status_expiry", "status", "expires_at"),
+        CheckConstraint("market_type IN ('spot', 'futures')", name="market_type"),
+        CheckConstraint("side IN ('long', 'short')", name="side"),
+        CheckConstraint(
+            "status IN ('pending','approved','rejected','expired','vetoed')",
+            name="status",
+        ),
+        CheckConstraint("entry_price > 0", name="entry_positive"),
+        CheckConstraint("stop_price > 0", name="stop_positive"),
+        CheckConstraint("target_price > 0", name="target_positive"),
+        CheckConstraint("notional_usdt > 0 AND notional_usdt <= 200", name="notional_range"),
+        CheckConstraint("leverage >= 1 AND leverage <= 2", name="leverage_range"),
+        CheckConstraint(
+            "planned_loss_usdt >= 0 AND estimated_cost_usdt >= 0",
+            name="cost_nonnegative",
+        ),
+        CheckConstraint("reward_risk >= 0", name="reward_risk_nonnegative"),
+    )

@@ -19,7 +19,6 @@ from stai.core.logging import StructuredLogger, configure_logging, register_secr
 from stai.core.time import utcnow
 from stai.db.models import BotState, PaperFill, PaperPosition
 from stai.main import create_app
-from stai.marketdata.service import persist_market_rows
 from stai.trading.accounting import FillRejected, accounting_reconciles
 from stai.trading.bots import BotSupervisor
 from stai.trading.ledger import ensure_fund, verify_ledger
@@ -168,22 +167,21 @@ def _persist_worker_state(
 
 
 async def _scan_once(runtime: Any, supervisor: BotSupervisor) -> None:
-    from stai.committee.scoring import setup_scores
     from stai.committee.storage import recover_interrupted
-    from stai.db.models import MarketSnapshot
     from stai.marketdata.routes import _enrich
+    from stai.proposals.service import persist_market_scan
 
     recover_interrupted(runtime.database)
     rows = await runtime.okx_market_data.scanner()
     rows = [_enrich(row) for row in rows]
+    from stai.committee.scoring import setup_scores
+
     btc_row = next((r for r in rows if r.symbol == "BTC/USDT" and r.market_type == "spot"), None)
-    scores = [setup_scores(row, btc_row) for row in rows]
+    for row in rows:
+        row.setup_scores = setup_scores(row, btc_row)
     with runtime.database.session() as session:
         ensure_fund(session)
-        ids = persist_market_rows(session, rows)
-        for snapshot_id, score in zip(ids, scores, strict=True):
-            snapshot = session.get(MarketSnapshot, snapshot_id)
-            snapshot.details = {**snapshot.details, "setupScores": score}
+        persist_market_scan(session, rows, now=utcnow())
     aligned = _persist_worker_state(runtime, supervisor)
     if not aligned:
         logger.warning(

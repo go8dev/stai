@@ -180,6 +180,8 @@ def test_no_table_could_hold_an_exchange_credential() -> None:
         "committee_runs",
         "committee_findings",
         "committee_calls",
+        "setup_candidates",
+        "trade_proposals",
     }
 
     suspicious = re.compile(r"api_?key|secret|passphrase|password|credential|exchange_key", re.I)
@@ -298,7 +300,11 @@ def test_the_app_has_one_state_changing_route_and_it_is_not_about_orders(
 
     changing = {route for route in routes if route[0] not in {"GET", "HEAD", "OPTIONS"}}
     # A new state-changing route has to be added here on purpose.
-    assert changing == {("POST", "/api/audit/verify")}
+    assert changing == {
+        ("POST", "/api/audit/verify"),
+        ("POST", "/api/proposals/{proposal_id}/approve"),
+        ("POST", "/api/proposals/{proposal_id}/reject"),
+    }
     words = re.compile(r"order|trade|position|withdraw|transfer|credential|key|live|exchange")
     assert [path for _, path in sorted(routes) if words.search(path)] == []
 

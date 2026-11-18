@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Literal
+from typing import Any, Literal
 
 from stai.core.schemas import ApiModel
 
@@ -72,6 +72,9 @@ class MarketScannerRow(ApiModel):
     bids: list[BookLevel]
     asks: list[BookLevel]
     detail: str | None
+    setup_scores: dict[str, Any] | None
+    candidate_id: str | None
+    candidate_status: str | None
 
 
 class MarketScannerResponse(ApiModel):

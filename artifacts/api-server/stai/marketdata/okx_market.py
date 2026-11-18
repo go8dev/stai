@@ -348,6 +348,9 @@ class OkxMarketData:
                 detail=(
                     None if status == "fresh" else "Ticker, order book or candle data is stale."
                 ),
+                setup_scores=None,
+                candidate_id=None,
+                candidate_status=None,
             )
         except (
             KeyError,
@@ -386,6 +389,9 @@ class OkxMarketData:
                 bids=[],
                 asks=[],
                 detail="OKX market data is unavailable for this instrument.",
+                setup_scores=None,
+                candidate_id=None,
+                candidate_status=None,
             )
 
     async def scanner(self) -> list[MarketScannerRow]:

@@ -31,6 +31,7 @@ from stai.marketdata.okx_public import OkxPublicProbe
 from stai.marketdata.provider import set_market_data_provider
 from stai.marketdata.routes import router as market_router
 from stai.portfolio.routes import router as portfolio_router
+from stai.proposals.routes import router as proposals_router
 from stai.system.routes import router as system_router
 
 logger = StructuredLogger(__name__)
@@ -121,6 +122,7 @@ def build_app(
     app.include_router(market_router)
     app.include_router(portfolio_router)
     app.include_router(committee_router)
+    app.include_router(proposals_router)
 
     # Added last runs first: request context wraps the gate, the gate wraps every route.
     app.add_middleware(AuthGateMiddleware, runtime=runtime)

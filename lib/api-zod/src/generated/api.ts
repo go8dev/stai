@@ -235,7 +235,10 @@ export const GetMarketScannerResponse = zod.object({
   "price": zod.union([zod.number(),zod.string()]),
   "size": zod.union([zod.number(),zod.string()])
 })),
-  "detail": zod.union([zod.string(),zod.null()])
+  "detail": zod.union([zod.string(),zod.null()]),
+  "setupScores": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
+  "candidateId": zod.union([zod.string(),zod.null()]),
+  "candidateStatus": zod.union([zod.string(),zod.null()])
 }))
 })
 
@@ -456,6 +459,133 @@ export const GetCommitteeRunResponse = zod.object({
   "memory": zod.array(zod.string()),
   "advisoryOnly": zod.literal(true),
   "evidenceStale": zod.boolean()
+})
+
+
+/**
+ * @summary Get qualified candidates and owner-facing paper proposals
+ */
+export const GetProposalCenterResponse = zod.object({
+  "candidates": zod.array(zod.object({
+  "id": zod.string(),
+  "symbol": zod.string(),
+  "marketType": zod.enum(['spot', 'futures']),
+  "side": zod.enum(['long', 'short']),
+  "score": zod.union([zod.number(),zod.string()]),
+  "status": zod.string(),
+  "strategyVersion": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "details": zod.record(zod.string(), zod.unknown())
+})),
+  "proposals": zod.array(zod.object({
+  "id": zod.string(),
+  "candidateId": zod.string(),
+  "committeeRunId": zod.string(),
+  "instrument": zod.string(),
+  "marketType": zod.enum(['spot', 'futures']),
+  "side": zod.enum(['long', 'short']),
+  "status": zod.enum(['pending', 'approved', 'rejected', 'expired', 'vetoed']),
+  "entryPrice": zod.union([zod.number(),zod.string()]),
+  "stopPrice": zod.union([zod.number(),zod.string()]),
+  "targetPrice": zod.union([zod.number(),zod.string()]),
+  "notionalUsdt": zod.union([zod.number(),zod.string()]),
+  "leverage": zod.union([zod.number(),zod.string()]),
+  "plannedLossUsdt": zod.union([zod.number(),zod.string()]),
+  "estimatedCostUsdt": zod.union([zod.number(),zod.string()]),
+  "rewardRisk": zod.union([zod.number(),zod.string()]),
+  "expiresAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date(),
+  "decidedAt": zod.union([zod.coerce.date(),zod.null()]),
+  "decisionReason": zod.union([zod.string(),zod.null()]),
+  "permitId": zod.union([zod.string(),zod.null()]),
+  "details": zod.record(zod.string(), zod.unknown())
+})),
+  "paidCommitteeEnabled": zod.literal(false),
+  "ownerApprovalRequired": zod.literal(true),
+  "strategyThreshold": zod.number().int(),
+  "gateStatus": zod.string(),
+  "gateMessage": zod.string()
+})
+
+
+/**
+ * @summary Approve exact proposal terms for paper mode
+ */
+export const ApproveTradeProposalParams = zod.object({
+  "proposal_id": zod.coerce.string()
+})
+
+export const approveTradeProposalBodyReasonMax = 500;
+
+
+
+export const ApproveTradeProposalBody = zod.object({
+  "reason": zod.string().max(approveTradeProposalBodyReasonMax)
+})
+
+export const ApproveTradeProposalResponse = zod.object({
+  "id": zod.string(),
+  "candidateId": zod.string(),
+  "committeeRunId": zod.string(),
+  "instrument": zod.string(),
+  "marketType": zod.enum(['spot', 'futures']),
+  "side": zod.enum(['long', 'short']),
+  "status": zod.enum(['pending', 'approved', 'rejected', 'expired', 'vetoed']),
+  "entryPrice": zod.union([zod.number(),zod.string()]),
+  "stopPrice": zod.union([zod.number(),zod.string()]),
+  "targetPrice": zod.union([zod.number(),zod.string()]),
+  "notionalUsdt": zod.union([zod.number(),zod.string()]),
+  "leverage": zod.union([zod.number(),zod.string()]),
+  "plannedLossUsdt": zod.union([zod.number(),zod.string()]),
+  "estimatedCostUsdt": zod.union([zod.number(),zod.string()]),
+  "rewardRisk": zod.union([zod.number(),zod.string()]),
+  "expiresAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date(),
+  "decidedAt": zod.union([zod.coerce.date(),zod.null()]),
+  "decisionReason": zod.union([zod.string(),zod.null()]),
+  "permitId": zod.union([zod.string(),zod.null()]),
+  "details": zod.record(zod.string(), zod.unknown())
+})
+
+
+/**
+ * @summary Reject a paper trade proposal
+ */
+export const RejectTradeProposalParams = zod.object({
+  "proposal_id": zod.coerce.string()
+})
+
+export const rejectTradeProposalBodyReasonMax = 500;
+
+
+
+export const RejectTradeProposalBody = zod.object({
+  "reason": zod.string().max(rejectTradeProposalBodyReasonMax)
+})
+
+export const RejectTradeProposalResponse = zod.object({
+  "id": zod.string(),
+  "candidateId": zod.string(),
+  "committeeRunId": zod.string(),
+  "instrument": zod.string(),
+  "marketType": zod.enum(['spot', 'futures']),
+  "side": zod.enum(['long', 'short']),
+  "status": zod.enum(['pending', 'approved', 'rejected', 'expired', 'vetoed']),
+  "entryPrice": zod.union([zod.number(),zod.string()]),
+  "stopPrice": zod.union([zod.number(),zod.string()]),
+  "targetPrice": zod.union([zod.number(),zod.string()]),
+  "notionalUsdt": zod.union([zod.number(),zod.string()]),
+  "leverage": zod.union([zod.number(),zod.string()]),
+  "plannedLossUsdt": zod.union([zod.number(),zod.string()]),
+  "estimatedCostUsdt": zod.union([zod.number(),zod.string()]),
+  "rewardRisk": zod.union([zod.number(),zod.string()]),
+  "expiresAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date(),
+  "decidedAt": zod.union([zod.coerce.date(),zod.null()]),
+  "decisionReason": zod.union([zod.string(),zod.null()]),
+  "permitId": zod.union([zod.string(),zod.null()]),
+  "details": zod.record(zod.string(), zod.unknown())
 })
 
 

@@ -20,14 +20,14 @@ from stai.analytics.utils.indicators import (
     detect_strong_momentum,
     detect_trend,
 )
-from stai.marketdata.routes import _indicator_snapshot, _safe
+from stai.marketdata.indicators import indicator_snapshot, safe_number
 from stai.marketdata.schemas import MarketScannerRow
 
 
 def snapshot(row: MarketScannerRow, timeframe: Timeframe) -> MarketSnapshot | None:
     """Shape adapter only; classifications/calculations stay in ported analytics."""
     candles = row.candles if timeframe == Timeframe.H1 else row.candles_15m
-    result = _indicator_snapshot(candles)
+    result = indicator_snapshot(candles)
     if result is None:
         return None
     last, _ = result
@@ -37,7 +37,7 @@ def snapshot(row: MarketScannerRow, timeframe: Timeframe) -> MarketSnapshot | No
         current_price=float(last["close"]),
         volume=float(last["volume"]),
         **{
-            key: _safe(last.get(key))
+            key: safe_number(last.get(key))
             for key in [
                 "ema_7",
                 "ema_25",
@@ -55,9 +55,9 @@ def snapshot(row: MarketScannerRow, timeframe: Timeframe) -> MarketSnapshot | No
             ]
         },
         ema_alignment=detect_trend(last),
-        rsi_state=classify_rsi(_safe(last.get("rsi"))),
-        macd_direction=classify_macd(_safe(last.get("macd_hist"))),
-        volume_strength=classify_volume(_safe(last.get("volume_ratio"))),
+        rsi_state=classify_rsi(safe_number(last.get("rsi"))),
+        macd_direction=classify_macd(safe_number(last.get("macd_hist"))),
+        volume_strength=classify_volume(safe_number(last.get("volume_ratio"))),
         candle_behavior=(
             detect_rejection_candle(last) or detect_strong_momentum(last) or CandleBehavior.NEUTRAL
         ),
@@ -114,6 +114,7 @@ def setup_scores(
         "h1Snapshot": h1.model_dump(mode="json"),
         "m15Snapshot": m15.model_dump(mode="json"),
         "btcRegime": btc_evidence,
-        "note": "Reused deterministic scoring; missing BTC regime earns no alignment points. "
-        "No calibrated threshold selected.",
+        "note": "Deterministic screening only. The 70/100 threshold is selected, with independent "
+        "freshness, BTC-regime, 1-hour trend, 15-minute confirmation, pullback, and market-quality "
+        "gates. It does not initiate a paid committee run.",
     }
