@@ -8,7 +8,7 @@ Personal, paper-trading-only crypto research and portfolio platform for one owne
 - 18 Nov 2026: the owner published Phase 1 and supplied healthy production and intact-audit screenshots. Production restart check 7 remains unconfirmed.
 - Phases 2 and 3 are implemented in the workspace. Production continuous bots remain disabled by default pending check 7 and the owner's approval. Phases 4 to 7 are not started.
 - The owner explicitly deferred production migrations while requesting Phase 3. Do not block development on production restart check 7, and do not treat proceeding as permission to change production.
-- Phase 3's one approved real benchmark completed: ten roles, five calls, 37.646 seconds, estimated $0.0164648 USD. Repeated/scheduled paid runs stay locked pending owner approval of threshold and daily caps. Do not reset the used benchmark slot. Details and proposed limits are in `docs/PHASE3_OPERATIONS.md`.
+- Phase 3's one approved real benchmark completed: ten roles, five calls, 37.646 seconds, estimated $0.0164648 USD. Owner selected 70/100 as the initial future AI-eligibility threshold. Daily run/spend caps remain unapproved; repeated/scheduled paid runs stay locked. Do not reset the used benchmark slot. Details and controls are in `docs/PHASE3_OPERATIONS.md`.
 
 ## Owner rules (do not weaken)
 
