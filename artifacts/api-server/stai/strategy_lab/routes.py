@@ -95,6 +95,7 @@ def get_strategy_backtest(
     response_model=list[HistoricalReviewResponse],
     responses={
         404: {"model": ErrorResponse, "description": "Backtest was not found."},
+        422: {"model": ErrorResponse, "description": "Backtest identifier is invalid."},
     },
     summary="List completed historical AI reviews for one saved run",
 )
@@ -150,6 +151,7 @@ async def create_strategy_backtest(
     response_model=HistoricalReviewResponse,
     status_code=201,
     responses={
+        403: {"model": ErrorResponse, "description": "Same-origin CSRF check failed."},
         404: {"model": ErrorResponse, "description": "Backtest was not found."},
         409: {"model": ErrorResponse, "description": "Historical AI review is not authorized."},
         422: {"model": ErrorResponse, "description": "Question or saved evidence is invalid."},

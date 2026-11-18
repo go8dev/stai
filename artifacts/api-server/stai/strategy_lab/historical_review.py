@@ -69,6 +69,8 @@ def _review_payload(
                 "periodEnd": segment.period_end.isoformat(),
                 "metrics": segment.metrics.model_dump(mode="json", by_alias=True),
                 "entryDiagnostics": segment.entry_diagnostics,
+                "totalEntryOrders": len(segment.entry_orders),
+                "orderSamplingNote": "At most 12 orders per segment before global size trimming.",
                 "entryOrders": [
                     order.model_dump(mode="json", by_alias=True)
                     for order in segment.entry_orders[:MAX_TRADE_CONTEXTS]
@@ -203,6 +205,42 @@ def _review_payload(
             "items": trade_evidence,
         },
     }
+
+
+def _bounded_review_prompt(payload: dict[str, Any], schema_text: str) -> str:
+    """Fit optional evidence into one global limit, never dropping segment metrics."""
+    payload["samplingLimitations"] = (
+        "Evidence is a size-bounded sample, not the entire history. Segment metrics "
+        "remain complete; orders, trades, OHLCV and funding samples may be reduced "
+        "or omitted to fit the review. Do not infer omitted events from this sample."
+    )
+    budget = MAX_PROMPT_CHARACTERS - len(SYSTEM) - len(schema_text)
+    while True:
+        payload["tradeSample"]["includedTradeContexts"] = len(payload["tradeSample"]["items"])
+        payload["tradeSample"]["samplingNote"] = (
+            "Size-bounded chronological sample; only included contexts may support trade claims."
+        )
+        prompt = json.dumps(payload, separators=(",", ":"), ensure_ascii=True)
+        if len(prompt) <= budget:
+            return prompt
+        optional_lists = [
+            *(segment["entryOrders"] for segment in payload["segments"]),
+            *(
+                [payload["tradeSample"]["items"]]
+                if len(payload["tradeSample"]["items"]) > 1
+                else []
+            ),
+            *(item["candles"] for item in payload["tradeSample"]["items"]),
+            *(sample["bars"] for sample in payload["marketCandleSamples"]),
+            payload["fundingEvidence"]["rates"],
+        ]
+        nonempty = [items for items in optional_lists if items]
+        if not nonempty:
+            raise HistoricalReviewUnavailable("The saved-run metrics exceed the review size limit.")
+        # Remove from the largest optional section first so no independent
+        # per-section allowance can exhaust the shared prompt ceiling.
+        largest = max(nonempty, key=lambda items: len(json.dumps(items, ensure_ascii=True)))
+        largest.pop(len(largest) // 2)
 
 
 def _bar_time(raw: dict[str, Any]) -> datetime | None:
@@ -382,11 +420,9 @@ def request_historical_review(
     if not question or len(question) > 500:
         raise ValueError("Question must contain 1 to 500 characters.")
     payload = _review_payload(result, source_snapshot, question)
-    prompt = json.dumps(payload, separators=(",", ":"), ensure_ascii=True)
     schema_text = json.dumps(HistoricalReviewAnswer.model_json_schema(), separators=(",", ":"))
+    prompt = _bounded_review_prompt(payload, schema_text)
     prompt_size = len(SYSTEM) + len(prompt) + len(schema_text)
-    if prompt_size > MAX_PROMPT_CHARACTERS:
-        raise HistoricalReviewUnavailable("The saved-run evidence exceeds the review size limit.")
 
     input_rate = settings.historical_review_input_usd_per_million
     output_rate = settings.historical_review_output_usd_per_million

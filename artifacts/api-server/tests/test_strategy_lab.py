@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
 
 import httpx
+import pytest
 from pydantic import SecretStr
 from sqlalchemy import select
 
@@ -23,9 +25,20 @@ from stai.strategy_lab.engine import (
     _millis,
     _strategy_trade,
     _trade_from_exit,
+    run_backtest,
+)
+from stai.strategy_lab.historical_review import (
+    MAX_PROMPT_CHARACTERS,
+    SYSTEM,
+    _review_payload,
 )
 from stai.strategy_lab.models import StrategyBacktestReview, StrategyBacktestRun
-from stai.strategy_lab.schemas import BacktestTrade, HistoricalReviewAnswer
+from stai.strategy_lab.schemas import (
+    BacktestEntryOrder,
+    BacktestResult,
+    BacktestTrade,
+    HistoricalReviewAnswer,
+)
 from stai.strategy_lab.service import get_run, list_runs
 
 from .conftest import Harness
@@ -171,6 +184,50 @@ def test_target_is_not_counted_on_the_entry_fill_candle() -> None:
         stop=Decimal("95"),
         target=Decimal("110"),
     ) == (3, Decimal("100"), "time_limit")
+
+
+def test_exit_history_gap_excludes_one_trade_but_later_clean_setup_is_evaluated(
+    monkeypatch,
+) -> None:
+    start = datetime(2026, 10, 1, tzinfo=UTC)
+    complete = [_bar(start + timedelta(minutes=15 * i)) for i in range(1600)]
+    state = PullbackEvidence(side="long", stage="confirmed", pullback_high=100)
+    signals = {complete[i].opened_at: state for i in (500, 1100)}
+    # First entry fills at 501; missing candle 502 makes its exit unknown.
+    # The later setup has sufficient clean 15m and 1h history after the gap.
+    bars = complete[:502] + complete[503:]
+    monkeypatch.setattr(
+        "stai.strategy_lab.engine.replay",
+        lambda **_kwargs: (None, {"long": signals, "short": {}}),
+    )
+    monkeypatch.setattr(
+        "stai.strategy_lab.engine.derive_trade_levels",
+        lambda *_args: {"stop_loss": 95.0, "tp1": 105.0},
+    )
+    result = run_backtest(
+        run_id="gap-recovery",
+        created_at=complete[-1].opened_at + timedelta(minutes=15),
+        symbol="BTCUSDT",
+        days=17,
+        requested_start=start,
+        requested_end=complete[-1].opened_at + timedelta(minutes=15),
+        spot_bars=bars,
+        futures_bars=bars,
+        btc_spot_bars=bars,
+        funding=[],
+        data_sha256="test-only",
+    )
+    segment = next(
+        segment
+        for segment in result.segments
+        if segment.market_type == "spot" and segment.period == "development"
+    )
+    assert len(segment.entry_orders) == 2
+    assert all(order.status == "filled" for order in segment.entry_orders)
+    assert segment.metrics.excluded_unclosed_trades == 1
+    assert segment.metrics.trade_count == 1
+    assert segment.trades[0].signal_at == complete[1100].opened_at + timedelta(minutes=15)
+    assert segment.trades[0].exit_reason == "time_limit"
 
 
 def test_future_limit_trade_accounts_for_maker_entry_taker_exit_and_no_spread_slippage() -> None:
@@ -539,8 +596,12 @@ def test_strategy_lab_rejects_bad_inputs_csrf_and_unavailable_history(
     assert harness.client.get(endpoint).json() == []
 
 
+@pytest.mark.parametrize(
+    ("symbol", "populated"),
+    [("BTCUSDT", False), ("BTCUSDT", True), ("ETHUSDT", True), ("SOLUSDT", True)],
+)
 def test_historical_ai_review_is_manual_fingerprinted_and_budget_capped(
-    harness: Harness, monkeypatch
+    harness: Harness, monkeypatch, symbol: str, populated: bool
 ) -> None:
     sign_in(harness.client, harness.provider)
 
@@ -563,11 +624,43 @@ def test_historical_ai_review_is_manual_fingerprinted_and_budget_capped(
     )
     backtest = harness.client.post(
         "/api/strategy-lab/backtests",
-        json={"symbol": "BTCUSDT", "days": 7},
+        json={"symbol": symbol, "days": 7},
         headers=csrf_headers(harness.client),
     )
     assert backtest.status_code == 201
     run_id = backtest.json()["id"]
+    if populated:
+        with harness.runtime.database.session() as session:
+            saved = session.get(StrategyBacktestRun, run_id)
+            result = BacktestResult.model_validate(saved.result)
+            for segment in result.segments:
+                segment.trades = [
+                    _trade("1", segment.period_start + timedelta(hours=i + 1)).model_copy(
+                        update={"side": segment.side}
+                    )
+                    for i in range(20)
+                ]
+                segment.entry_orders = [
+                    BacktestEntryOrder(
+                        signal_at=trade.signal_at,
+                        side=segment.side,
+                        limit_price=Decimal("100"),
+                        expires_at=trade.signal_at + timedelta(hours=1),
+                        status="filled",
+                        filled_at=trade.entered_at,
+                        fill_price=trade.entry_price,
+                        reason="Synthetic full limit fill for evidence-size regression.",
+                    )
+                    for trade in segment.trades
+                ]
+                segment.metrics, segment.equity_curve = _metrics(
+                    segment.trades, excluded=0, period_start=segment.period_start
+                )
+            saved.result = result.model_dump(mode="json", by_alias=True)
+            assert (
+                len(json.dumps(_review_payload(result, saved.source_snapshot, "Review.")))
+                > MAX_PROMPT_CHARACTERS
+            )
 
     harness.runtime.settings = harness.runtime.settings.model_copy(
         update={
@@ -589,9 +682,9 @@ def test_historical_ai_review_is_manual_fingerprinted_and_budget_capped(
         calls.append((settings.historical_review_model, prompt))
         return (
             HistoricalReviewAnswer(
-                summary="This saved run contains no closed trades to evaluate.",
+                summary="This review is limited to the supplied saved-run evidence.",
                 observations=[],
-                risks=["No win rate can be inferred from zero completed trades."],
+                risks=["Historical results do not guarantee future performance."],
                 limitations=["The review is limited to the saved evidence."],
                 evidence_ids=["run"],
             ),
@@ -613,6 +706,19 @@ def test_historical_ai_review_is_manual_fingerprinted_and_budget_capped(
     assert review["advisoryOnly"] is True
     assert calls[0][0] == "test-supported-model"
     assert "marketCandleSamples" in calls[0][1]
+    schema_text = json.dumps(HistoricalReviewAnswer.model_json_schema(), separators=(",", ":"))
+    assert len(SYSTEM) + len(calls[0][1]) + len(schema_text) <= MAX_PROMPT_CHARACTERS
+    payload = json.loads(calls[0][1])
+    if populated:
+        assert len(payload["segments"]) == 6
+        assert all(segment["metrics"]["tradeCount"] == 20 for segment in payload["segments"])
+        assert all(segment["totalEntryOrders"] == 20 for segment in payload["segments"])
+        assert payload["tradeSample"]["totalCompletedTrades"] == 120
+        assert payload["tradeSample"]["includedTradeContexts"] > 0
+        assert payload["tradeSample"]["includedTradeContexts"] == len(
+            payload["tradeSample"]["items"]
+        )
+        assert "may be reduced" in payload["samplingLimitations"]
     saved_history = harness.client.get(endpoint)
     assert saved_history.status_code == 200
     assert [item["id"] for item in saved_history.json()] == [review["id"]]

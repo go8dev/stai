@@ -764,7 +764,10 @@ def _strategy_trade(
         target=target,
     )
     if exit_details is None:
-        return None, order, end_index, True
+        # A gap makes only this bounded trade unobservable, not the remainder
+        # of the segment. The caller rechecks clean indicator warm-up before
+        # considering any later setup.
+        return None, order, min(entry_index + MAX_HOLD_BARS, end_index), True
     exit_index, exit_price, reason = exit_details
     trade = _trade_from_exit(
         side=side,
@@ -911,8 +914,6 @@ def run_backtest(
                     )
                     if entry_order is not None:
                         entry_orders.append(entry_order)
-                        if entry_order.status == "unfilled":
-                            diagnostics["unfilled_entry_orders"] += 1
                     if trade is None:
                         if censored:
                             excluded += 1

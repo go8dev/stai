@@ -630,11 +630,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '422':
-          description: Validation Error
+          description: Backtest identifier is invalid.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
     post:
       tags:
       - strategy-lab
@@ -661,6 +661,12 @@ paths:
                 $ref: '#/components/schemas/HistoricalReviewResponse'
         '401':
           description: Owner session required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Same-origin CSRF check failed.
           content:
             application/json:
               schema:
@@ -2003,13 +2009,6 @@ components:
       - firstEventAt
       - lastEventAt
       - note
-    HTTPValidationError:
-      properties:
-        detail:
-          items:
-            $ref: '#/components/schemas/ValidationError'
-          type: array
-      type: object
     HealthStatus:
       properties:
         status:
@@ -3059,26 +3058,6 @@ components:
       enum:
       - paper
       description: STAI has one mode. There is no live value and no switch to add one.
-    ValidationError:
-      properties:
-        loc:
-          items:
-            anyOf:
-            - type: string
-            - type: integer
-          type: array
-        msg:
-          type: string
-        type:
-          type: string
-        input: {}
-        ctx:
-          type: object
-      type: object
-      required:
-      - loc
-      - msg
-      - type
 tags:
 - name: health
   description: Health check.

@@ -109,6 +109,8 @@ Gaps through a stop or target use that candle's open where applicable. Intrabar
 fill and exit times are unknown; fills are timestamped at candle close, and
 funding through that timestamp is an approximation. A data gap cancels a resting
 unfilled limit. Incomplete exits at a sample boundary or data gap are excluded.
+An exit-history gap excludes only that trade; later setups are evaluated after
+the bounded holding window and sufficient clean indicator warm-up.
 
 Fee calculations use STAI defaults, not an account-specific OKX tier: spot maker
 0.10% / taker 0.15%; futures maker 0.02% / taker 0.05%. There is no separate
@@ -132,6 +134,9 @@ authentication, CSRF, input validation, persistence, owner-scoped reads, and
 absence of trade side effects. Historical AI review is manual, attaches to the
 saved data fingerprint, uses a bounded sample of OHLCV/trades, and reserves the
 per-run amount against a UTC-day budget before calling a provider. The feature
+fits all optional samples to one global prompt limit while retaining every
+segment's metrics and identifying omitted evidence; populated BTC, ETH and SOL
+runs are covered by mocked-provider endpoint tests. The feature
 has no model, prices, caps or enable flag configured by default; no AI call is
 made until each is explicitly set. Provider failures are never automatically
 retried; if billing is unknown, the reservation remains charged against that
@@ -139,8 +144,9 @@ day's budget.
 The revised-entry checks additionally cover valid long/short sequences, original
 touch references, strict confirmation, fourth-bar confirmation/expiry, BTC context,
 spot-short exclusion, serialized restart/refresh, scanner/replay parity and legacy
-saved-run compatibility. Constructed price waves produce actual simulated trades
-with no score gate; this is a functional check, not evidence of market performance.
+saved-run compatibility. Constructed price waves produce candidates but remain
+unfilled when price never revisits the limit; dedicated long/short fixtures check
+filled trades. These are functional checks, not evidence of market performance.
 
 A legacy public-data-only BTC smoke check fetched 1,344 spot and 1,344 swap candles
 (seven warm-up days plus seven evaluated days), 21 funding observations, and

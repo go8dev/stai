@@ -155,9 +155,15 @@ CREDENTIAL_OR_SWITCH = re.compile(
 
 
 def test_no_setting_holds_an_exchange_credential_or_a_mode_switch() -> None:
-    # OpenAI is research-only, not an exchange credential. No other exemption.
+    # OpenAI and its historical research model selector cannot enable exchange trading.
     names = sorted(
-        (known_variable_names() | set(Settings.model_fields)) - {"OPENAI_API_KEY", "openai_api_key"}
+        (known_variable_names() | set(Settings.model_fields))
+        - {
+            "OPENAI_API_KEY",
+            "openai_api_key",
+            "STAI_HISTORICAL_REVIEW_MODEL",
+            "historical_review_model",
+        }
     )
 
     assert [name for name in names if CREDENTIAL_OR_SWITCH.search(name)] == []
@@ -183,6 +189,7 @@ def test_no_table_could_hold_an_exchange_credential() -> None:
         "setup_candidates",
         "trade_proposals",
         "strategy_backtest_runs",
+        "strategy_backtest_reviews",
     }
 
     suspicious = re.compile(r"api_?key|secret|passphrase|password|credential|exchange_key", re.I)
@@ -308,6 +315,7 @@ def test_the_app_has_one_state_changing_route_and_it_is_not_about_orders(
         ("POST", "/api/proposals/{proposal_id}/approve"),
         ("POST", "/api/proposals/{proposal_id}/reject"),
         ("POST", "/api/strategy-lab/backtests"),
+        ("POST", "/api/strategy-lab/backtests/{run_id}/reviews"),
     }
     words = re.compile(r"order|trade|position|withdraw|transfer|credential|key|live|exchange")
     assert [path for _, path in sorted(routes) if words.search(path)] == []
@@ -346,6 +354,7 @@ def test_outside_calls_can_only_come_from_the_known_places() -> None:
                     if relative in {
                         "stai/committee/provider.py",
                         "stai/committee/workflow.py",
+                        "stai/strategy_lab/historical_review.py",
                     } and (module.startswith("tradingagents.")):
                         continue
                     forbidden.append(f"{relative} imports {module}")

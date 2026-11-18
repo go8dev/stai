@@ -794,20 +794,6 @@ export interface ErrorResponse {
   details?: ErrorResponseDetails;
 }
 
-export type ValidationErrorCtx = { [key: string]: unknown };
-
-export interface ValidationError {
-  loc: (string | number)[];
-  msg: string;
-  type: string;
-  input?: unknown;
-  ctx?: ValidationErrorCtx;
-}
-
-export interface HTTPValidationError {
-  detail?: ValidationError[];
-}
-
 export interface HealthStatus {
   status: string;
 }

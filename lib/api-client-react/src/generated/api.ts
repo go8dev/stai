@@ -36,7 +36,6 @@ import type {
   CommitteeRunDetail,
   CsrfToken,
   ErrorResponse,
-  HTTPValidationError,
   HandleBrowserLoginCallbackParams,
   HealthStatus,
   HistoricalReviewInput,
@@ -2301,7 +2300,7 @@ export const getListStrategyBacktestReviewsQueryKey = (runId: string,) => {
     }
 
 
-export const getListStrategyBacktestReviewsQueryOptions = <TData = Awaited<ReturnType<typeof listStrategyBacktestReviews>>, TError = ErrorType<ErrorResponse | HTTPValidationError>>(runId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStrategyBacktestReviews>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+export const getListStrategyBacktestReviewsQueryOptions = <TData = Awaited<ReturnType<typeof listStrategyBacktestReviews>>, TError = ErrorType<ErrorResponse>>(runId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStrategyBacktestReviews>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -2320,10 +2319,10 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type ListStrategyBacktestReviewsQueryResult = NonNullable<Awaited<ReturnType<typeof listStrategyBacktestReviews>>>
-export type ListStrategyBacktestReviewsQueryError = ErrorType<ErrorResponse | HTTPValidationError>
+export type ListStrategyBacktestReviewsQueryError = ErrorType<ErrorResponse>
 
 
-export function useListStrategyBacktestReviews<TData = Awaited<ReturnType<typeof listStrategyBacktestReviews>>, TError = ErrorType<ErrorResponse | HTTPValidationError>>(
+export function useListStrategyBacktestReviews<TData = Awaited<ReturnType<typeof listStrategyBacktestReviews>>, TError = ErrorType<ErrorResponse>>(
  runId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStrategyBacktestReviews>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listStrategyBacktestReviews>>,
@@ -2333,7 +2332,7 @@ export function useListStrategyBacktestReviews<TData = Awaited<ReturnType<typeof
       >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListStrategyBacktestReviews<TData = Awaited<ReturnType<typeof listStrategyBacktestReviews>>, TError = ErrorType<ErrorResponse | HTTPValidationError>>(
+export function useListStrategyBacktestReviews<TData = Awaited<ReturnType<typeof listStrategyBacktestReviews>>, TError = ErrorType<ErrorResponse>>(
  runId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStrategyBacktestReviews>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listStrategyBacktestReviews>>,
@@ -2343,7 +2342,7 @@ export function useListStrategyBacktestReviews<TData = Awaited<ReturnType<typeof
       >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListStrategyBacktestReviews<TData = Awaited<ReturnType<typeof listStrategyBacktestReviews>>, TError = ErrorType<ErrorResponse | HTTPValidationError>>(
+export function useListStrategyBacktestReviews<TData = Awaited<ReturnType<typeof listStrategyBacktestReviews>>, TError = ErrorType<ErrorResponse>>(
  runId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStrategyBacktestReviews>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
@@ -2351,7 +2350,7 @@ export function useListStrategyBacktestReviews<TData = Awaited<ReturnType<typeof
  * @summary List completed historical AI reviews for one saved run
  */
 
-export function useListStrategyBacktestReviews<TData = Awaited<ReturnType<typeof listStrategyBacktestReviews>>, TError = ErrorType<ErrorResponse | HTTPValidationError>>(
+export function useListStrategyBacktestReviews<TData = Awaited<ReturnType<typeof listStrategyBacktestReviews>>, TError = ErrorType<ErrorResponse>>(
  runId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStrategyBacktestReviews>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {

@@ -254,7 +254,7 @@ def test_revised_candidate_cannot_enter_proposal_path(harness: Harness):
             )
 
 
-def test_lab_generates_real_rule_trades_without_score_gate_and_counts_invalid_exits():
+def test_lab_records_unretested_limit_entries_without_inventing_trades_and_rejects_bad_exits():
     from stai.analytics.core.constants import TradeSide
     from stai.strategy_lab.engine import _strategy_trade, run_backtest
 
@@ -271,16 +271,20 @@ def test_lab_generates_real_rule_trades_without_score_gate_and_counts_invalid_ex
         futures_bars=bars,
         btc_spot_bars=bars,
         funding=[],
-        spread_bps=Decimal("5"),
-        slippage_bps=Decimal("5"),
         data_sha256="test-only",
     )
     trades = [trade for segment in result.segments for trade in segment.trades]
-    assert trades, "A coherent strategy must have achievable entries on constructed data."
-    assert all(trade.score is None for trade in trades)
-    assert all(trade.signal_at == trade.entered_at for trade in trades)
-    assert all(trade.holding_minutes <= 60 for trade in trades)
-    assert result.engine_version == "okx-closed-candle-v2"
+    orders = [order for segment in result.segments for order in segment.entry_orders]
+    assert orders, "The constructed trend must still produce entry candidates."
+    # This wave keeps moving beyond the anchor after confirmation, so a resting
+    # limit is never revisited. Market-at-confirmation fills must not be invented.
+    assert not trades
+    assert all(order.status == "unfilled" for order in orders)
+    for segment in result.segments:
+        unfilled = sum(order.status == "unfilled" for order in segment.entry_orders)
+        assert segment.metrics.unfilled_entry_orders == unfilled
+        assert segment.entry_diagnostics["unfilled_entry_orders"] == unfilled
+    assert result.engine_version == "okx-limit-order-candle-v3"
     assert result.strategy.score_gate_enabled is False
     assert not any("cannot both pass" in note for note in result.notes)
     # A confirmed entry with unusable inherited levels is rejected, never fixed to force a trade.
@@ -290,25 +294,22 @@ def test_lab_generates_real_rule_trades_without_score_gate_and_counts_invalid_ex
     diagnostics = {
         "confirmed_setups": 0,
         "missing_exit_indicators": 0,
-        "missing_next_open": 0,
+        "entry_orders_cancelled": 0,
         "invalid_exit_geometry": 0,
     }
-    changed = list(bars)
     index = 800
-    changed[index + 1] = changed[index + 1].model_copy(update={"open": Decimal("10000")})
-    trade, _, _ = _strategy_trade(
-        bars=changed,
+    trade, order, _, _ = _strategy_trade(
+        bars=bars,
         target_h1_snapshots=hours,
-        qualified=True,
+        signal_state=PullbackEvidence(side="long", stage="confirmed", pullback_high=10000),
         diagnostics=diagnostics,
         signal_index=index,
-        end_index=len(changed),
+        end_index=len(bars),
         symbol="BTCUSDT",
         market_type="spot",
         side=TradeSide.LONG,
         funding=[],
-        spread_bps=Decimal("5"),
-        slippage_bps=Decimal("5"),
     )
     assert trade is None
+    assert order is not None and order.status == "cancelled"
     assert diagnostics["invalid_exit_geometry"] == 1
