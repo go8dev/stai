@@ -41,6 +41,10 @@ import {
 import { cn } from '@/lib/utils';
 import { ErrorNote, KV, NotAvailable, PaperLabel } from '@/components/desk';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  BacktestSegmentSummary,
+  segmentLabel,
+} from '@/components/backtest-segment-summary';
 
 const CHART_COLORS = {
   blue: '#51c8b5',
@@ -175,7 +179,7 @@ function RunRow({
         {dateOnly(run.createdAt)}
       </span>
       <span className="col-span-2 mt-1.5 pl-3.5 text-[10.5px] text-muted-foreground">
-        {run.tradeCount} closed trades{' '}
+        {run.tradeCount} closed trades · all segments{' '}
         <span className="px-1 text-border">/</span> {run.strategyVersion}
       </span>
     </button>
@@ -406,7 +410,7 @@ function SegmentSwitch({
               {segment.marketType} · {segment.side}
             </span>
             <span className="ml-1.5 border-l border-border pl-1.5 capitalize">
-              {segment.period.replace('_', ' ')}
+              {segment.period.replaceAll('_', ' ')}
             </span>
           </button>
         );
@@ -777,6 +781,10 @@ function ResultView({
   const [segmentIndex, setSegmentIndex] = useState(initialIndex);
   const segment = result.segments[segmentIndex];
   const metrics = segment?.metrics;
+  const totalTrades = result.segments.reduce(
+    (sum, item) => sum + item.metrics.tradeCount,
+    0,
+  );
   const statusIncomplete =
     result.candleCoverage.some((c) => c.missingCandles > 0) ||
     result.fundingCoverage.status === 'partial' ||
@@ -822,6 +830,40 @@ function ResultView({
           Latest saved run <ChevronRight className="h-3.5 w-3.5" aria-hidden />
         </button>
       </div>
+
+      {segment && (
+        <section
+          className="rounded border border-teal/30 bg-teal/5 px-4 py-3"
+          aria-live="polite"
+          data-testid="section-selected-segment"
+        >
+          <p className="eyebrow">Selected segment — not the whole run</p>
+          <h2
+            className="mt-1 text-sm font-semibold"
+            data-testid="text-selected-segment"
+          >
+            {segmentLabel(segment)}
+          </h2>
+          <p className="num mt-1 text-[11px] text-muted-foreground">
+            {dateTime(segment.periodStart)} — {dateTime(segment.periodEnd)}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            The metric cards, chart and underlying trades show this segment
+            only.
+          </p>
+          {metrics?.tradeCount === 0 && (
+            <p
+              className="mt-2 text-xs"
+              data-testid="text-selected-segment-empty"
+            >
+              No completed trades in this segment.
+              {totalTrades > 0
+                ? ` This run has ${totalTrades.toLocaleString()} simulated closed trades across the other segments. Select a row in All segment results to inspect them.`
+                : ' No completed trades in the other segments either.'}
+            </p>
+          )}
+        </section>
+      )}
 
       <div className="grid gap-3 md:grid-cols-[1fr_1.3fr]">
         <section className="panel p-4" data-testid="card-selected-period">
@@ -908,6 +950,14 @@ function ResultView({
           />
         </section>
       </div>
+
+      <BacktestSegmentSummary
+        segments={result.segments}
+        selectedIndex={segmentIndex}
+        onSelect={setSegmentIndex}
+        formatMoney={money}
+        formatPercent={percent}
+      />
 
       {result.segments.length ? (
         <section
