@@ -14,8 +14,9 @@ nothing is built before approval and that work proceeds one phase at a time.
 **How to apply:**
 - Read `docs/STAI_PHASE1_PLAN.md` before starting or planning any phase.
 - When the owner approves or changes an item, record the outcome in that file. Do not renumber.
-- Thresholds and caps for AI cost control (item 2) are deliberately undecided until one real
-  committee run has been measured; bring the numbers back to the owner rather than choosing them.
+- The owner selected a 70/100 initial AI-eligibility threshold after the benchmark was measured;
+  daily run and spend caps remain undecided. Do not enable paid automation without a separate
+  implementation and authorization.
 - After each phase, stop and report under five headings: completed, tested, pending, blocked,
   next recommended action.
 - Each phase is set up as one task that the owner starts. Do not build or propose a later

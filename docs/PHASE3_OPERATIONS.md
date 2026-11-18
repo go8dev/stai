@@ -7,9 +7,13 @@ production bot activation or pilot start was performed.
 ## What runs
 
 The existing paper worker continues free deterministic screening every 15 minutes,
-now including the reused setup scorer and BTC 1h/15m regime. The owner selected
-**70/100** as the initial future AI-eligibility threshold, adjustable later. The
-score is recorded but does not currently trigger any committee call. It captures completed
+now including the reused setup scorer and BTC 1h/15m regime. The owner approved an
+initial **trend-aligned pullback design**: 1h direction/regime context; a 15m
+completed-candle pullback and directional confirmation; spot long-only and futures
+long/short. The separate market-quality and freshness gates still need implementation
+and validation. The owner selected **70/100** as the initial future AI-eligibility
+threshold, adjustable later. The score is recorded but does not currently trigger
+any committee call. It captures completed
 candles from the appropriate spot/swap observations; it does not use a spot-only
 provider to score futures. Scores and indicator evidence are saved with market
 snapshots. Missing BTC evidence is explicitly unknown and earns no alignment points.
@@ -106,18 +110,20 @@ explicit development mode; only that invocation made paid calls.
 Provisional starting values:
 
 - Rule-score threshold: **70/100** was selected by the owner as the initial value for
-  future AI eligibility; the strategy rules and freshness/data-quality gates must also
-  be finalized before implementing it.
+  future AI eligibility; the approved pullback design's freshness/data-quality gates
+  still need implementation and validation.
 - At most **10 committee runs per UTC day**.
 - At most **$0.50 USD per UTC day**, with pre-request reservation of a conservative
   worst-case run cost in any future implementation.
 
 At the measured list-price estimate, ten similar runs would cost about **$0.165/day**.
 One run does not establish trading quality, score calibration, future latency or
-future cost. Only the 70/100 score threshold was selected. The daily run and spend caps
-remain proposals, not approved policy. Automatic and repeat manual paid runs remain
-disabled; no setting silently enables them. Owner approval of the caps and a separately
-scoped implementation are needed before recurring AI runs.
+future cost. The strategy design and 70/100 screen threshold are approved, but not
+implemented. The daily run and spend caps remain proposals, not approved policy.
+Automatic and repeat manual paid runs remain disabled; no setting silently enables
+them. Owner approval of the caps and a separately scoped implementation are needed
+before recurring AI runs. The inherited EMA-based stops/targets remain unvalidated for
+OKX or the intended holding period and must not be treated as pilot-ready.
 
 ## Persistence, interruption and retries
 

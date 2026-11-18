@@ -9,6 +9,7 @@ Personal, paper-trading-only crypto research and portfolio platform for one owne
 - Phases 2 and 3 are implemented in the workspace. Production continuous bots remain disabled by default pending check 7 and the owner's approval. Phases 4 to 7 are not started.
 - The owner explicitly deferred production migrations while requesting Phase 3. Do not block development on production restart check 7, and do not treat proceeding as permission to change production.
 - Phase 3's one approved real benchmark completed: ten roles, five calls, 37.646 seconds, estimated $0.0164648 USD. Owner selected 70/100 as the initial future AI-eligibility threshold. Daily run/spend caps remain unapproved; repeated/scheduled paid runs stay locked. Do not reset the used benchmark slot. Details and controls are in `docs/PHASE3_OPERATIONS.md`.
+- Owner approved the initial research-strategy design: trend-aligned pullback, 1h trend/BTC context, 15m completed-candle confirmation; spot long-only and futures long/short. This is a design decision, not implementation or authorization for AI runs/trading. Validate EMA-derived exits for OKX and the intraday holding period before any pilot.
 
 ## Owner rules (do not weaken)
 
