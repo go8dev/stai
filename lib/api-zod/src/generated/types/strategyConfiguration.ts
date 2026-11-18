@@ -25,4 +25,6 @@ export interface StrategyConfiguration {
   slippageBps: number | string;
   noLookaheadRule: string;
   executionAssumptions: string[];
+  entryRules: string[];
+  scoreGateEnabled: boolean;
 }

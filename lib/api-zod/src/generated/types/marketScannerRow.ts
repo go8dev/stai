@@ -7,6 +7,7 @@
  */
 import type { BookLevel } from './bookLevel';
 import type { CandlePoint } from './candlePoint';
+import type { EntryResearch } from './entryResearch';
 import type { InstrumentRules } from './instrumentRules';
 import type { MarketIndicators } from './marketIndicators';
 import type { MarketScannerRowMarketType } from './marketScannerRowMarketType';
@@ -38,4 +39,5 @@ export interface MarketScannerRow {
   setupScores: MarketScannerRowSetupScores;
   candidateId: string | null;
   candidateStatus: string | null;
+  entryResearch: EntryResearch | null;
 }

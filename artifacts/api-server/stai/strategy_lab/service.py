@@ -133,6 +133,13 @@ async def create_run(
                 "BTCUSDT", "spot", warmup_start, end_at
             )
         )
+        btc_futures_bars = (
+            futures_bars
+            if symbol == "BTCUSDT"
+            else await runtime.okx_market_data.get_historical_candles(
+                "BTCUSDT", "futures", warmup_start, end_at
+            )
+        )
         funding = await runtime.okx_market_data.get_historical_funding(symbol, start_at, end_at)
     except MarketDataUnavailable:
         raise
@@ -148,6 +155,7 @@ async def create_run(
             "targetSpot": _bar_snapshot(spot_bars),
             "targetFutures": _bar_snapshot(futures_bars),
             "btcSpotRegime": _bar_snapshot(btc_spot_bars),
+            "btcFuturesContext": _bar_snapshot(btc_futures_bars),
         },
         "fundingRates": _funding_snapshot(funding),
     }
@@ -164,6 +172,7 @@ async def create_run(
         spot_bars=spot_bars,
         futures_bars=futures_bars,
         btc_spot_bars=btc_spot_bars,
+        btc_futures_bars=btc_futures_bars,
         funding=funding,
         spread_bps=body.spread_bps,
         slippage_bps=body.slippage_bps,

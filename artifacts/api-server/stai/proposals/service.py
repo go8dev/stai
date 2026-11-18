@@ -27,6 +27,7 @@ from stai.db.models import (
 )
 from stai.marketdata.schemas import BookLevel, MarketScannerRow
 from stai.marketdata.service import persist_market_rows
+from stai.strategies.scanner import enrich_research
 from stai.trading.accounting import (
     FeeSchedule,
     FillRejected,
@@ -74,6 +75,10 @@ def _candidate_gates(
     row: MarketScannerRow, scores: dict[str, Any], side: str, now: datetime
 ) -> list[str]:
     failures: list[str] = []
+    if row.entry_research is not None:
+        return [
+            "Revised entries are research-only; score mapping and AI authorization are pending."
+        ]
     if row.status != "fresh" or row.exchange_at is None:
         failures.append("Live exchange quote is not fresh.")
     elif not timedelta(0) <= now - as_utc(row.exchange_at) <= timedelta(seconds=60):
@@ -187,16 +192,23 @@ def _candidate_details(
 def persist_market_scan(
     session: Session, rows: list[MarketScannerRow], *, now: datetime
 ) -> list[str]:
-    """Persist observations and one candidate per unchanged completed-candle setup."""
+    """Persist observations and resumable research; revised entries create no trade candidates."""
     moment = as_utc(now)
     session.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": _SCAN_LOCK})
+    enrich_research(session, rows, now=moment)
     snapshot_ids = persist_market_rows(session, rows)
     session.flush()
     for row, snapshot_id in zip(rows, snapshot_ids, strict=True):
         scores = row.setup_scores if isinstance(row.setup_scores, dict) else {}
         snapshot = session.get(MarketSnapshot, snapshot_id)
         if snapshot is not None:
-            snapshot.details = {**snapshot.details, "setupScores": scores}
+            snapshot.details = {
+                **snapshot.details,
+                "setupScores": scores,
+                "entryResearch": row.entry_research.model_dump(mode="json"),
+            }
+        if row.entry_research is not None:
+            continue
         for side in ("long", "short"):
             setup = _setup_for_side(scores, side)
             if setup is None or _candidate_gates(row, scores, side, moment):
@@ -492,6 +504,8 @@ def create_proposal_from_committee_run(
     run = session.get(CommitteeRun, run_id)
     if candidate is None or run is None:
         raise ValueError("Candidate or committee run was not found.")
+    if candidate.strategy_version != STRATEGY_VERSION:
+        raise ValueError("This research strategy is not authorized for proposal creation.")
     if run.status != "completed" or run.recommendation is None:
         raise ValueError("Only a completed committee review can create a proposal.")
     if (

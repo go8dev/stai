@@ -12,22 +12,13 @@ from typing import Literal
 
 from stai.analytics.core.constants import (
     CandleBehavior,
-    MarketRegime,
     Timeframe,
     TradeSide,
 )
 from stai.analytics.schemas.market_data import Candle
 from stai.analytics.schemas.market_snapshot import MarketSnapshot
-from stai.analytics.schemas.scanner import ScannerCandidate
-from stai.analytics.services.btc_regime_service import (
-    REGIME_WEIGHT_H1,
-    REGIME_WEIGHT_M15,
-    _classify_composite,
-    _score_snapshot,
-)
 from stai.analytics.services.setup_scoring_service import (
     derive_trade_levels,
-    score_candidate,
 )
 from stai.analytics.utils.indicators import (
     classify_macd,
@@ -39,7 +30,12 @@ from stai.analytics.utils.indicators import (
     detect_trend,
 )
 from stai.marketdata.schemas import CandlePoint, MarketType
-from stai.proposals.service import STRATEGY_THRESHOLD, STRATEGY_VERSION
+from stai.proposals.service import STRATEGY_THRESHOLD
+from stai.strategies.pullback import (
+    STRATEGY_VERSION,
+    indicator_series,
+    replay,
+)
 from stai.strategy_lab.schemas import (
     BacktestMetrics,
     BacktestResult,
@@ -54,7 +50,7 @@ from stai.strategy_lab.schemas import (
 )
 from stai.trading.accounting import FeeSchedule
 
-ENGINE_VERSION = "okx-closed-candle-v1"
+ENGINE_VERSION = "okx-closed-candle-v2"
 INITIAL_EQUITY = Decimal("1000")
 TRADE_NOTIONAL = Decimal("100")
 LEVERAGE = Decimal("1")
@@ -71,6 +67,19 @@ def strategy_configuration(
     return StrategyConfiguration(
         strategy_version=STRATEGY_VERSION,
         score_threshold=STRATEGY_THRESHOLD,
+        score_gate_enabled=False,
+        entry_rules=[
+            "Long: closed 1h EMA25 > EMA99 and close > EMA99; short reverses comparisons.",
+            "15m EMA25 > EMA99 long / EMA25 < EMA99 short.",
+            "First closed 15m candle whose range includes EMA25 and closes above EMA99 "
+            "long / below EMA99 short starts the pullback.",
+            "A later candle, within the next four bars, must close above the original touch "
+            "high and EMA25 long / below its low and EMA25 short.",
+            "Cancel on trend/structure failure, adverse EMA99 boundary, missing data or expiry.",
+            "ETH/SOL require matching BTC 1h direction in the same market. "
+            "BTC has no duplicate veto.",
+            "EMA7, MACD, RSI, volume, patterns and legacy scores are not entry gates.",
+        ],
         trend_timeframe="1h",
         confirmation_timeframe="15m",
         spot_sides=["long"],
@@ -85,13 +94,14 @@ def strategy_configuration(
         slippage_bps=slippage_bps,
         no_lookahead_rule=(
             "Evaluate only a closed 15m signal candle using the latest closed 1h and BTC "
-            "regime candles; enter at the next 15m candle open."
+            "context candles; enter at the next 15m candle open."
         ),
         execution_assumptions=[
-            "Mirrors the scanner's current indicator gates exactly, including its conflicting "
-            "1h trend/pullback requirements; no eligible entries are expected.",
-            "Require directional BTC regime, matching 1h/15m EMA alignment, matching 15m MACD, "
-            "a directional confirmation candle, an EMA-7/99 pullback, and score >=70.",
+            "Uses the shared ema25-pullback-v2 entry state machine, with no legacy score gate. "
+            "The 70 threshold remains selected for future AI screening; "
+            "revised weights are unapproved.",
+            "Exit levels are inherited, unvalidated EMA references, NOT new approved exits. "
+            "Invalid entry/stop/target geometry is rejected and counted.",
             "Fixed 100 USDT notional per trade; 1x exposure; no compounding.",
             "Taker fees use STAI's configurable defaults, not an account-specific OKX tier.",
             "Historical candles do not contain order-book spreads; the selected spread and "
@@ -260,16 +270,6 @@ def _latest_closed_hour(signal_close: datetime) -> datetime:
     return datetime.fromtimestamp(hour_open_ms / 1000, tz=UTC)
 
 
-def _btc_regime(btc_h1: MarketSnapshot | None, btc_m15: MarketSnapshot | None) -> MarketRegime:
-    if btc_h1 is None or btc_m15 is None:
-        return MarketRegime.UNKNOWN
-    h1_score, _ = _score_snapshot(btc_h1)
-    m15_score, _ = _score_snapshot(btc_m15)
-    composite = h1_score * REGIME_WEIGHT_H1 + m15_score * REGIME_WEIGHT_M15
-    regime, _, _ = _classify_composite(composite, h1_score, m15_score)
-    return regime
-
-
 def _has_recent_warmup(
     bars: list[CandlePoint],
     index: int,
@@ -283,59 +283,6 @@ def _has_recent_warmup(
         right.opened_at - left.opened_at == interval
         for left, right in zip(selected, selected[1:], strict=False)
     )
-
-
-def _eligible_setup(
-    *,
-    symbol: str,
-    side: TradeSide,
-    signal_bar: CandlePoint,
-    h1: MarketSnapshot | None,
-    m15: MarketSnapshot | None,
-    btc_regime: MarketRegime,
-) -> tuple[Decimal, dict[str, float]] | None:
-    if h1 is None or m15 is None:
-        return None
-    expected = "bullish" if side == TradeSide.LONG else "bearish"
-    if btc_regime.value != expected:
-        return None
-    if h1.ema_alignment.value != expected:
-        return None
-    if m15.ema_alignment.value != expected or m15.macd_direction.value != expected:
-        return None
-    confirmation = (
-        {CandleBehavior.STRONG_BULL, CandleBehavior.REJECTION_BULL}
-        if side == TradeSide.LONG
-        else {CandleBehavior.STRONG_BEAR, CandleBehavior.REJECTION_BEAR}
-    )
-    if m15.candle_behavior not in confirmation:
-        return None
-    if h1.ema_7 is None or h1.ema_99 is None:
-        return None
-    current_price = float(signal_bar.close)
-    if side == TradeSide.LONG:
-        in_zone = h1.ema_99 <= h1.current_price <= h1.ema_7
-        in_zone = in_zone and h1.ema_99 <= current_price <= h1.ema_7
-    else:
-        in_zone = h1.ema_7 <= h1.current_price <= h1.ema_99
-        in_zone = in_zone and h1.ema_7 <= current_price <= h1.ema_99
-    if not in_zone:
-        return None
-
-    candidate = ScannerCandidate(
-        symbol=symbol,
-        last_price=current_price,
-        change_percent_24h=0,
-        quote_volume=0,
-        candidate_side=side,
-        scan_reasons=["Historical closed-candle evaluation"],
-        scanned_at=(_as_utc(signal_bar.opened_at) + BAR_INTERVAL).isoformat(),
-    )
-    scored = score_candidate(candidate, btc_regime, h1, m15)
-    if scored.score < STRATEGY_THRESHOLD:
-        return None
-    levels = derive_trade_levels(h1, side, current_price)
-    return Decimal(str(scored.score)), {key: float(value) for key, value in levels.items()}
 
 
 def _valid_levels(side: TradeSide, entry: Decimal, levels: dict[str, float]) -> bool:
@@ -389,7 +336,7 @@ def _quantize(value: Decimal, quantum: Decimal = _MONEY_QUANTUM) -> Decimal:
 def _trade_from_exit(
     *,
     side: TradeSide,
-    score: Decimal,
+    score: Decimal | None,
     signal_bar: CandlePoint,
     entry_bar: CandlePoint,
     exit_bar: CandlePoint,
@@ -424,7 +371,7 @@ def _trade_from_exit(
         entered_at=_as_utc(entry_bar.opened_at),
         exited_at=exit_at,
         side=side.value,
-        score=_quantize(score, _PERCENT_QUANTUM),
+        score=_quantize(score, _PERCENT_QUANTUM) if score is not None else None,
         entry_price=_quantize(entry, _PERCENT_QUANTUM),
         stop_price=_quantize(stop, _PERCENT_QUANTUM),
         target_price=_quantize(target, _PERCENT_QUANTUM),
@@ -605,9 +552,8 @@ def _strategy_trade(
     *,
     bars: list[CandlePoint],
     target_h1_snapshots: dict[int, MarketSnapshot],
-    target_m15_snapshots: dict[int, MarketSnapshot],
-    btc_h1_snapshots: dict[int, MarketSnapshot],
-    btc_m15_snapshots: dict[int, MarketSnapshot],
+    qualified: bool,
+    diagnostics: dict[str, int],
     signal_index: int,
     end_index: int,
     symbol: str,
@@ -621,36 +567,28 @@ def _strategy_trade(
     signal_close = _as_utc(signal_bar.opened_at) + BAR_INTERVAL
     hourly_open = _latest_closed_hour(signal_close)
     h1_key = _millis(hourly_open)
-    m15_key = _millis(signal_bar.opened_at)
-    btc_h1 = btc_h1_snapshots.get(h1_key)
-    btc_m15 = btc_m15_snapshots.get(m15_key)
-    regime = _btc_regime(btc_h1, btc_m15)
-    score, levels = _eligible_setup(
-        symbol=f"{symbol[:-4]}/USDT",
-        side=side,
-        signal_bar=signal_bar,
-        h1=target_h1_snapshots.get(h1_key),
-        m15=target_m15_snapshots.get(m15_key),
-        btc_regime=regime,
-    ) or (None, {})
-    if score is None:
+    if not qualified:
         return None, signal_index + 1, False
+    diagnostics["confirmed_setups"] += 1
+    h1 = target_h1_snapshots.get(h1_key)
+    if h1 is None or h1.ema_7 is None or h1.ema_99 is None:
+        diagnostics["missing_exit_indicators"] += 1
+        return None, signal_index + 1, False
+    levels = derive_trade_levels(h1, side, float(signal_bar.close))
 
     entry_index = signal_index + 1
     if entry_index >= end_index or entry_index >= len(bars):
+        diagnostics["missing_next_open"] += 1
         return None, signal_index + 1, False
     entry_bar = bars[entry_index]
     if entry_bar.opened_at != signal_close:
+        diagnostics["missing_next_open"] += 1
         return None, signal_index + 1, False
     entry = entry_bar.open
-    h1 = target_h1_snapshots[h1_key]
-    ema7, ema99 = Decimal(str(h1.ema_7)), Decimal(str(h1.ema_99))
-    entry_in_zone = ema99 <= entry <= ema7 if side == TradeSide.LONG else ema7 <= entry <= ema99
-    if not entry_in_zone:
-        return None, signal_index + 1, False
     stop = Decimal(str(levels["stop_loss"]))
     target = Decimal(str(levels["tp1"]))
     if not _valid_levels(side, entry, levels):
+        diagnostics["invalid_exit_geometry"] += 1
         return None, signal_index + 1, False
     exit_details = _find_exit(
         bars,
@@ -665,7 +603,7 @@ def _strategy_trade(
     exit_index, exit_price, reason = exit_details
     trade = _trade_from_exit(
         side=side,
-        score=score,
+        score=None,
         signal_bar=signal_bar,
         entry_bar=entry_bar,
         exit_bar=bars[exit_index],
@@ -697,9 +635,22 @@ def run_backtest(
     spread_bps: Decimal,
     slippage_bps: Decimal,
     data_sha256: str,
+    btc_futures_bars: list[CandlePoint] | None = None,
 ) -> BacktestResult:
     """Evaluate one pair on spot and swap using a chronological holdout."""
     start_at, end_at = _as_utc(requested_start), _as_utc(requested_end)
+
+    def closed(bars: list[CandlePoint]) -> list[CandlePoint]:
+        return sorted(
+            [
+                bar
+                for bar in bars
+                if bar.complete and _as_utc(bar.opened_at) + BAR_INTERVAL <= end_at
+            ],
+            key=lambda b: b.opened_at,
+        )
+
+    spot_bars, futures_bars = closed(spot_bars), closed(futures_bars)
     evaluated_spot = [bar for bar in spot_bars if start_at <= _as_utc(bar.opened_at) < end_at]
     if len(evaluated_spot) < 4:
         raise ValueError("Not enough closed 15-minute candles for a backtest.")
@@ -714,15 +665,21 @@ def run_backtest(
         "spot": spot_bars,
         "futures": futures_bars,
     }
-    btc_bars = btc_spot_bars
-    btc_h1_bars = _hourly_bars(btc_bars)
-    btc_m15_snapshots = _indicator_snapshots(btc_bars, symbol="BTC/USDT", timeframe=Timeframe.M15)
-    btc_h1_snapshots = _indicator_snapshots(btc_h1_bars, symbol="BTC/USDT", timeframe=Timeframe.H1)
     segments: list[BacktestSegment] = []
     for market_type, bars in series_by_market.items():
+        btc_bars = (
+            bars
+            if symbol == "BTCUSDT"
+            else closed(btc_spot_bars if market_type == "spot" else (btc_futures_bars or []))
+        )
         h1_bars = _hourly_bars(bars)
-        m15_snapshots = _indicator_snapshots(
-            bars, symbol=f"{symbol[:-4]}/USDT", timeframe=Timeframe.M15
+        _, signals = replay(
+            symbol=symbol,
+            market_type=market_type,
+            m15=indicator_series(bars, BAR_INTERVAL),
+            h1=indicator_series(h1_bars, timedelta(hours=1)),
+            btc_h1=indicator_series(_hourly_bars(btc_bars), timedelta(hours=1)),
+            as_of=end_at,
         )
         h1_snapshots = _indicator_snapshots(
             h1_bars, symbol=f"{symbol[:-4]}/USDT", timeframe=Timeframe.H1
@@ -742,6 +699,13 @@ def run_backtest(
             for side in supported_sides:
                 trades: list[BacktestTrade] = []
                 excluded = 0
+                diagnostics = {
+                    "confirmed_setups": 0,
+                    "missing_exit_indicators": 0,
+                    "invalid_exit_geometry": 0,
+                    "missing_next_open": 0,
+                    "overlapping_signals_skipped": 0,
+                }
                 index = first_index
                 while index < end_index:
                     # Avoid running indicators on a stale/gapped EMA history.
@@ -767,9 +731,8 @@ def run_backtest(
                     trade, next_index, censored = _strategy_trade(
                         bars=bars,
                         target_h1_snapshots=h1_snapshots,
-                        target_m15_snapshots=m15_snapshots,
-                        btc_h1_snapshots=btc_h1_snapshots,
-                        btc_m15_snapshots=btc_m15_snapshots,
+                        qualified=bars[index].opened_at in signals[side.value],
+                        diagnostics=diagnostics,
                         signal_index=index,
                         end_index=end_index,
                         symbol=symbol,
@@ -785,6 +748,10 @@ def run_backtest(
                         index += 1
                     else:
                         trades.append(trade)
+                        diagnostics["overlapping_signals_skipped"] += sum(
+                            bars[i].opened_at in signals[side.value]
+                            for i in range(index + 1, min(next_index, end_index))
+                        )
                         index = max(next_index, index + 1)
                 metrics, curve = _metrics(trades, excluded=excluded, period_start=period_start)
                 segments.append(
@@ -797,6 +764,7 @@ def run_backtest(
                         metrics=metrics,
                         equity_curve=curve,
                         trades=trades,
+                        entry_diagnostics=diagnostics,
                     )
                 )
 
@@ -807,6 +775,7 @@ def run_backtest(
     ]
     if symbol != "BTCUSDT":
         coverage_sources.append(("BTCUSDT", "spot", btc_spot_bars))
+        coverage_sources.append(("BTCUSDT", "futures", btc_futures_bars or []))
     for source_symbol, market_type, bars in coverage_sources:
         coverage.append(
             _coverage(
@@ -819,13 +788,13 @@ def run_backtest(
         )
     fund_coverage = _funding_coverage(funding, start_at, end_at)
     notes = [
-        "Owner-selected scanner parity: the 1h trend requires price strictly beyond EMA-7, "
-        "while the pullback gate requires it on the opposite side or at EMA-7. These gates "
-        "cannot both pass. Zero trades therefore do not establish a win/loss rate or validate "
-        "the stop and target rules.",
+        "Corrected EMA25 pullback entries are evaluated sequentially by the same research "
+        "state machine as the scanner. Exit levels remain inherited and unvalidated. "
+        "Entry diagnostics explain rejected exit geometry and unavailable next-open fills.",
         "Historical and hypothetical only. Results are not a forecast, recommendation, or "
         "guarantee of profit.",
-        "The 70/100 rule score is an eligibility screen, not a probability or expected win rate.",
+        "No score gate is applied to this revised entry research. The selected 70/100 future "
+        "AI threshold has no approved revised weights and is not a win probability.",
         "One instrument is evaluated at a time. Spot is long-only; the swap is evaluated long "
         "and short.",
         "Only closed 15-minute candles are used. Hourly bars aggregate four consecutive "

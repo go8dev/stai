@@ -214,6 +214,8 @@ export interface StrategyConfiguration {
   slippageBps: number | string;
   noLookaheadRule: string;
   executionAssumptions: string[];
+  entryRules: string[];
+  scoreGateEnabled: boolean;
 }
 
 export type CandleCoverageSymbol = typeof CandleCoverageSymbol[keyof typeof CandleCoverageSymbol];
@@ -317,7 +319,7 @@ export interface BacktestTrade {
   enteredAt: string;
   exitedAt: string;
   side: BacktestTradeSide;
-  score: number | string;
+  score: number | string | null;
   entryPrice: number | string;
   stopPrice: number | string;
   targetPrice: number | string;
@@ -333,6 +335,8 @@ export interface BacktestTrade {
   returnOnNotionalPct: number | string;
 }
 
+export type BacktestSegmentEntryDiagnostics = {[key: string]: number};
+
 export interface BacktestSegment {
   marketType: BacktestSegmentMarketType;
   side: BacktestSegmentSide;
@@ -342,6 +346,7 @@ export interface BacktestSegment {
   metrics: BacktestMetrics;
   equityCurve: EquityPoint[];
   trades: BacktestTrade[];
+  entryDiagnostics: BacktestSegmentEntryDiagnostics;
 }
 
 export interface StrategyLabStatus {
@@ -647,6 +652,52 @@ export interface DatabaseCheck {
   detail: string | null;
 }
 
+export type PullbackEvidenceSide = typeof PullbackEvidenceSide[keyof typeof PullbackEvidenceSide];
+
+
+export const PullbackEvidenceSide = {
+  long: 'long',
+  short: 'short',
+} as const;
+
+export type PullbackEvidenceStage = typeof PullbackEvidenceStage[keyof typeof PullbackEvidenceStage];
+
+
+export const PullbackEvidenceStage = {
+  waiting: 'waiting',
+  pullback_detected: 'pullback_detected',
+  confirmed: 'confirmed',
+  invalidated: 'invalidated',
+  expired: 'expired',
+  insufficient_data: 'insufficient_data',
+} as const;
+
+export type PullbackEvidenceChecks = {[key: string]: boolean};
+
+export interface PullbackEvidence {
+  side: PullbackEvidenceSide;
+  stage: PullbackEvidenceStage;
+  reason: string;
+  lastCandleAt: string | null;
+  pullbackAt: string | null;
+  confirmationAt: string | null;
+  pullbackHigh: number | null;
+  pullbackLow: number | null;
+  barsWaited: number;
+  setupId: string | null;
+  checks: PullbackEvidenceChecks;
+}
+
+export type EntryResearchSides = {[key: string]: PullbackEvidence};
+
+export interface EntryResearch {
+  strategyVersion: string;
+  researchOnly: true;
+  aiEligible: false;
+  note: string;
+  sides: EntryResearchSides;
+}
+
 export type ErrorResponseDetails = { [key: string]: unknown }[] | null;
 
 /**
@@ -789,6 +840,7 @@ export interface MarketScannerRow {
   setupScores: MarketScannerRowSetupScores;
   candidateId: string | null;
   candidateStatus: string | null;
+  entryResearch: EntryResearch | null;
 }
 
 export interface MarketScannerResponse {

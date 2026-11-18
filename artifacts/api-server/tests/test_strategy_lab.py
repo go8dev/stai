@@ -279,7 +279,10 @@ def test_strategy_lab_requires_owner_and_persists_backtests_without_trade_side_e
     assert result["status"]["proposalCreationEnabled"] is False
     assert all(segment["metrics"]["tradeCount"] == 0 for segment in result["segments"])
     assert all(segment["metrics"]["winRatePct"] is None for segment in result["segments"])
-    assert "cannot both pass" in result["notes"][0]
+    assert result["strategy"]["strategyVersion"] == "ema25-pullback-v2"
+    assert result["strategy"]["scoreGateEnabled"] is False
+    assert "inherited" in result["notes"][0]
+    assert result["segments"][0]["entryDiagnostics"]["confirmed_setups"] == 0
     assert result["developmentEnd"] == result["outOfSampleStart"]
 
     history = harness.client.get("/api/strategy-lab/backtests")
@@ -295,6 +298,26 @@ def test_strategy_lab_requires_owner_and_persists_backtests_without_trade_side_e
         assert list_runs(session, user_id="another-owner") == []
         assert session.execute(select(TradeProposal)).scalars().all() == []
         assert session.execute(select(TradingPermit)).scalars().all() == []
+
+    # Simulate a saved v1 payload which predates the additive research fields.
+    legacy = dict(result)
+    legacy["strategy"] = dict(result["strategy"])
+    legacy["strategy"]["strategyVersion"] = "btc-regime-pullback-v1"
+    legacy["strategy"].pop("entryRules")
+    legacy["strategy"].pop("scoreGateEnabled")
+    legacy["notes"] = ["Legacy rules cannot both pass."]
+    with harness.runtime.database.session() as session:
+        saved = session.get(StrategyBacktestRun, result["id"])
+        saved.strategy_version = "btc-regime-pullback-v1"
+        saved.result = legacy
+    detail = harness.client.get(f"/api/strategy-lab/backtests/{result['id']}").json()
+    assert detail["strategy"]["strategyVersion"] == "btc-regime-pullback-v1"
+    assert detail["strategy"]["scoreGateEnabled"] is True
+    assert detail["notes"] == legacy["notes"]
+    overview = harness.client.get("/api/strategy-lab").json()
+    assert overview["strategy"]["strategyVersion"] == "ema25-pullback-v2"
+    with harness.runtime.database.session() as session:
+        assert session.get(StrategyBacktestRun, result["id"]).result == legacy
 
 
 def test_strategy_lab_rejects_bad_inputs_csrf_and_unavailable_history(

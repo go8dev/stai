@@ -13,7 +13,7 @@ export interface BacktestTrade {
   enteredAt: Date;
   exitedAt: Date;
   side: BacktestTradeSide;
-  score: number | string;
+  score: number | string | null;
   entryPrice: number | string;
   stopPrice: number | string;
   targetPrice: number | string;

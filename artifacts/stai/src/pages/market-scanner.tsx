@@ -23,6 +23,10 @@ import {
 import { cn } from '@/lib/utils';
 import { ErrorNote, KV, NotAvailable, PaperLabel } from '@/components/desk';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  PullbackResearch,
+  researchSummary,
+} from '@/components/pullback-research';
 
 type Filter = 'all' | 'spot' | 'futures';
 
@@ -230,8 +234,9 @@ function RowDetail({ row }: { row: MarketScannerRow }) {
       : {};
   return (
     <div className="rise grid gap-5 border-t border-border bg-background/40 px-4 py-4 lg:grid-cols-[1fr_1fr_1.3fr]">
+      <PullbackResearch research={row.entryResearch} />
       <div>
-        <p className="eyebrow mb-1">Indicators (screening only)</p>
+        <p className="eyebrow mb-1">Legacy indicators (diagnostic only)</p>
         {ind ? (
           <dl>
             <KV label="Screening">
@@ -339,7 +344,7 @@ function RowDetail({ row }: { row: MarketScannerRow }) {
               >
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-xs font-medium uppercase">
-                    {side} setup
+                    {side} legacy score
                   </span>
                   <span className="num text-teal">
                     {String(setup.score ?? 'n/a')} / 100
@@ -376,8 +381,9 @@ function RowDetail({ row }: { row: MarketScannerRow }) {
           </p>
         )}
         <p className="mt-2 text-[11.5px] leading-relaxed text-muted-foreground">
-          Scores are screening evidence only, not trade advice. A scanner row is
-          not a proposal.
+          Legacy scores and EMA7/MACD/pattern classifications do not gate the
+          revised entry rules. Revised score weights and AI eligibility remain
+          unapproved. A scanner row is not a proposal.
         </p>
         <dl className="mt-2">
           <KV label="Candidate status">
@@ -488,20 +494,9 @@ function ScannerRow({
           )}
         </td>
         <td className="hidden px-2 py-2.5 text-[12px] sm:table-cell">
-          {row.indicators ? (
-            <span
-              className={cn(
-                row.indicators.screeningState === 'watch'
-                  ? 'text-teal'
-                  : 'text-muted-foreground',
-              )}
-            >
-              {SCREEN_LABEL[row.indicators.screeningState] ??
-                row.indicators.screeningState}
-            </span>
-          ) : (
-            <NotAvailable>n/a</NotAvailable>
-          )}
+          <span className="text-teal">
+            {researchSummary(row.entryResearch)}
+          </span>
         </td>
         <td className="hidden px-2 py-2.5 text-right sm:table-cell">
           {scoreSummary(row.setupScores) ? (
@@ -583,9 +578,9 @@ export default function MarketScannerPage() {
             Market Scanner <PaperLabel />
           </h1>
           <p className="mt-1 max-w-xl text-[12.5px] text-muted-foreground">
-            Public OKX spot and perpetual data. Deterministic scores are
-            screening evidence, not trade advice. Only persisted proposals can
-            receive owner decisions; the entry engine remains fail-closed.
+            Public OKX data · EMA25 pullback v2: 1h direction → 15m touch →
+            later confirmation. Entry candidates are research-only; legacy
+            scores do not gate them. AI reviews and trading remain disabled.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -733,10 +728,10 @@ export default function MarketScannerPage() {
                         Funding
                       </th>
                       <th className="eyebrow hidden px-2 py-2 font-normal sm:table-cell">
-                        Screen
+                        Entry research
                       </th>
                       <th className="eyebrow hidden px-2 py-2 text-right font-normal sm:table-cell">
-                        Score evidence
+                        Legacy score
                       </th>
                       <th className="eyebrow hidden px-2 py-2 font-normal md:table-cell">
                         Candidate

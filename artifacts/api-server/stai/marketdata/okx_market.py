@@ -329,11 +329,11 @@ class OkxMarketData:
                 self._get("/api/v5/market/ticker", {"instId": instrument_id}),
                 self._get(
                     "/api/v5/market/candles",
-                    {"instId": instrument_id, "bar": "1H", "limit": "100"},
+                    {"instId": instrument_id, "bar": "1H", "limit": "300"},
                 ),
                 self._get(
                     "/api/v5/market/candles",
-                    {"instId": instrument_id, "bar": "15m", "limit": "100"},
+                    {"instId": instrument_id, "bar": "15m", "limit": "300"},
                 ),
                 self._get("/api/v5/market/books", {"instId": instrument_id, "sz": "5"}),
                 self._instrument_rules(market_type, instrument_id),

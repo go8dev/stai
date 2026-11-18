@@ -169,6 +169,14 @@ export const VerifyAuditTrailResponse = zod.object({
 /**
  * @summary Latest public OKX spot and futures scanner data
  */
+export const getMarketScannerResponseRowsItemEntryResearchOneStrategyVersionDefault = `ema25-pullback-v2`;
+export const getMarketScannerResponseRowsItemEntryResearchOneResearchOnlyDefault = true;
+export const getMarketScannerResponseRowsItemEntryResearchOneAiEligibleDefault = false;
+export const getMarketScannerResponseRowsItemEntryResearchOneNoteDefault = `Entry research only. Legacy scores are diagnostic, not eligibility. Revised score weights, AI review and trading are not authorized.`;
+export const getMarketScannerResponseRowsItemEntryResearchOneSidesStageDefault = `waiting`;
+export const getMarketScannerResponseRowsItemEntryResearchOneSidesReasonDefault = `Waiting for a completed EMA25 touch.`;
+export const getMarketScannerResponseRowsItemEntryResearchOneSidesBarsWaitedDefault = 0;
+
 export const GetMarketScannerResponse = zod.object({
   "provider": zod.string(),
   "scannedAt": zod.coerce.date(),
@@ -238,7 +246,26 @@ export const GetMarketScannerResponse = zod.object({
   "detail": zod.union([zod.string(),zod.null()]),
   "setupScores": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
   "candidateId": zod.union([zod.string(),zod.null()]),
-  "candidateStatus": zod.union([zod.string(),zod.null()])
+  "candidateStatus": zod.union([zod.string(),zod.null()]),
+  "entryResearch": zod.union([zod.object({
+  "strategyVersion": zod.string().default(getMarketScannerResponseRowsItemEntryResearchOneStrategyVersionDefault),
+  "researchOnly": zod.literal(true).default(getMarketScannerResponseRowsItemEntryResearchOneResearchOnlyDefault),
+  "aiEligible": zod.literal(false).default(getMarketScannerResponseRowsItemEntryResearchOneAiEligibleDefault),
+  "note": zod.string().default(getMarketScannerResponseRowsItemEntryResearchOneNoteDefault),
+  "sides": zod.record(zod.string(), zod.object({
+  "side": zod.enum(['long', 'short']),
+  "stage": zod.enum(['waiting', 'pullback_detected', 'confirmed', 'invalidated', 'expired', 'insufficient_data']).default(getMarketScannerResponseRowsItemEntryResearchOneSidesStageDefault),
+  "reason": zod.string().default(getMarketScannerResponseRowsItemEntryResearchOneSidesReasonDefault),
+  "lastCandleAt": zod.union([zod.coerce.date(),zod.null()]),
+  "pullbackAt": zod.union([zod.coerce.date(),zod.null()]),
+  "confirmationAt": zod.union([zod.coerce.date(),zod.null()]),
+  "pullbackHigh": zod.union([zod.number(),zod.null()]),
+  "pullbackLow": zod.union([zod.number(),zod.null()]),
+  "barsWaited": zod.number().int().default(getMarketScannerResponseRowsItemEntryResearchOneSidesBarsWaitedDefault),
+  "setupId": zod.union([zod.string(),zod.null()]),
+  "checks": zod.record(zod.string(), zod.boolean())
+}))
+}),zod.null()])
 }))
 })
 
@@ -592,6 +619,8 @@ export const RejectTradeProposalResponse = zod.object({
 /**
  * @summary Get the approved strategy setup and recent historical backtests
  */
+export const getStrategyLabOverviewResponseStrategyScoreGateEnabledDefault = true;
+
 export const GetStrategyLabOverviewResponse = zod.object({
   "strategy": zod.object({
   "strategyVersion": zod.string(),
@@ -609,7 +638,9 @@ export const GetStrategyLabOverviewResponse = zod.object({
   "spreadBps": zod.union([zod.number(),zod.string()]),
   "slippageBps": zod.union([zod.number(),zod.string()]),
   "noLookaheadRule": zod.string(),
-  "executionAssumptions": zod.array(zod.string())
+  "executionAssumptions": zod.array(zod.string()),
+  "entryRules": zod.array(zod.string()),
+  "scoreGateEnabled": zod.boolean().default(getStrategyLabOverviewResponseStrategyScoreGateEnabledDefault)
 }),
   "status": zod.object({
   "paidCommitteeReviewEnabled": zod.boolean(),
@@ -669,6 +700,8 @@ export const CreateStrategyBacktestBody = zod.object({
   "slippageBps": zod.union([zod.number().min(createStrategyBacktestBodySlippageBpsOneMin).max(createStrategyBacktestBodySlippageBpsOneMax),zod.string()])
 })
 
+export const createStrategyBacktestResponseStrategyScoreGateEnabledDefault = true;
+
 export const CreateStrategyBacktestResponse = zod.object({
   "id": zod.string(),
   "createdAt": zod.coerce.date(),
@@ -690,7 +723,9 @@ export const CreateStrategyBacktestResponse = zod.object({
   "spreadBps": zod.union([zod.number(),zod.string()]),
   "slippageBps": zod.union([zod.number(),zod.string()]),
   "noLookaheadRule": zod.string(),
-  "executionAssumptions": zod.array(zod.string())
+  "executionAssumptions": zod.array(zod.string()),
+  "entryRules": zod.array(zod.string()),
+  "scoreGateEnabled": zod.boolean().default(createStrategyBacktestResponseStrategyScoreGateEnabledDefault)
 }),
   "engineVersion": zod.string(),
   "requestedStart": zod.coerce.date(),
@@ -755,7 +790,7 @@ export const CreateStrategyBacktestResponse = zod.object({
   "enteredAt": zod.coerce.date(),
   "exitedAt": zod.coerce.date(),
   "side": zod.enum(['long', 'short']),
-  "score": zod.union([zod.number(),zod.string()]),
+  "score": zod.union([zod.number(),zod.string(),zod.null()]),
   "entryPrice": zod.union([zod.number(),zod.string()]),
   "stopPrice": zod.union([zod.number(),zod.string()]),
   "targetPrice": zod.union([zod.number(),zod.string()]),
@@ -769,7 +804,8 @@ export const CreateStrategyBacktestResponse = zod.object({
   "slippageCostUsdt": zod.union([zod.number(),zod.string()]),
   "netPnlUsdt": zod.union([zod.number(),zod.string()]),
   "returnOnNotionalPct": zod.union([zod.number(),zod.string()])
-}))
+})),
+  "entryDiagnostics": zod.record(zod.string(), zod.number().int())
 })),
   "notes": zod.array(zod.string()),
   "status": zod.object({
@@ -787,6 +823,8 @@ export const CreateStrategyBacktestResponse = zod.object({
 export const GetStrategyBacktestParams = zod.object({
   "run_id": zod.coerce.string()
 })
+
+export const getStrategyBacktestResponseStrategyScoreGateEnabledDefault = true;
 
 export const GetStrategyBacktestResponse = zod.object({
   "id": zod.string(),
@@ -809,7 +847,9 @@ export const GetStrategyBacktestResponse = zod.object({
   "spreadBps": zod.union([zod.number(),zod.string()]),
   "slippageBps": zod.union([zod.number(),zod.string()]),
   "noLookaheadRule": zod.string(),
-  "executionAssumptions": zod.array(zod.string())
+  "executionAssumptions": zod.array(zod.string()),
+  "entryRules": zod.array(zod.string()),
+  "scoreGateEnabled": zod.boolean().default(getStrategyBacktestResponseStrategyScoreGateEnabledDefault)
 }),
   "engineVersion": zod.string(),
   "requestedStart": zod.coerce.date(),
@@ -874,7 +914,7 @@ export const GetStrategyBacktestResponse = zod.object({
   "enteredAt": zod.coerce.date(),
   "exitedAt": zod.coerce.date(),
   "side": zod.enum(['long', 'short']),
-  "score": zod.union([zod.number(),zod.string()]),
+  "score": zod.union([zod.number(),zod.string(),zod.null()]),
   "entryPrice": zod.union([zod.number(),zod.string()]),
   "stopPrice": zod.union([zod.number(),zod.string()]),
   "targetPrice": zod.union([zod.number(),zod.string()]),
@@ -888,7 +928,8 @@ export const GetStrategyBacktestResponse = zod.object({
   "slippageCostUsdt": zod.union([zod.number(),zod.string()]),
   "netPnlUsdt": zod.union([zod.number(),zod.string()]),
   "returnOnNotionalPct": zod.union([zod.number(),zod.string()])
-}))
+})),
+  "entryDiagnostics": zod.record(zod.string(), zod.number().int())
 })),
   "notes": zod.array(zod.string()),
   "status": zod.object({

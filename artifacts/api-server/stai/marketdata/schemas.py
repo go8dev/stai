@@ -6,7 +6,8 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any, Literal
 
-from stai.core.schemas import ApiModel
+from stai.core.schemas import ApiModel, DefaultedResponse
+from stai.strategies.schemas import EntryResearch
 
 MarketType = Literal["spot", "futures"]
 Freshness = Literal["fresh", "stale", "unavailable"]
@@ -50,7 +51,7 @@ class MarketIndicators(ApiModel):
     screening_state: Literal["watch", "no_alignment", "unavailable"]
 
 
-class MarketScannerRow(ApiModel):
+class MarketScannerRow(DefaultedResponse):
     symbol: str
     market_type: MarketType
     status: Freshness
@@ -75,6 +76,7 @@ class MarketScannerRow(ApiModel):
     setup_scores: dict[str, Any] | None
     candidate_id: str | None
     candidate_status: str | None
+    entry_research: EntryResearch | None = None
 
 
 class MarketScannerResponse(ApiModel):

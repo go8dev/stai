@@ -8,7 +8,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from stai.core.schemas import ApiModel
+from stai.core.schemas import ApiModel, DefaultedResponse
 
 BacktestSymbol = Literal["BTCUSDT", "ETHUSDT", "SOLUSDT"]
 MarketType = Literal["spot", "futures"]
@@ -23,7 +23,7 @@ class BacktestInput(ApiModel):
     slippage_bps: Decimal = Field(ge=0, le=50)
 
 
-class StrategyConfiguration(ApiModel):
+class StrategyConfiguration(DefaultedResponse):
     strategy_version: str
     score_threshold: int
     trend_timeframe: str
@@ -40,6 +40,8 @@ class StrategyConfiguration(ApiModel):
     slippage_bps: Decimal
     no_lookahead_rule: str
     execution_assumptions: list[str]
+    entry_rules: list[str] = Field(default_factory=list)
+    score_gate_enabled: bool = True
 
 
 class BacktestMetrics(ApiModel):
@@ -75,7 +77,7 @@ class BacktestTrade(ApiModel):
     entered_at: datetime
     exited_at: datetime
     side: TradeSide
-    score: Decimal
+    score: Decimal | None
     entry_price: Decimal
     stop_price: Decimal
     target_price: Decimal
@@ -91,7 +93,7 @@ class BacktestTrade(ApiModel):
     return_on_notional_pct: Decimal
 
 
-class BacktestSegment(ApiModel):
+class BacktestSegment(DefaultedResponse):
     market_type: MarketType
     side: TradeSide
     period: PeriodName
@@ -100,6 +102,7 @@ class BacktestSegment(ApiModel):
     metrics: BacktestMetrics
     equity_curve: list[EquityPoint]
     trades: list[BacktestTrade]
+    entry_diagnostics: dict[str, int] = Field(default_factory=dict)
 
 
 class CandleCoverage(ApiModel):

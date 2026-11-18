@@ -107,6 +107,7 @@ function liveRow(
     setupScores: null,
     candidateId: null,
     candidateStatus: null,
+    entryResearch: null,
   };
 }
 
@@ -139,6 +140,7 @@ function deadRow(
     setupScores: null,
     candidateId: null,
     candidateStatus: null,
+    entryResearch: null,
   };
 }
 
@@ -490,7 +492,9 @@ test.describe('Market Scanner (synthetic fixtures)', () => {
 
     await expand.click();
     await expect(expand).toHaveAttribute('aria-expanded', 'true');
-    await expect(page.getByText('Indicators (screening only)')).toBeVisible();
+    await expect(
+      page.getByText('Legacy indicators (diagnostic only)'),
+    ).toBeVisible();
     await expect(page.getByText('Order book top')).toBeVisible();
     await expect(
       page.getByText('Last tick is older than the freshness limit.'),
@@ -498,7 +502,9 @@ test.describe('Market Scanner (synthetic fixtures)', () => {
 
     await expand.click();
     await expect(expand).toHaveAttribute('aria-expanded', 'false');
-    await expect(page.getByText('Indicators (screening only)')).toHaveCount(0);
+    await expect(
+      page.getByText('Legacy indicators (diagnostic only)'),
+    ).toHaveCount(0);
   });
 
   test('shows an explicit outage when every instrument is unavailable', async ({

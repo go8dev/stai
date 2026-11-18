@@ -213,9 +213,7 @@ function Configuration({ strategy }: { strategy: StrategyConfiguration }) {
       <header className="flex items-center justify-between border-b border-border/60 px-4 py-3">
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-4 w-4 text-teal" aria-hidden />
-          <h2 className="text-[13px] font-semibold">
-            Approved strategy definition
-          </h2>
+          <h2 className="text-[13px] font-semibold">Strategy definition</h2>
         </div>
         <span
           className="num rounded border border-teal/30 bg-teal/[0.07] px-1.5 py-1 text-[10px] text-teal"
@@ -224,15 +222,31 @@ function Configuration({ strategy }: { strategy: StrategyConfiguration }) {
           {strategy.strategyVersion}
         </span>
       </header>
-      <p
-        className="border-b border-warn/30 bg-warn/[0.06] px-4 py-3 text-[12px] leading-relaxed text-warn"
-        data-testid="notice-scanner-rule-conflict"
-      >
-        Scanner parity mode: the current 1h trend and pullback gates conflict.
-        No entry can satisfy both. Zero trades cannot establish a win/loss rate
-        or validate the stops and targets. These rules are preserved exactly as
-        requested.
-      </p>
+      {strategy.strategyVersion === 'btc-regime-pullback-v1' && (
+        <p
+          className="border-b border-warn/30 bg-warn/[0.06] px-4 py-3 text-[12px] leading-relaxed text-warn"
+          data-testid="notice-scanner-rule-conflict"
+        >
+          Scanner parity mode: the current 1h trend and pullback gates conflict.
+          No entry can satisfy both. Zero trades cannot establish a win/loss
+          rate or validate the stops and targets. These rules are preserved
+          exactly as requested.
+        </p>
+      )}
+      {strategy.entryRules && strategy.entryRules.length > 0 && (
+        <ul
+          className="space-y-1 border-b border-border px-4 py-3 text-xs text-muted-foreground"
+          data-testid="approved-entry-rules"
+        >
+          {strategy.entryRules.map((rule) => (
+            <li key={rule}>{rule}</li>
+          ))}
+          <li>
+            Research only. Existing EMA-derived exits remain inherited and
+            unvalidated.
+          </li>
+        </ul>
+      )}
       <div className="grid gap-x-6 px-4 py-2 sm:grid-cols-2 xl:grid-cols-4">
         <ConfigItem
           label="Trend / regime"
@@ -245,8 +259,12 @@ function Configuration({ strategy }: { strategy: StrategyConfiguration }) {
           testId="text-confirmation-timeframe"
         />
         <ConfigItem
-          label="Screen threshold"
-          value={`${strategy.scoreThreshold} / 100`}
+          label="Future AI threshold"
+          value={
+            strategy.scoreGateEnabled === false
+              ? `${strategy.scoreThreshold}/100 selected · NOT applied; revised weights pending`
+              : `${strategy.scoreThreshold} / 100 (legacy rule gate)`
+          }
           testId="text-score-threshold"
         />
         <ConfigItem
@@ -577,7 +595,9 @@ function TradeTable({ trades }: { trades: BacktestTrade[] }) {
               <td className="px-2.5 py-2">
                 <SideLabel side={trade.side} />
               </td>
-              <td className="num px-2.5 py-2">{numeric(trade.score, 1)}</td>
+              <td className="num px-2.5 py-2">
+                {trade.score === null ? 'Not applied' : numeric(trade.score, 1)}
+              </td>
               <td className="num whitespace-nowrap px-2.5 py-2">
                 {numeric(trade.entryPrice, 4)}{' '}
                 <span className="text-muted-foreground">→</span>{' '}
@@ -967,6 +987,13 @@ function ResultView({
                   <KV label="Unclosed excluded">
                     {segment.metrics.excludedUnclosedTrades.toLocaleString()}
                   </KV>
+                  {Object.entries(segment.entryDiagnostics ?? {}).map(
+                    ([reason, count]) => (
+                      <KV key={reason} label={reason.replaceAll('_', ' ')}>
+                        {count}
+                      </KV>
+                    ),
+                  )}
                 </dl>
               </div>
             </div>
@@ -1350,6 +1377,10 @@ export default function StrategyLabPage() {
         <>
           <div className="mt-4">
             <Configuration strategy={strategy} />
+            {result &&
+              result.strategy.strategyVersion !== strategy.strategyVersion && (
+                <Configuration strategy={result.strategy} />
+              )}
           </div>
 
           <div className="mt-4 grid items-start gap-4 xl:grid-cols-[318px_minmax(0,1fr)]">
@@ -1708,9 +1739,7 @@ export default function StrategyLabPage() {
           className="panel mt-4 px-4 py-8 text-center"
           data-testid="empty-strategy-definition"
         >
-          <p className="text-sm font-medium">
-            Approved strategy definition unavailable
-          </p>
+          <p className="text-sm font-medium">Strategy definition unavailable</p>
           <p className="mt-1 text-xs text-muted-foreground">
             Backtests are disabled until the server supplies the current
             reviewed configuration.

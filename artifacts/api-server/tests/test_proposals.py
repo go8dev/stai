@@ -21,8 +21,10 @@ from stai.db.models import (
     TradingPermit,
 )
 from stai.marketdata.schemas import BookLevel, CandlePoint, InstrumentRules, MarketScannerRow
+from stai.marketdata.service import persist_market_rows
 from stai.proposals.service import (
     PROPOSAL_TTL,
+    _candidate_details,
     _candidate_gates,
     create_proposal_from_committee_run,
     decide_proposal,
@@ -132,8 +134,29 @@ def _seed_synthetic_review(harness: Harness) -> tuple:
     row = _scan_row(now)
     with harness.runtime.database.session() as session:
         ensure_fund(session, now=now)
-        snapshot_id = persist_market_scan(session, [row], now=now)[0]
-        assert row.candidate_id is not None
+        # Existing approval/risk checks exercise an explicit legacy synthetic candidate,
+        # not the new research scanner (which must never create proposal candidates).
+        snapshot_id = persist_market_rows(session, [row])[0]
+        session.flush()
+        row.candidate_id = str(uuid4())
+        session.add(
+            SetupCandidate(
+                id=row.candidate_id,
+                fingerprint=str(uuid4()),
+                snapshot_id=snapshot_id,
+                symbol=row.symbol,
+                market_type=row.market_type,
+                side="long",
+                score=D("78"),
+                strategy_version="btc-regime-pullback-v1",
+                status="awaiting_ai_authorization",
+                created_at=now,
+                updated_at=now,
+                details=_candidate_details(
+                    row, row.setup_scores["scores"]["long"], row.setup_scores
+                ),
+            )
+        )
         session.add(
             BotState(
                 bot_id="spot",
@@ -276,26 +299,29 @@ def test_candidate_gates_use_completed_confirmation_and_70_threshold() -> None:
     )
 
 
-def test_scan_candidates_are_persisted_once_per_unchanged_setup(harness: Harness) -> None:
+def test_research_scans_never_create_legacy_proposal_candidates(harness: Harness) -> None:
     now = harness.clock()
     row = _scan_row(now)
     with harness.runtime.database.session() as session:
         first_snapshot = persist_market_scan(session, [row], now=now)[0]
         candidate_id = row.candidate_id
-    assert candidate_id is not None
+    assert candidate_id is None
+    assert row.entry_research is not None
+    evidence = row.entry_research.model_dump(mode="json")
 
     row.candidate_id = None
     with harness.runtime.database.session() as session:
         second_snapshot = persist_market_scan(session, [row], now=now)[0]
         assert second_snapshot != first_snapshot
-        assert row.candidate_id == candidate_id
+        assert row.candidate_id is None
+        assert row.entry_research.model_dump(mode="json") == evidence
 
     with harness.runtime.database.session() as session:
-        assert session.scalar(select(func.count()).select_from(SetupCandidate)) == 1
-        candidate = session.get(SetupCandidate, candidate_id)
-        assert candidate is not None
-        assert candidate.status == "awaiting_ai_authorization"
-        assert candidate.score == D("78")
+        assert session.scalar(select(func.count()).select_from(SetupCandidate)) == 0
+        snapshot = session.get(MarketSnapshot, second_snapshot)
+        assert snapshot.details["entryResearch"]["research_only"] is True
+        assert snapshot.details["entryResearch"]["ai_eligible"] is False
+        assert _candidate_gates(row, row.setup_scores, "long", now)
 
 
 def test_complete_synthetic_review_creates_only_an_exact_owner_paper_permit(

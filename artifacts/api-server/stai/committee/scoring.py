@@ -114,7 +114,7 @@ def setup_scores(
         "h1Snapshot": h1.model_dump(mode="json"),
         "m15Snapshot": m15.model_dump(mode="json"),
         "btcRegime": btc_evidence,
-        "note": "Deterministic screening only. The 70/100 threshold is selected, with independent "
-        "freshness, BTC-regime, 1-hour trend, 15-minute confirmation, pullback, and market-quality "
-        "gates. It does not initiate a paid committee run.",
+        "note": "Legacy score diagnostics only, not a gate for ema25-pullback-v2. "
+        "The 70/100 future AI threshold is selected, but revised weights and paid "
+        "automation are not approved. Read entryResearch for the revised entry state.",
     }

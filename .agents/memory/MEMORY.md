@@ -9,3 +9,4 @@
 - [Browser check lessons](browser-check-lessons.md) — cancelled calls look like failures, how signed-in screens were checked without a real sign-in, the one-off harnesses are outside Git.
 - [Publishing is the owner's step](publish-is-owners-step.md) — hold back the publish card, publish calls and the schema-diff explainer until the owner has published once.
 - [Task tool limits](task-tool-limits.md) — follow-up task descriptions are capped at 4,000 characters; a rejected proposal records nothing and can be sent again.
+- [Response compatibility](response-compatibility-lessons.md) — saved-result extensions need legacy-read and generated-contract checks; runtime success alone is insufficient.

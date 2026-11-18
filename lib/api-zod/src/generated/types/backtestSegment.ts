@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { BacktestMetrics } from './backtestMetrics';
+import type { BacktestSegmentEntryDiagnostics } from './backtestSegmentEntryDiagnostics';
 import type { BacktestSegmentMarketType } from './backtestSegmentMarketType';
 import type { BacktestSegmentPeriod } from './backtestSegmentPeriod';
 import type { BacktestSegmentSide } from './backtestSegmentSide';
@@ -21,4 +22,5 @@ export interface BacktestSegment {
   metrics: BacktestMetrics;
   equityCurve: EquityPoint[];
   trades: BacktestTrade[];
+  entryDiagnostics: BacktestSegmentEntryDiagnostics;
 }
