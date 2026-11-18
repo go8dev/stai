@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the foundation and Phase 2. The approved
+This document describes the foundation through Phase 3. The approved
 plan for all seven phases, with the reasons for each choice, is
 [STAI_PHASE1_PLAN.md](STAI_PHASE1_PLAN.md). Where this document and the code disagree,
 the code is right and this document needs correcting.
@@ -22,7 +22,18 @@ files, and any path that is not a file returns `index.html`.
 
 The worker and bots are configured for the workspace. Continuous production operation
 defaults to disabled pending the owner's restart check. The strategy refuses all entries
-until Phase 4 connects the owner approval workflow. The AI committee remains Phase 3.
+until Phase 4 connects the owner approval workflow.
+
+### Phase 3 research path
+
+Captured OKX observations and reused analytics, attributed public crypto headlines,
+and recorded portfolio → bounded LangGraph/TradingAgents research → validated
+advisory recommendation and PostgreSQL findings → AI Committee screen.
+This path never calls permit creation or execution. There are ten roles in five
+paid stages plus two deterministic calculations. One approved workspace benchmark
+has run; recurring and manual paid runs remain disabled pending approved limits.
+See [PHASE3_OPERATIONS.md](PHASE3_OPERATIONS.md) for precise upstream reuse,
+persistence, measurements and interruption semantics.
 
 ### Phase 2 data path
 

@@ -155,7 +155,10 @@ CREDENTIAL_OR_SWITCH = re.compile(
 
 
 def test_no_setting_holds_an_exchange_credential_or_a_mode_switch() -> None:
-    names = sorted(known_variable_names() | set(Settings.model_fields))
+    # OpenAI is research-only, not an exchange credential. No other exemption.
+    names = sorted(
+        (known_variable_names() | set(Settings.model_fields)) - {"OPENAI_API_KEY", "openai_api_key"}
+    )
 
     assert [name for name in names if CREDENTIAL_OR_SWITCH.search(name)] == []
 
@@ -173,6 +176,10 @@ def test_no_table_could_hold_an_exchange_credential() -> None:
         "trading_permits",
         "paper_positions",
         "paper_fills",
+        "committee_agents",
+        "committee_runs",
+        "committee_findings",
+        "committee_calls",
     }
 
     suspicious = re.compile(r"api_?key|secret|passphrase|password|credential|exchange_key", re.I)
@@ -326,6 +333,11 @@ def test_outside_calls_can_only_come_from_the_known_places() -> None:
                 uses_httpx.add(relative)
             for banned in NETWORK_OR_PROCESS_MODULES:
                 if module == banned or module.startswith(f"{banned}."):
+                    if relative in {
+                        "stai/committee/provider.py",
+                        "stai/committee/workflow.py",
+                    } and (module.startswith("tradingagents.")):
+                        continue
                     forbidden.append(f"{relative} imports {module}")
 
     assert forbidden == []
@@ -336,6 +348,7 @@ def test_outside_calls_can_only_come_from_the_known_places() -> None:
         "stai/auth/oidc.py",
         "stai/marketdata/okx_public.py",
         "stai/marketdata/okx_market.py",
+        "stai/committee/evidence.py",
     }
     assert "subprocess" in set(imported_modules(BACKEND / "trading" / "bots.py"))
     assert "freqtrade.strategy" in set(
@@ -403,8 +416,8 @@ def package_name(requirement: str) -> str:
     return re.split(r"[\s\[<>=!~;]", requirement, maxsplit=1)[0].lower().replace("_", "-")
 
 
-def test_phase_two_declares_and_locks_only_approved_engine_libraries() -> None:
-    """Phase 2 uses fixed Freqtrade and CCXT versions; later AI packages stay absent."""
+def test_phase_three_declares_and_locks_only_approved_libraries() -> None:
+    """Phase 3 adds pinned read-only TradingAgents; exchange SDKs remain absent."""
     project: dict[str, Any] = tomllib.loads(
         (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
     )
@@ -418,13 +431,22 @@ def test_phase_two_declares_and_locks_only_approved_engine_libraries() -> None:
     assert {"ccxt", "freqtrade"} <= declared
     assert {"ccxt", "freqtrade"} <= declared
     assert {"ccxt", "freqtrade", "freqtrade-client", "ta-lib"} <= locked
-    assert declared & EXCHANGE_AND_ENGINE_PACKAGES == set()
-    assert locked & EXCHANGE_AND_ENGINE_PACKAGES == set()
+    assert declared & EXCHANGE_AND_ENGINE_PACKAGES == {"tradingagents", "langgraph"}
+    assert locked & EXCHANGE_AND_ENGINE_PACKAGES == {
+        "tradingagents",
+        "langgraph",
+        "openai",
+        "anthropic",
+    }
+    assert "tradingagents==0.7.1" in project["project"]["dependencies"]
+    assert project["tool"]["uv"]["sources"]["tradingagents"]["rev"] == "v0.7.1"
     assert declared - {"stai"} <= locked
 
 
-def test_phase_two_engines_are_installed_and_ai_libraries_are_not() -> None:
+def test_approved_engines_and_ai_libraries_are_installed_but_not_exchange_sdks() -> None:
     assert importlib.util.find_spec("ccxt") is not None
     assert importlib.util.find_spec("freqtrade") is not None
-    for module in ("tradingagents", "okx", "binance", "langgraph", "openai"):
+    for module in ("tradingagents", "langgraph", "openai"):
+        assert importlib.util.find_spec(module) is not None
+    for module in ("okx", "binance"):
         assert importlib.util.find_spec(module) is None

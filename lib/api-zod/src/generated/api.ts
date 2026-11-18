@@ -312,3 +312,150 @@ export const VerifyPortfolioLedgerResponse = zod.object({
 })
 
 
+/**
+ * @summary Get Committee Overview
+ */
+export const GetCommitteeOverviewResponse = zod.object({
+  "roles": zod.array(zod.object({
+  "id": zod.enum(['cio', 'technical', 'quantitative', 'intelligence', 'derivatives', 'bull', 'bear', 'portfolio', 'risk', 'execution']),
+  "name": zod.string(),
+  "mode": zod.enum(['model', 'deterministic'])
+})),
+  "runs": zod.array(zod.object({
+  "id": zod.string(),
+  "symbol": zod.string(),
+  "marketType": zod.string(),
+  "status": zod.string(),
+  "startedAt": zod.coerce.date(),
+  "finishedAt": zod.union([zod.coerce.date(),zod.null()]),
+  "durationMs": zod.union([zod.number().int(),zod.null()]),
+  "model": zod.string(),
+  "inputTokens": zod.number().int(),
+  "outputTokens": zod.number().int(),
+  "costUsd": zod.union([zod.number(),zod.string(),zod.null()]),
+  "costBasis": zod.string(),
+  "action": zod.union([zod.string(),zod.null()]),
+  "error": zod.union([zod.string(),zod.null()]),
+  "findingCount": zod.number().int()
+})),
+  "paidAutomationEnabled": zod.literal(false),
+  "manualPaidRunsEnabled": zod.literal(false),
+  "entryGate": zod.literal("closed"),
+  "benchmarkState": zod.string(),
+  "limitsStatus": zod.string(),
+  "nextStep": zod.string()
+})
+
+
+/**
+ * @summary Get Committee Run
+ */
+export const GetCommitteeRunParams = zod.object({
+  "run_id": zod.coerce.string()
+})
+
+export const getCommitteeRunResponseFindingsItemSummaryMax = 3000;
+
+export const getCommitteeRunResponseFindingsItemSupportingMax = 8;
+
+export const getCommitteeRunResponseFindingsItemOpposingMax = 8;
+
+export const getCommitteeRunResponseFindingsItemUncertaintiesMax = 8;
+
+export const getCommitteeRunResponseFindingsItemEvidenceIdsMax = 12;
+
+export const getCommitteeRunResponseFindingsItemConfidenceMin = 0;
+export const getCommitteeRunResponseFindingsItemConfidenceMax = 100;
+
+export const getCommitteeRunResponseRecommendationOneThesisMax = 4000;
+
+export const getCommitteeRunResponseRecommendationOneConfidenceMin = 0;
+export const getCommitteeRunResponseRecommendationOneConfidenceMax = 100;
+
+export const getCommitteeRunResponseRecommendationOneSupportingMax = 8;
+
+export const getCommitteeRunResponseRecommendationOneOpposingMax = 8;
+
+export const getCommitteeRunResponseRecommendationOneUncertaintiesMax = 8;
+
+export const getCommitteeRunResponseRecommendationOneEvidenceIdsMax = 12;
+
+export const getCommitteeRunResponseRecommendationOneTermsOneEntryOneExclusiveMin = 0;
+
+export const getCommitteeRunResponseRecommendationOneTermsOneStopOneExclusiveMin = 0;
+
+export const getCommitteeRunResponseRecommendationOneTermsOneTargetOneExclusiveMin = 0;
+
+export const getCommitteeRunResponseRecommendationOneTermsOneNotionalUsdtOneExclusiveMin = 0;
+export const getCommitteeRunResponseRecommendationOneTermsOneNotionalUsdtOneMax = 200;
+
+export const getCommitteeRunResponseRecommendationOneTermsOneLeverageMax = 2;
+
+
+
+export const GetCommitteeRunResponse = zod.object({
+  "id": zod.string(),
+  "symbol": zod.string(),
+  "marketType": zod.string(),
+  "status": zod.string(),
+  "startedAt": zod.coerce.date(),
+  "finishedAt": zod.union([zod.coerce.date(),zod.null()]),
+  "durationMs": zod.union([zod.number().int(),zod.null()]),
+  "model": zod.string(),
+  "inputTokens": zod.number().int(),
+  "outputTokens": zod.number().int(),
+  "costUsd": zod.union([zod.number(),zod.string(),zod.null()]),
+  "costBasis": zod.string(),
+  "action": zod.union([zod.string(),zod.null()]),
+  "error": zod.union([zod.string(),zod.null()]),
+  "findingCount": zod.number().int(),
+  "snapshotId": zod.string(),
+  "evidence": zod.array(zod.object({
+  "id": zod.string(),
+  "kind": zod.string(),
+  "source": zod.string(),
+  "observedAt": zod.coerce.date(),
+  "status": zod.enum(['fresh', 'stale', 'unavailable']),
+  "summary": zod.string(),
+  "data": zod.record(zod.string(), zod.unknown())
+})),
+  "findings": zod.array(zod.object({
+  "role": zod.enum(['cio', 'technical', 'quantitative', 'intelligence', 'derivatives', 'bull', 'bear', 'portfolio', 'risk', 'execution']),
+  "summary": zod.string().min(1).max(getCommitteeRunResponseFindingsItemSummaryMax),
+  "supporting": zod.array(zod.string()).max(getCommitteeRunResponseFindingsItemSupportingMax),
+  "opposing": zod.array(zod.string()).max(getCommitteeRunResponseFindingsItemOpposingMax),
+  "uncertainties": zod.array(zod.string()).min(1).max(getCommitteeRunResponseFindingsItemUncertaintiesMax),
+  "evidenceIds": zod.array(zod.string()).min(1).max(getCommitteeRunResponseFindingsItemEvidenceIdsMax),
+  "confidence": zod.number().int().min(getCommitteeRunResponseFindingsItemConfidenceMin).max(getCommitteeRunResponseFindingsItemConfidenceMax)
+})),
+  "calls": zod.array(zod.object({
+  "stage": zod.string(),
+  "model": zod.string(),
+  "inputTokens": zod.union([zod.number().int(),zod.null()]),
+  "outputTokens": zod.union([zod.number().int(),zod.null()]),
+  "costUsd": zod.union([zod.number(),zod.string(),zod.null()]),
+  "durationMs": zod.number().int(),
+  "status": zod.string()
+})),
+  "recommendation": zod.union([zod.object({
+  "action": zod.enum(['research_long', 'research_short', 'abstain']),
+  "thesis": zod.string().min(1).max(getCommitteeRunResponseRecommendationOneThesisMax),
+  "confidence": zod.number().int().min(getCommitteeRunResponseRecommendationOneConfidenceMin).max(getCommitteeRunResponseRecommendationOneConfidenceMax),
+  "supporting": zod.array(zod.string()).max(getCommitteeRunResponseRecommendationOneSupportingMax),
+  "opposing": zod.array(zod.string()).max(getCommitteeRunResponseRecommendationOneOpposingMax),
+  "uncertainties": zod.array(zod.string()).min(1).max(getCommitteeRunResponseRecommendationOneUncertaintiesMax),
+  "evidenceIds": zod.array(zod.string()).min(1).max(getCommitteeRunResponseRecommendationOneEvidenceIdsMax),
+  "terms": zod.union([zod.object({
+  "entry": zod.union([zod.number().gt(getCommitteeRunResponseRecommendationOneTermsOneEntryOneExclusiveMin),zod.string()]),
+  "stop": zod.union([zod.number().gt(getCommitteeRunResponseRecommendationOneTermsOneStopOneExclusiveMin),zod.string()]),
+  "target": zod.union([zod.number().gt(getCommitteeRunResponseRecommendationOneTermsOneTargetOneExclusiveMin),zod.string()]),
+  "notionalUsdt": zod.union([zod.number().gt(getCommitteeRunResponseRecommendationOneTermsOneNotionalUsdtOneExclusiveMin).max(getCommitteeRunResponseRecommendationOneTermsOneNotionalUsdtOneMax),zod.string()]),
+  "leverage": zod.number().int().min(1).max(getCommitteeRunResponseRecommendationOneTermsOneLeverageMax)
+}),zod.null()])
+}),zod.null()]),
+  "memory": zod.array(zod.string()),
+  "advisoryOnly": zod.literal(true),
+  "evidenceStale": zod.boolean()
+})
+
+

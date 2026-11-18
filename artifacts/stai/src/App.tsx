@@ -21,6 +21,7 @@ import NotFound from '@/pages/not-found';
 import SystemStatusPage from '@/pages/system-status';
 import MarketScannerPage from '@/pages/market-scanner';
 import PortfolioPage from '@/pages/portfolio';
+import AiCommitteePage from '@/pages/ai-committee';
 import { NotBuiltPage } from '@/pages/not-built';
 import { LoadingScreen, SignInScreen } from '@/pages/sign-in';
 import { MODULES, SYSTEM_STATUS_PATH } from '@/lib/modules';
@@ -61,6 +62,7 @@ function Router() {
         <Route path={SYSTEM_STATUS_PATH} component={SystemStatusPage} />
         <Route path="/market-scanner" component={MarketScannerPage} />
         <Route path="/portfolio" component={PortfolioPage} />
+        <Route path="/ai-committee" component={AiCommitteePage} />
         {MODULES.map((m) => (
           <Route key={m.id} path={m.path}>
             <NotBuiltPage module={m} />

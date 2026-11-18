@@ -86,8 +86,8 @@ Not installed on the published machine.
   settings turn that source off.
 - **httpx stays at 0.28.1.** The test client of Starlette 1.10 prefers a newer library,
   `httpx2`, and says so in a deprecation warning, which the test settings silence. 0.28.1
-  is the version in the set that was resolved together with Freqtrade and TradingAgents
-  (see [Planned, not installed](#planned-not-installed)). Look at this again when that set
+  is the version in the set that was resolved together with Freqtrade and TradingAgents.
+  Look at this again when that set
   is resolved anew.
 
 ## Web app packages
@@ -150,25 +150,44 @@ Freqtrade 2026.10, its matching client and CCXT 4.5.93 are now installed and loc
 Freqtrade remains unmodified and is launched only as a separate dry-run process.
 STAI's strategy subclass, public-data adapter, ledger, supervisor and snapshot reader
 are project code. TA-Lib is an engine dependency (the installed package includes its
-BSD licence file). The remaining AI and email entries below are still future work.
-No OpenAI call is made in Phase 2, and the supplied key remains unused.
+BSD licence file). Phase 2 made no OpenAI call; Phase 3 has now installed and used the
+AI entries below for one measured benchmark. Email remains future work.
 
 | Package | Version | Licence | Arrives in |
 | --- | --- | --- | --- |
 | Freqtrade / freqtrade-client | 2026.10 | GPLv3 | Installed, Phase 2 |
 | CCXT | 4.5.93 | MIT | Installed, Phase 2 |
 | TA-Lib | 0.8.3 | BSD | Installed, Phase 2 |
-| TradingAgents | 0.7.1, from its GitHub release tag | Apache-2.0 | Phase 3 |
-| LangGraph | 1.2.22 | MIT | Phase 3 |
-| OpenAI library | 3.52.0 | To be recorded when installed | Phase 3 |
+| TradingAgents | 0.7.1, from its GitHub release tag | Apache-2.0 | Installed, Phase 3 |
+| LangGraph | 1.2.22 | MIT | Installed, Phase 3 |
+| OpenAI library | 3.52.0 | Apache-2.0 | Installed, Phase 3 |
 | Resend, the email service | To be chosen | To be recorded | Phase 4 |
 | TradingView Lightweight Charts | To be chosen | To be recorded | With the first chart |
 
 **Version constraints.** `pyproject.toml` lists 142 exact versions under
 `constraint-dependencies`. They are the set that was resolved for the Phase 1 backend
 together with Freqtrade 2026.10 and TradingAgents 0.7.1. Phase 2 has now installed the
-paper-engine subset. The current `uv.lock` is authoritative for what is installed;
-the constraints reserve compatible versions for Phase 3 without installing its AI engine.
+  paper-engine subset; Phase 3 has now installed the compatible AI subset as well.
+  The current `uv.lock` is authoritative for what is installed.
+
+### Phase 3 installed AI integration
+
+TradingAgents 0.7.1 is installed unmodified from its release tag, locked at commit
+`c4544913a14ed3df5f1ed7b9e8483270ce20682a`. Its packaged LICENSE is Apache-2.0
+(the package metadata does not populate the License field). LangGraph 1.2.22,
+LangChain Core 1.8.1, LangChain OpenAI 1.8.0 and LangSmith 0.15.0 carry MIT metadata.
+OpenAI SDK 3.52.0 carries Apache-2.0 metadata.
+
+STAI reuses the provider factory and bull/bear factories inside a bounded custom
+crypto graph. It does not run the equity graph, Yahoo tools, file/SQLite memory or
+free-text fallback retries. Its other crypto role prompts are STAI adapters, not
+modified upstream code. Directly imported graph/core/tracing libraries are pinned.
+LangSmith tracing is disabled; no LangSmith integration is used.
+
+One authorized real OpenAI run used the owner's key and direct provider endpoint,
+not Replit AI billing. Public intelligence comes from Cointelegraph RSS headlines.
+The benchmark model, pricing basis and explicit deprecation warning are recorded in
+[PHASE3_OPERATIONS.md](PHASE3_OPERATIONS.md); no automated model replacement occurs.
 
 **Licence note from the plan.** GPL-3.0 places no obligation on personal use. The
 approval gate of Phase 2 plugs into Freqtrade, so the GPL would apply to it if STAI were

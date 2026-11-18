@@ -7,7 +7,7 @@ structure changes reach the published database, and how the audit trail works.
 
 ## Tables
 
-Twelve tables in `public`, including the migration marker. Phase 1 added the identity,
+Sixteen tables in `public`, including the migration marker. Phase 1 added the identity,
 session and audit tables described below. Phase 2 adds:
 
 | Table | Purpose |
@@ -20,6 +20,13 @@ session and audit tables described below. Phase 2 adds:
 | `paper_fills` | Append-only raw and conservative adjusted fill evidence, fees, spread and slippage. |
 | `trading_permits` | Exact owner-approved terms and single-use state; no creation API in Phase 2. |
 | `bot_states` | Private engine status plus explicitly required compressed SQLite snapshot/checksum for recovery. |
+
+Phase 3 development revision `0003` adds `committee_agents` (role definitions),
+`committee_runs` (unique benchmark slot, evidence, recommendation and memory),
+`committee_findings` (one structured finding per run/role), and `committee_calls`
+(one committed provider attempt per run/stage, usage and Decimal USD estimate).
+Unknown usage/price is NULL, not zero. Research tables confer no trading permissions.
+No Phase 3 production migration was applied.
 
 Money and quantities use `Numeric(30,12)`; prices are never binary floats in accounting.
 No sequence, server default, trigger or database function is required. The Phase 2

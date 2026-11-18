@@ -83,6 +83,8 @@ class Settings(BaseSettings):
 
     # Public market data (no keys)
     okx_base_url: str = Field(default="https://www.okx.com", validation_alias="STAI_OKX_BASE_URL")
+    # Used only by the explicitly invoked workspace benchmark, never by the API or paper bots.
+    openai_api_key: SecretStr | None = Field(default=None, validation_alias="OPENAI_API_KEY")
 
     @field_validator("log_level")
     @classmethod

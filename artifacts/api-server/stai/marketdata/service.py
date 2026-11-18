@@ -10,9 +10,12 @@ from stai.db.models import MarketSnapshot
 from stai.marketdata.schemas import MarketScannerRow
 
 
-def persist_market_rows(session: Session, rows: list[MarketScannerRow]) -> None:
+def persist_market_rows(session: Session, rows: list[MarketScannerRow]) -> list[str]:
     """Append immutable-in-time market observations; prices are never overwritten."""
+    ids: list[str] = []
     for row in rows:
+        snapshot_id = str(uuid4())
+        ids.append(snapshot_id)
         instrument = (
             None
             if row.instrument is None
@@ -25,7 +28,7 @@ def persist_market_rows(session: Session, rows: list[MarketScannerRow]) -> None:
         )
         session.add(
             MarketSnapshot(
-                id=str(uuid4()),
+                id=snapshot_id,
                 symbol=row.symbol,
                 market_type=row.market_type,
                 observed_at=row.observed_at,
@@ -50,3 +53,4 @@ def persist_market_rows(session: Session, rows: list[MarketScannerRow]) -> None:
                 },
             )
         )
+    return ids

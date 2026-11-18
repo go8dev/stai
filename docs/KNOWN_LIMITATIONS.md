@@ -5,6 +5,26 @@ consequence is and, where there is one, what would remove it. Nothing here is hi
 behind a default: where a check cannot run or a value is not available, the interface
 says so.
 
+## Phase 3 research limitations
+
+- Phase 3 is workspace-only. The owner deferred production migrations; restart
+  check 7 remains unconfirmed. This does not prevent workspace research development.
+- One real five-call benchmark completed, not a performance or reliability study.
+  Its $0.0164648 USD cost is a conservative standard-rate estimate, not an invoice.
+- Paid runs remain locked pending owner approval of score threshold and daily
+  run/spend caps. The single benchmark cannot be replayed through the CLI or API.
+- The benchmark model is listed deprecated by the provider; a replacement and its
+  cost must be separately authorized and measured before continuous use.
+- News is a bounded public RSS headline feed, not comprehensive market intelligence
+  or measured social sentiment. Missing evidence can force abstention.
+- Findings are advisory and may be wrong. Confidence is subjective; trade terms
+  have not passed the Phase 4 deterministic risk engine and cannot create permits.
+- The signed-in committee UI is typechecked/built but not browser-verified with
+  the owner's session. Recovery tests use synthetic interrupted attempts, not a
+  deliberately killed paid request with a verified provider invoice.
+- Recovery is checked by the private worker on scans and by benchmark preflight,
+  not by opening a database connection on every API startup or health request.
+
 ## Phase 2 status and remaining checks
 
 - The owner has published Phase 1 and supplied healthy status/sign-in and intact-audit

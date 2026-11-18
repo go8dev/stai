@@ -24,6 +24,8 @@ import type {
   AuditVerification,
   AuthUserEnvelope,
   BeginBrowserLoginParams,
+  CommitteeOverview,
+  CommitteeRunDetail,
   CsrfToken,
   ErrorResponse,
   HandleBrowserLoginCallbackParams,
@@ -1079,6 +1081,160 @@ export function useVerifyPortfolioLedger<TData = Awaited<ReturnType<typeof verif
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getVerifyPortfolioLedgerQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetCommitteeOverviewUrl = () => {
+
+
+
+
+  return `/api/committee`
+}
+
+/**
+ * @summary Get Committee Overview
+ */
+export const getCommitteeOverview = async ( options?: Parameters<typeof customFetch>[1]): Promise<CommitteeOverview> => {
+
+  return customFetch<CommitteeOverview>(getGetCommitteeOverviewUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCommitteeOverviewQueryKey = () => {
+    return [
+    `/api/committee`
+    ] as const;
+    }
+
+
+export const getGetCommitteeOverviewQueryOptions = <TData = Awaited<ReturnType<typeof getCommitteeOverview>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCommitteeOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCommitteeOverviewQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCommitteeOverview>>> = ({ signal }) => getCommitteeOverview({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCommitteeOverview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCommitteeOverviewQueryResult = NonNullable<Awaited<ReturnType<typeof getCommitteeOverview>>>
+export type GetCommitteeOverviewQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get Committee Overview
+ */
+
+export function useGetCommitteeOverview<TData = Awaited<ReturnType<typeof getCommitteeOverview>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCommitteeOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCommitteeOverviewQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetCommitteeRunUrl = (runId: string,) => {
+
+
+
+
+  return `/api/committee/${runId}`
+}
+
+/**
+ * @summary Get Committee Run
+ */
+export const getCommitteeRun = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<CommitteeRunDetail> => {
+
+  return customFetch<CommitteeRunDetail>(getGetCommitteeRunUrl(runId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCommitteeRunQueryKey = (runId: string,) => {
+    return [
+    `/api/committee/${runId}`
+    ] as const;
+    }
+
+
+export const getGetCommitteeRunQueryOptions = <TData = Awaited<ReturnType<typeof getCommitteeRun>>, TError = ErrorType<ErrorResponse>>(runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCommitteeRun>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCommitteeRunQueryKey(runId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCommitteeRun>>> = ({ signal }) => getCommitteeRun(runId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: runId !== null && runId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCommitteeRun>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCommitteeRunQueryResult = NonNullable<Awaited<ReturnType<typeof getCommitteeRun>>>
+export type GetCommitteeRunQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get Committee Run
+ */
+
+export function useGetCommitteeRun<TData = Awaited<ReturnType<typeof getCommitteeRun>>, TError = ErrorType<ErrorResponse>>(
+ runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCommitteeRun>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCommitteeRunQueryOptions(runId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

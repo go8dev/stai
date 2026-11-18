@@ -286,6 +286,62 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /committee:
+    get:
+      tags:
+      - committee
+      summary: Get Committee Overview
+      operationId: getCommitteeOverview
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommitteeOverview'
+        '401':
+          description: Owner session required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /committee/{run_id}:
+    get:
+      tags:
+      - committee
+      summary: Get Committee Run
+      operationId: getCommitteeRun
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommitteeRunDetail'
+        '401':
+          description: Owner session required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
 components:
   schemas:
     AllocationBalance:
@@ -580,6 +636,232 @@ components:
       - ok
       - degraded
       - down
+    CommitteeCall:
+      properties:
+        stage:
+          type: string
+        model:
+          type: string
+        inputTokens:
+          anyOf:
+          - type: integer
+          - type: 'null'
+        outputTokens:
+          anyOf:
+          - type: integer
+          - type: 'null'
+        costUsd:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        durationMs:
+          type: integer
+        status:
+          type: string
+      type: object
+      required:
+      - stage
+      - model
+      - inputTokens
+      - outputTokens
+      - costUsd
+      - durationMs
+      - status
+    CommitteeOverview:
+      properties:
+        roles:
+          items:
+            $ref: '#/components/schemas/RoleDefinition'
+          type: array
+        runs:
+          items:
+            $ref: '#/components/schemas/CommitteeRunSummary'
+          type: array
+        paidAutomationEnabled:
+          type: boolean
+          const: false
+        manualPaidRunsEnabled:
+          type: boolean
+          const: false
+        entryGate:
+          type: string
+          const: closed
+        benchmarkState:
+          type: string
+        limitsStatus:
+          type: string
+        nextStep:
+          type: string
+      type: object
+      required:
+      - roles
+      - runs
+      - paidAutomationEnabled
+      - manualPaidRunsEnabled
+      - entryGate
+      - benchmarkState
+      - limitsStatus
+      - nextStep
+    CommitteeRunDetail:
+      properties:
+        id:
+          type: string
+        symbol:
+          type: string
+        marketType:
+          type: string
+        status:
+          type: string
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+        durationMs:
+          anyOf:
+          - type: integer
+          - type: 'null'
+        model:
+          type: string
+        inputTokens:
+          type: integer
+        outputTokens:
+          type: integer
+        costUsd:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        costBasis:
+          type: string
+        action:
+          anyOf:
+          - type: string
+          - type: 'null'
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+        findingCount:
+          type: integer
+        snapshotId:
+          type: string
+        evidence:
+          items:
+            $ref: '#/components/schemas/Evidence'
+          type: array
+        findings:
+          items:
+            $ref: '#/components/schemas/Finding'
+          type: array
+        calls:
+          items:
+            $ref: '#/components/schemas/CommitteeCall'
+          type: array
+        recommendation:
+          anyOf:
+          - $ref: '#/components/schemas/Recommendation'
+          - type: 'null'
+        memory:
+          items:
+            type: string
+          type: array
+        advisoryOnly:
+          type: boolean
+          const: true
+        evidenceStale:
+          type: boolean
+      type: object
+      required:
+      - id
+      - symbol
+      - marketType
+      - status
+      - startedAt
+      - finishedAt
+      - durationMs
+      - model
+      - inputTokens
+      - outputTokens
+      - costUsd
+      - costBasis
+      - action
+      - error
+      - findingCount
+      - snapshotId
+      - evidence
+      - findings
+      - calls
+      - recommendation
+      - memory
+      - advisoryOnly
+      - evidenceStale
+    CommitteeRunSummary:
+      properties:
+        id:
+          type: string
+        symbol:
+          type: string
+        marketType:
+          type: string
+        status:
+          type: string
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+        durationMs:
+          anyOf:
+          - type: integer
+          - type: 'null'
+        model:
+          type: string
+        inputTokens:
+          type: integer
+        outputTokens:
+          type: integer
+        costUsd:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        costBasis:
+          type: string
+        action:
+          anyOf:
+          - type: string
+          - type: 'null'
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+        findingCount:
+          type: integer
+      type: object
+      required:
+      - id
+      - symbol
+      - marketType
+      - status
+      - startedAt
+      - finishedAt
+      - durationMs
+      - model
+      - inputTokens
+      - outputTokens
+      - costUsd
+      - costBasis
+      - action
+      - error
+      - findingCount
     CsrfToken:
       properties:
         csrfToken:
@@ -644,6 +926,92 @@ components:
       - message
       - correlationId
       description: Body of every error response.
+    Evidence:
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+        source:
+          type: string
+        observedAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+          - fresh
+          - stale
+          - unavailable
+        summary:
+          type: string
+        data:
+          additionalProperties: true
+          type: object
+      type: object
+      required:
+      - id
+      - kind
+      - source
+      - observedAt
+      - status
+      - summary
+      - data
+    Finding:
+      properties:
+        role:
+          type: string
+          enum:
+          - cio
+          - technical
+          - quantitative
+          - intelligence
+          - derivatives
+          - bull
+          - bear
+          - portfolio
+          - risk
+          - execution
+        summary:
+          type: string
+          maxLength: 3000
+          minLength: 1
+        supporting:
+          items:
+            type: string
+          type: array
+          maxItems: 8
+        opposing:
+          items:
+            type: string
+          type: array
+          maxItems: 8
+        uncertainties:
+          items:
+            type: string
+          type: array
+          maxItems: 8
+          minItems: 1
+        evidenceIds:
+          items:
+            type: string
+          type: array
+          maxItems: 12
+          minItems: 1
+        confidence:
+          type: integer
+          maximum: 100.0
+          minimum: 0.0
+      additionalProperties: false
+      type: object
+      required:
+      - role
+      - summary
+      - supporting
+      - opposing
+      - uncertainties
+      - evidenceIds
+      - confidence
     HealthStatus:
       properties:
         status:
@@ -1065,6 +1433,121 @@ components:
       - ledgerVerified
       - ledgerEvents
       - updatedAt
+    Recommendation:
+      properties:
+        action:
+          type: string
+          enum:
+          - research_long
+          - research_short
+          - abstain
+        thesis:
+          type: string
+          maxLength: 4000
+          minLength: 1
+        confidence:
+          type: integer
+          maximum: 100.0
+          minimum: 0.0
+        supporting:
+          items:
+            type: string
+          type: array
+          maxItems: 8
+        opposing:
+          items:
+            type: string
+          type: array
+          maxItems: 8
+        uncertainties:
+          items:
+            type: string
+          type: array
+          maxItems: 8
+          minItems: 1
+        evidenceIds:
+          items:
+            type: string
+          type: array
+          maxItems: 12
+          minItems: 1
+        terms:
+          anyOf:
+          - $ref: '#/components/schemas/ResearchTerms'
+          - type: 'null'
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - thesis
+      - confidence
+      - supporting
+      - opposing
+      - uncertainties
+      - evidenceIds
+      - terms
+    ResearchTerms:
+      properties:
+        entry:
+          anyOf:
+          - type: number
+            exclusiveMinimum: 0.0
+          - type: string
+        stop:
+          anyOf:
+          - type: number
+            exclusiveMinimum: 0.0
+          - type: string
+        target:
+          anyOf:
+          - type: number
+            exclusiveMinimum: 0.0
+          - type: string
+        notionalUsdt:
+          anyOf:
+          - type: number
+            maximum: 200.0
+            exclusiveMinimum: 0.0
+          - type: string
+        leverage:
+          type: integer
+          maximum: 2.0
+          minimum: 1.0
+      additionalProperties: false
+      type: object
+      required:
+      - entry
+      - stop
+      - target
+      - notionalUsdt
+      - leverage
+    RoleDefinition:
+      properties:
+        id:
+          type: string
+          enum:
+          - cio
+          - technical
+          - quantitative
+          - intelligence
+          - derivatives
+          - bull
+          - bear
+          - portfolio
+          - risk
+          - execution
+        name:
+          type: string
+        mode:
+          type: string
+          enum:
+          - model
+          - deterministic
+      type: object
+      required:
+      - id
+      - name
+      - mode
     RuntimeEnvironment:
       type: string
       enum:
@@ -1135,3 +1618,5 @@ tags:
   description: Public OKX market observations.
 - name: portfolio
   description: Virtual fund and paper ledger.
+- name: committee
+  description: Read-only AI research and measured operating costs.

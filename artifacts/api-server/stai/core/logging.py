@@ -186,7 +186,7 @@ _HANDLER_MARK = "_stai_json_handler"
 
 # Libraries that log request URLs, SQL text or result rows. They stay at WARNING whatever
 # STAI_LOG_LEVEL says, so turning on debug logs cannot copy stored data into the log.
-_QUIET_LIBRARY_LOGGERS = ("httpx", "httpcore", "sqlalchemy")
+_QUIET_LIBRARY_LOGGERS = ("httpx", "httpcore", "httpx2", "httpcore2", "sqlalchemy", "openai")
 
 
 def quiet_library_loggers() -> None:

@@ -104,7 +104,9 @@ under `/api`.
 
 ## Secrets in the workspace
 
-Three Secrets exist in the workspace. The backend does not read any of them in Phase 1.
+Three Secrets exist in the workspace. Phase 3 settings read `OPENAI_API_KEY` as a masked
+secret; only the explicitly invoked development benchmark uses it for provider calls.
+It is not embedded in the browser or passed to either paper bot.
 
 | Secret | Purpose | Used from |
 | --- | --- | --- |

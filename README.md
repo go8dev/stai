@@ -9,10 +9,17 @@ exchange API keys. Tests fail if any of those is added.
 
 ## Status
 
-Phase 2 of 7 (paper engine) is implemented in the workspace. Phase 1 has been published
+Phase 3 of 7 (AI Committee) is implemented in the workspace. Phase 1 has been published
 by the owner: the supplied production screenshots confirm sign-in, healthy services and
 an intact audit chain. Production restart check 7 is still unconfirmed. Phase 2 has not
-been published or applied to production.
+been published or applied to production, and the owner explicitly deferred production
+migrations while Phase 3 is built.
+
+Phase 3 adds the AI Committee research/history screen and a persistent ten-role
+workflow. One real five-call benchmark completed in 37.646 seconds at an estimated
+$0.0164648 USD and recommended abstention. Further paid runs remain locked pending
+owner-approved score/run/spend limits. Research cannot create a permit or order.
+See [Phase 3 operations](docs/PHASE3_OPERATIONS.md) for evidence, cost basis and limitations.
 
 Phase 2 adds the public OKX Scanner, persistent 1,000 USDT fund, Decimal ledger, Portfolio,
 two private Freqtrade dry-run bots and a background worker. The strategy emits no entry

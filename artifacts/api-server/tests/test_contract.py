@@ -40,6 +40,8 @@ OPERATIONS = {
     ("GET", "/portfolio/summary"): "getPortfolioSummary",
     ("GET", "/portfolio/ledger"): "listPortfolioLedger",
     ("GET", "/portfolio/ledger/verify"): "verifyPortfolioLedger",
+    ("GET", "/committee"): "getCommitteeOverview",
+    ("GET", "/committee/{run_id}"): "getCommitteeRun",
 }
 
 

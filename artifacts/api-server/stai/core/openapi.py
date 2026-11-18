@@ -20,6 +20,7 @@ TAGS = [
     {"name": "audit", "description": "Append-only audit trail."},
     {"name": "market-data", "description": "Public OKX market observations."},
     {"name": "portfolio", "description": "Virtual fund and paper ledger."},
+    {"name": "committee", "description": "Read-only AI research and measured operating costs."},
 ]
 
 

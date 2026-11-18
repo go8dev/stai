@@ -17,6 +17,7 @@ from stai.audit.routes import router as audit_router
 from stai.auth.gate import AuthGateMiddleware
 from stai.auth.oidc import OidcClient
 from stai.auth.routes import router as auth_router
+from stai.committee.routes import router as committee_router
 from stai.core.build import resolve_commit
 from stai.core.config import Settings, get_settings, secret_values_from_environment
 from stai.core.errors import error_response, install_error_handlers
@@ -119,6 +120,7 @@ def build_app(
     app.include_router(audit_router)
     app.include_router(market_router)
     app.include_router(portfolio_router)
+    app.include_router(committee_router)
 
     # Added last runs first: request context wraps the gate, the gate wraps every route.
     app.add_middleware(AuthGateMiddleware, runtime=runtime)

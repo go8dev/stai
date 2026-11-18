@@ -131,6 +131,216 @@ export interface CandlePoint {
   complete: boolean;
 }
 
+export interface CommitteeCall {
+  stage: string;
+  model: string;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  costUsd: number | string | null;
+  durationMs: number;
+  status: string;
+}
+
+export type RoleDefinitionId = typeof RoleDefinitionId[keyof typeof RoleDefinitionId];
+
+
+export const RoleDefinitionId = {
+  cio: 'cio',
+  technical: 'technical',
+  quantitative: 'quantitative',
+  intelligence: 'intelligence',
+  derivatives: 'derivatives',
+  bull: 'bull',
+  bear: 'bear',
+  portfolio: 'portfolio',
+  risk: 'risk',
+  execution: 'execution',
+} as const;
+
+export type RoleDefinitionMode = typeof RoleDefinitionMode[keyof typeof RoleDefinitionMode];
+
+
+export const RoleDefinitionMode = {
+  model: 'model',
+  deterministic: 'deterministic',
+} as const;
+
+export interface RoleDefinition {
+  id: RoleDefinitionId;
+  name: string;
+  mode: RoleDefinitionMode;
+}
+
+export interface CommitteeRunSummary {
+  id: string;
+  symbol: string;
+  marketType: string;
+  status: string;
+  startedAt: string;
+  finishedAt: string | null;
+  durationMs: number | null;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number | string | null;
+  costBasis: string;
+  action: string | null;
+  error: string | null;
+  findingCount: number;
+}
+
+export interface CommitteeOverview {
+  roles: RoleDefinition[];
+  runs: CommitteeRunSummary[];
+  paidAutomationEnabled: false;
+  manualPaidRunsEnabled: false;
+  entryGate: 'closed';
+  benchmarkState: string;
+  limitsStatus: string;
+  nextStep: string;
+}
+
+export type EvidenceStatus = typeof EvidenceStatus[keyof typeof EvidenceStatus];
+
+
+export const EvidenceStatus = {
+  fresh: 'fresh',
+  stale: 'stale',
+  unavailable: 'unavailable',
+} as const;
+
+export type EvidenceData = { [key: string]: unknown };
+
+export interface Evidence {
+  id: string;
+  kind: string;
+  source: string;
+  observedAt: string;
+  status: EvidenceStatus;
+  summary: string;
+  data: EvidenceData;
+}
+
+export type FindingRole = typeof FindingRole[keyof typeof FindingRole];
+
+
+export const FindingRole = {
+  cio: 'cio',
+  technical: 'technical',
+  quantitative: 'quantitative',
+  intelligence: 'intelligence',
+  derivatives: 'derivatives',
+  bull: 'bull',
+  bear: 'bear',
+  portfolio: 'portfolio',
+  risk: 'risk',
+  execution: 'execution',
+} as const;
+
+export interface Finding {
+  role: FindingRole;
+  /**
+     * @minLength 1
+     * @maxLength 3000
+     */
+  summary: string;
+  /** @maxItems 8 */
+  supporting: string[];
+  /** @maxItems 8 */
+  opposing: string[];
+  /**
+     * @minItems 1
+     * @maxItems 8
+     */
+  uncertainties: string[];
+  /**
+     * @minItems 1
+     * @maxItems 12
+     */
+  evidenceIds: string[];
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  confidence: number;
+}
+
+export type RecommendationAction = typeof RecommendationAction[keyof typeof RecommendationAction];
+
+
+export const RecommendationAction = {
+  research_long: 'research_long',
+  research_short: 'research_short',
+  abstain: 'abstain',
+} as const;
+
+export interface ResearchTerms {
+  entry: number | string;
+  stop: number | string;
+  target: number | string;
+  notionalUsdt: number | string;
+  /**
+     * @minimum 1
+     * @maximum 2
+     */
+  leverage: number;
+}
+
+export interface Recommendation {
+  action: RecommendationAction;
+  /**
+     * @minLength 1
+     * @maxLength 4000
+     */
+  thesis: string;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  confidence: number;
+  /** @maxItems 8 */
+  supporting: string[];
+  /** @maxItems 8 */
+  opposing: string[];
+  /**
+     * @minItems 1
+     * @maxItems 8
+     */
+  uncertainties: string[];
+  /**
+     * @minItems 1
+     * @maxItems 12
+     */
+  evidenceIds: string[];
+  terms: ResearchTerms | null;
+}
+
+export interface CommitteeRunDetail {
+  id: string;
+  symbol: string;
+  marketType: string;
+  status: string;
+  startedAt: string;
+  finishedAt: string | null;
+  durationMs: number | null;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number | string | null;
+  costBasis: string;
+  action: string | null;
+  error: string | null;
+  findingCount: number;
+  snapshotId: string;
+  evidence: Evidence[];
+  findings: Finding[];
+  calls: CommitteeCall[];
+  recommendation: Recommendation | null;
+  memory: string[];
+  advisoryOnly: true;
+  evidenceStale: boolean;
+}
+
 export interface CsrfToken {
   csrfToken: string;
 }

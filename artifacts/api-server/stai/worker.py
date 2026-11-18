@@ -168,10 +168,22 @@ def _persist_worker_state(
 
 
 async def _scan_once(runtime: Any, supervisor: BotSupervisor) -> None:
+    from stai.committee.scoring import setup_scores
+    from stai.committee.storage import recover_interrupted
+    from stai.db.models import MarketSnapshot
+    from stai.marketdata.routes import _enrich
+
+    recover_interrupted(runtime.database)
     rows = await runtime.okx_market_data.scanner()
+    rows = [_enrich(row) for row in rows]
+    btc_row = next((r for r in rows if r.symbol == "BTC/USDT" and r.market_type == "spot"), None)
+    scores = [setup_scores(row, btc_row) for row in rows]
     with runtime.database.session() as session:
         ensure_fund(session)
-        persist_market_rows(session, rows)
+        ids = persist_market_rows(session, rows)
+        for snapshot_id, score in zip(ids, scores, strict=True):
+            snapshot = session.get(MarketSnapshot, snapshot_id)
+            snapshot.details = {**snapshot.details, "setupScores": score}
     aligned = _persist_worker_state(runtime, supervisor)
     if not aligned:
         logger.warning(

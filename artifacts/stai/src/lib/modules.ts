@@ -54,7 +54,7 @@ export const PHASES: readonly StaiPhase[] = [
 ] as const;
 
 /** The phase that is built and running now. */
-export const CURRENT_PHASE = 2;
+export const CURRENT_PHASE = 3;
 
 export interface StaiModule {
   /** Stable key, also used in test IDs. */

@@ -34,3 +34,15 @@ description: Non-obvious runtime behavior of Freqtrade, SQLite recovery, TA-Lib,
 
 **How to apply:** Use them when sizing the machine, writing the bot configuration and planning
 restart recovery. Re-measure rather than quote them once the real services exist.
+
+Dependency additions can change Starlette's preferred HTTP client and its logging behavior.
+**Why:** Adding TradingAgents pulled in httpx2; Starlette began using it, and its normal
+request logger emitted sign-in query strings that the older client's log suppression did not cover.
+**How to apply:** Re-run token/query redaction tests after HTTP-client dependency changes.
+Suppress all installed transport request loggers, not just the client STAI imports directly.
+
+TradingAgents' model catalog may reject a dated model ID as unknown even when the provider accepts it.
+**Why:** The pinned release recognizes model families but warned for the exact snapshot
+used by the real benchmark. A warning is not a failed provider call.
+**How to apply:** Verify the provider's actual model/usage and pricing; do not silently
+substitute a different model to suppress the catalog warning or repeat a paid run.

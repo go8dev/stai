@@ -26,6 +26,7 @@ from stai.core.config import (
 from .conftest import API_ROOT, REPO_ROOT
 
 DOCUMENTED_VARIABLES = {
+    "OPENAI_API_KEY",
     "STAI_ENV",
     "REPLIT_DEPLOYMENT",
     "PORT",

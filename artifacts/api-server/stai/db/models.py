@@ -28,6 +28,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
+from stai.committee import models as committee_models  # noqa: F401
 from stai.db.base import Base, UtcDateTime
 
 

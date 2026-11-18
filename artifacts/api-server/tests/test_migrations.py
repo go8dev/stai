@@ -21,6 +21,10 @@ from .conftest import API_ROOT, AppFactory, DatabaseFactory, alembic_config
 from .support import sign_in
 
 APPLICATION_TABLES = {
+    "committee_agents",
+    "committee_runs",
+    "committee_findings",
+    "committee_calls",
     "users",
     "auth_sessions",
     "audit_events",
@@ -76,7 +80,7 @@ def test_a_new_database_gets_exactly_the_migrated_tables(fresh: tuple[str, Engin
     command.upgrade(alembic_config(url), "head")
 
     assert public_tables(engine) == APPLICATION_TABLES | {"alembic_version"}
-    assert scalar(engine, "SELECT version_num FROM alembic_version") == "10af905d740f"
+    assert scalar(engine, "SELECT version_num FROM alembic_version") == "0003"
     for table in APPLICATION_TABLES:
         assert scalar(engine, f"SELECT count(*) FROM {table}") == 0
 
@@ -156,6 +160,17 @@ def test_keys_checks_and_indexes_have_their_explicit_names(_admin_engine: Engine
         "ck_paper_fills_fee_rate_nonnegative",
         "ck_paper_fills_spread_nonnegative",
         "ck_paper_fills_slippage_nonnegative",
+        "pk_committee_agents",
+        "pk_committee_runs",
+        "uq_committee_runs_purpose",
+        "fk_committee_runs_snapshot_id_market_snapshots",
+        "ck_committee_runs_status",
+        "ck_committee_runs_market_type",
+        "pk_committee_findings",
+        "fk_committee_findings_run_id_committee_runs",
+        "fk_committee_findings_role_id_committee_agents",
+        "pk_committee_calls",
+        "fk_committee_calls_run_id_committee_runs",
     }
     assert set(indexes) == {
         "pk_users",
@@ -183,6 +198,12 @@ def test_keys_checks_and_indexes_have_their_explicit_names(_admin_engine: Engine
         "ix_paper_positions_state_market",
         "pk_paper_fills",
         "ix_paper_fills_trade_time",
+        "pk_committee_agents",
+        "pk_committee_runs",
+        "uq_committee_runs_purpose",
+        "ix_committee_runs_started",
+        "pk_committee_findings",
+        "pk_committee_calls",
     }
     assert "UNIQUE" in indexes["uq_audit_events_prev_hash"]
     assert "UNIQUE" in indexes["uq_audit_events_hash"]
@@ -226,13 +247,14 @@ def test_running_the_migrations_twice_changes_nothing(fresh: tuple[str, Engine])
 def test_the_revisions_form_one_line(database_url: str) -> None:
     scripts = ScriptDirectory.from_config(alembic_config(database_url))
 
-    assert scripts.get_heads() == ["10af905d740f"]
+    assert scripts.get_heads() == ["0003"]
     assert scripts.get_bases() == ["0001"]
     revisions = list(scripts.walk_revisions())
-    assert [revision.revision for revision in revisions] == ["10af905d740f", "0001"]
-    # File names start with the revision, so they sort in the order they apply.
+    assert [revision.revision for revision in revisions] == ["0003", "10af905d740f", "0001"]
+    # Alembic follows the revision chain, not lexical filename order.
     assert sorted(path.name for path in VERSIONS.glob("*.py")) == [
         "0001_users_sessions_audit.py",
+        "0003_committee.py",
         "10af905d740f_phase2_fund_ledger_market_data.py",
     ]
 
@@ -313,6 +335,8 @@ def test_every_timestamp_carries_a_time_zone(_admin_engine: Engine) -> None:
 
     assert {(row.table_name, row.column_name) for row in timestamps} == {
         ("users", "created_at"),
+        ("committee_runs", "started_at"),
+        ("committee_runs", "finished_at"),
         ("users", "updated_at"),
         ("users", "last_login_at"),
         ("auth_sessions", "created_at"),
