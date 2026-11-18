@@ -18,6 +18,8 @@ TAGS = [
     {"name": "Auth", "description": "Owner sign-in, sign-out and session state."},
     {"name": "system", "description": "Live system checks."},
     {"name": "audit", "description": "Append-only audit trail."},
+    {"name": "market-data", "description": "Public OKX market observations."},
+    {"name": "portfolio", "description": "Virtual fund and paper ledger."},
 ]
 
 

@@ -12,6 +12,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 import httpx
+from pydantic import ValidationError
 
 from stai.analytics.schemas.market_data import Candle, Ticker
 from stai.core.logging import StructuredLogger
@@ -103,9 +104,9 @@ class OkxMarketData:
             except httpx.HTTPError as exc:
                 raise MarketDataUnavailable("OKX public market data could not be reached.") from exc
         if response.status_code != 200:
-                raise MarketDataUnavailable(
-                    f"OKX public market data returned HTTP {response.status_code}."
-                )
+            raise MarketDataUnavailable(
+                f"OKX public market data returned HTTP {response.status_code}."
+            )
         if len(response.content) > MAX_RESPONSE_BYTES:
             raise MarketDataUnavailable("OKX public market data response was too large.")
         try:
@@ -129,9 +130,7 @@ class OkxMarketData:
             high = _decimal(item["high24h"], "24-hour high")
             low = _decimal(item["low24h"], "24-hour low")
             change = last - open_24h
-            change_pct = (
-                Decimal("0") if open_24h == 0 else change / open_24h * 100
-            )
+            change_pct = Decimal("0") if open_24h == 0 else change / open_24h * 100
             return Ticker(
                 symbol=symbol,
                 price=float(last),
@@ -178,20 +177,20 @@ class OkxMarketData:
                 )
             return output
         except (KeyError, IndexError, MarketDataUnavailable):
-            logger.warning(
-                "OKX candles unavailable", symbol=symbol, timeframe=timeframe
-            )
+            logger.warning("OKX candles unavailable", symbol=symbol, timeframe=timeframe)
             return []
 
     async def _instrument_rules(
-        self, market_type: MarketType
+        self, market_type: MarketType, instrument_id: str
     ) -> dict[str, InstrumentRules]:
         now = self._clock()
-        cached = self._instrument_cache.get(market_type)
+        cached = self._instrument_cache.get(instrument_id)
         if cached is not None and (now - cached[0]).total_seconds() < 3600:
             return cached[1]
         kind = "SPOT" if market_type == "spot" else "SWAP"
-        payload = await self._get("/api/v5/public/instruments", {"instType": kind})
+        payload = await self._get(
+            "/api/v5/public/instruments", {"instType": kind, "instId": instrument_id}
+        )
         wanted = {_instrument_id(symbol, market_type) for symbol in SYMBOLS}
         result: dict[str, InstrumentRules] = {}
         for item in payload["data"]:
@@ -208,7 +207,7 @@ class OkxMarketData:
                 ),
                 max_leverage=None,
             )
-        self._instrument_cache[market_type] = (now, result)
+        self._instrument_cache[instrument_id] = (now, result)
         return result
 
     async def _row(self, symbol: str, market_type: MarketType) -> MarketScannerRow:
@@ -226,28 +225,31 @@ class OkxMarketData:
                     {"instId": instrument_id, "bar": "15m", "limit": "100"},
                 ),
                 self._get("/api/v5/market/books", {"instId": instrument_id, "sz": "5"}),
-                self._instrument_rules(market_type),
+                self._instrument_rules(market_type, instrument_id),
                 return_exceptions=True,
             )
             if any(
                 isinstance(result, Exception)
                 for result in (ticker, candle_data, candle_data_15m, book_data, rules)
             ):
-                raise MarketDataUnavailable(
-                    "One or more OKX market-data feeds are unavailable."
-                )
+                raise MarketDataUnavailable("One or more OKX market-data feeds are unavailable.")
             ticker_item = ticker["data"][0]  # type: ignore[index]
             book_item = book_data["data"][0]  # type: ignore[index]
             exchange_at = _moment(ticker_item["ts"], "ticker time")
+            book_at = _moment(book_item["ts"], "order book time")
+            observed_at = self._clock()
+            if any((moment - observed_at).total_seconds() > 5 for moment in (exchange_at, book_at)):
+                raise MarketDataUnavailable("Market data timestamp is in the future.")
+            exchange_at = min(exchange_at, book_at)
             age = max(0, int((observed_at - exchange_at).total_seconds()))
             status = "fresh" if age <= self._stale_after_seconds else "stale"
             last = _decimal(ticker_item["last"], "ticker price")
             open_24h = _decimal(ticker_item["open24h"], "24-hour open")
             bid = _decimal(ticker_item["bidPx"], "best bid")
             ask = _decimal(ticker_item["askPx"], "best ask")
-            change_pct = (
-                Decimal("0") if open_24h == 0 else (last - open_24h) / open_24h * 100
-            )
+            if min(last, open_24h, bid, ask) <= 0 or bid >= ask:
+                raise MarketDataUnavailable("Market prices are invalid or crossed.")
+            change_pct = Decimal("0") if open_24h == 0 else (last - open_24h) / open_24h * 100
             spread = Decimal("0") if last == 0 else (ask - bid) / last * 100
             candles: list[CandlePoint] = []
             for row in reversed(candle_data["data"]):  # type: ignore[index]
@@ -287,12 +289,31 @@ class OkxMarketData:
                 BookLevel(price=_decimal(x[0], "ask price"), size=_decimal(x[1], "ask size"))
                 for x in book_item["asks"]
             ]
+            instrument = rules.get(instrument_id) if isinstance(rules, dict) else None
+            if instrument is None or not bids or not asks:
+                raise MarketDataUnavailable("Instrument rules or order book are missing.")
+            if market_type == "futures":
+                if instrument.contract_value is None or instrument.contract_value <= 0:
+                    raise MarketDataUnavailable("Contract value is missing.")
+                # OKX swap depth is in contracts; the execution estimator uses base units.
+                bids = [
+                    level.model_copy(update={"size": level.size * instrument.contract_value})
+                    for level in bids
+                ]
+                asks = [
+                    level.model_copy(update={"size": level.size * instrument.contract_value})
+                    for level in asks
+                ]
+            for points, interval in ((candles, 3600), (candles_15m, 900)):
+                if not points:
+                    raise MarketDataUnavailable("Candle data is missing.")
+                candle_age = (observed_at - points[-1].opened_at).total_seconds()
+                if candle_age < -5 or candle_age > interval * 2:
+                    status = "stale"
             funding_rate = None
             next_funding_at = None
             if market_type == "futures":
-                funding = await self._get(
-                    "/api/v5/public/funding-rate", {"instId": instrument_id}
-                )
+                funding = await self._get("/api/v5/public/funding-rate", {"instId": instrument_id})
                 funding_item = funding["data"][0]
                 funding_rate = _decimal(funding_item["fundingRate"], "funding rate")
                 next_funding_at = (
@@ -309,25 +330,34 @@ class OkxMarketData:
                 age_seconds=age,
                 last_price=last,
                 change_pct_24h=change_pct,
-                volume_24h=_decimal(ticker_item["volCcy24h"], "24-hour quote volume"),
+                volume_24h=(
+                    _decimal(ticker_item["volCcy24h"], "24-hour volume")
+                    * (last if market_type == "futures" else Decimal("1"))
+                ),
                 bid=bid,
                 ask=ask,
                 spread_pct=spread,
                 funding_rate=funding_rate,
                 next_funding_at=next_funding_at,
-                instrument=rules.get(instrument_id) if isinstance(rules, dict) else None,
+                instrument=instrument,
                 indicators=None,
                 candles=candles,
                 candles_15m=candles_15m,
                 bids=bids,
                 asks=asks,
                 detail=(
-                    None
-                    if status == "fresh"
-                    else "The latest exchange ticker is older than 60 seconds."
+                    None if status == "fresh" else "Ticker, order book or candle data is stale."
                 ),
             )
-        except (KeyError, IndexError, MarketDataUnavailable, InvalidOperation) as exc:
+        except (
+            KeyError,
+            IndexError,
+            TypeError,
+            ValueError,
+            MarketDataUnavailable,
+            InvalidOperation,
+            ValidationError,
+        ) as exc:
             logger.warning(
                 "OKX scanner row unavailable",
                 symbol=symbol,
@@ -370,4 +400,3 @@ class OkxMarketData:
 
     async def latest_snapshot_time(self) -> datetime:
         return self._clock()
-

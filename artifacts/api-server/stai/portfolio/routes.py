@@ -10,6 +10,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 
+from stai.core.errors import ErrorResponse
 from stai.core.runtime import Runtime, get_runtime
 from stai.core.time import utcnow
 from stai.db.models import BotState, FundAllocation, LedgerEntry, MarketSnapshot, PaperPosition
@@ -22,7 +23,11 @@ from stai.marketdata.schemas import (
 )
 from stai.trading.ledger import ensure_fund, verify_ledger
 
-router = APIRouter(prefix="/api", tags=["portfolio"])
+router = APIRouter(
+    prefix="/api",
+    tags=["portfolio"],
+    responses={401: {"model": ErrorResponse, "description": "Owner session required."}},
+)
 ZERO = Decimal("0")
 
 
@@ -45,30 +50,37 @@ def _ledger_event(row: LedgerEntry) -> LedgerEvent:
     operation_id="getPortfolioSummary",
     summary="Virtual fund balances and ledger status",
     response_model=PortfolioSummary,
+    response_description="Persisted virtual fund balances and engine state.",
 )
 def get_portfolio_summary(
     runtime: Runtime = Depends(get_runtime),
 ) -> PortfolioSummary:
     with runtime.database.session() as session:
         fund = ensure_fund(session)
-        allocations = session.execute(
-            select(FundAllocation).where(FundAllocation.fund_id == fund.id)
-        ).scalars().all()
+        allocations = (
+            session.execute(select(FundAllocation).where(FundAllocation.fund_id == fund.id))
+            .scalars()
+            .all()
+        )
         events = session.execute(select(LedgerEntry)).scalars().all()
-        open_positions = session.execute(
-            select(PaperPosition).where(PaperPosition.state == "open")
-        ).scalars().all()
+        open_positions = (
+            session.execute(select(PaperPosition).where(PaperPosition.state == "open"))
+            .scalars()
+            .all()
+        )
         bot_states = session.execute(select(BotState).order_by(BotState.bot_id)).scalars().all()
-        snapshots = session.execute(
-            select(MarketSnapshot)
-            .where(MarketSnapshot.observed_at >= utcnow() - timedelta(days=7))
-            .order_by(MarketSnapshot.observed_at.desc())
-        ).scalars().all()
+        snapshots = (
+            session.execute(
+                select(MarketSnapshot)
+                .where(MarketSnapshot.observed_at >= utcnow() - timedelta(days=7))
+                .order_by(MarketSnapshot.observed_at.desc())
+            )
+            .scalars()
+            .all()
+        )
         latest_by_market: dict[tuple[str, str], MarketSnapshot] = {}
         for snapshot in snapshots:
-            latest_by_market.setdefault(
-                (snapshot.symbol, snapshot.market_type), snapshot
-            )
+            latest_by_market.setdefault((snapshot.symbol, snapshot.market_type), snapshot)
         balances: dict[str, Decimal] = defaultdict(lambda: ZERO)
         for event in events:
             balances[event.market_type] += event.amount
@@ -87,6 +99,9 @@ def get_portfolio_summary(
                 market_type=allocation.market_type,
                 initial_balance=allocation.initial_balance,
                 balance=balances[allocation.market_type],
+                collateral=ZERO,
+                available_balance=balances[allocation.market_type],
+                exposure=ZERO,
             )
             for allocation in allocations
         ]
@@ -94,12 +109,20 @@ def get_portfolio_summary(
         spot_value = ZERO
         spot_unrealized = ZERO
         futures_unrealized = ZERO
+        exposure = defaultdict(lambda: ZERO)
+        collateral = ZERO
         for position in open_positions:
             symbol = position.instrument.split(":", maxsplit=1)[0]
             quote = latest_by_market.get((symbol, position.market_type))
             mark = position.mark_price
             mark_status = "stale"
-            if quote is not None and quote.status == "fresh" and quote.last_price is not None:
+            if (
+                quote is not None
+                and quote.status == "fresh"
+                and quote.last_price is not None
+                and quote.exchange_at is not None
+                and (utcnow() - quote.exchange_at).total_seconds() <= 60
+            ):
                 mark = quote.last_price
                 mark_status = "fresh"
             movement = (
@@ -112,6 +135,8 @@ def get_portfolio_summary(
                 spot_unrealized += movement
             else:
                 futures_unrealized += movement
+                collateral += position.quantity * position.entry_price / position.leverage
+            exposure[position.market_type] += position.quantity * mark
             positions_payload.append(
                 {
                     "tradeId": position.trade_id,
@@ -127,9 +152,18 @@ def get_portfolio_summary(
                     "openedAt": position.opened_at,
                 }
             )
-        realized = sum((position.realized_pnl for position in session.execute(
-            select(PaperPosition)
-        ).scalars()), start=ZERO)
+        for allocation in allocation_balances:
+            allocation.exposure = exposure[allocation.market_type]
+            if allocation.market_type == "futures":
+                allocation.collateral = collateral
+                allocation.available_balance = allocation.balance - collateral
+        realized = sum(
+            (
+                position.realized_pnl
+                for position in session.execute(select(PaperPosition)).scalars()
+            ),
+            start=ZERO,
+        )
         equity = (
             sum((balance.balance for balance in allocation_balances), start=ZERO)
             + spot_value
@@ -145,10 +179,18 @@ def get_portfolio_summary(
             bots=[
                 {
                     "botId": row.bot_id,
-                    "status": row.state.get("status", "unknown"),
+                    "status": (
+                        row.state.get("status", "unknown")
+                        if (utcnow() - row.saved_at).total_seconds() <= 30
+                        else "stale"
+                    ),
                     "dryRun": row.state.get("dryRun", True),
                     "entryGate": row.state.get("entryGate", "closed"),
-                    "reconciliation": row.state.get("reconciliation", "pending"),
+                    "reconciliation": (
+                        row.state.get("reconciliation", "pending")
+                        if (utcnow() - row.saved_at).total_seconds() <= 30
+                        else "pending"
+                    ),
                     "savedAt": row.saved_at,
                 }
                 for row in bot_states
@@ -159,7 +201,7 @@ def get_portfolio_summary(
             unrealized_pnl=spot_unrealized + futures_unrealized,
             ledger_verified=checked.ok,
             ledger_events=checked.events_checked,
-        updated_at=utcnow(),
+            updated_at=utcnow(),
         )
 
 
@@ -168,6 +210,8 @@ def get_portfolio_summary(
     operation_id="listPortfolioLedger",
     summary="Most recent virtual-fund ledger entries",
     response_model=LedgerList,
+    response_description="Recent immutable accounting events.",
+    responses={422: {"model": ErrorResponse, "description": "The limit is out of range."}},
 )
 def list_portfolio_ledger(
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
@@ -175,9 +219,11 @@ def list_portfolio_ledger(
 ) -> LedgerList:
     with runtime.database.session() as session:
         ensure_fund(session)
-        rows = session.execute(
-            select(LedgerEntry).order_by(LedgerEntry.seq.desc()).limit(limit)
-        ).scalars().all()
+        rows = (
+            session.execute(select(LedgerEntry).order_by(LedgerEntry.seq.desc()).limit(limit))
+            .scalars()
+            .all()
+        )
         total = session.execute(select(func.count()).select_from(LedgerEntry)).scalar_one()
         return LedgerList(events=[_ledger_event(row) for row in rows], total=int(total))
 
@@ -187,6 +233,7 @@ def list_portfolio_ledger(
     operation_id="verifyPortfolioLedger",
     summary="Verify the complete virtual-fund ledger chain",
     response_model=LedgerVerification,
+    response_description="Database-only hash-chain verification result.",
 )
 def verify_portfolio_ledger(runtime: Runtime = Depends(get_runtime)) -> LedgerVerification:
     with runtime.database.session() as session:

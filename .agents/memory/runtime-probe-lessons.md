@@ -1,6 +1,6 @@
 ---
 name: Runtime probe lessons
-description: Non-obvious facts learned while testing Freqtrade, TA-Lib and TradingAgents on this Replit runtime before any code was written.
+description: Non-obvious runtime behavior of Freqtrade, SQLite recovery, TA-Lib, TradingAgents and public OKX data.
 ---
 
 - TradingAgents is not on the Python package index. Install it from its GitHub release tag
@@ -19,6 +19,16 @@ description: Non-obvious facts learned while testing Freqtrade, TA-Lib and Tradi
   API, worker and an AI run on top was not measured.
 - This workspace is hosted in Asia, so OKX reachability from a US deployment cannot be tested
   from here; it can only be checked on a published machine.
+- Freqtrade validates required credential fields inside API/Telegram blocks even when
+  `enabled` is false. Omit unused blocks entirely; validate against the installed schema
+  before a network startup. **Why:** a disabled block still prevented both bots starting.
+- OKX's full spot instrument list can exceed a defensive 1 MB response cap.
+  Query individual instrument IDs rather than raising the cap.
+  **Why:** a successful public response otherwise looked like a scanner outage.
+- SQLite's backup-to-memory plus serialize retains WAL header flags from Freqtrade.
+  Normalize an isolated on-disk backup to DELETE journaling before packaging it.
+  **Why:** deserializing the WAL-marked bytes fails with "unable to open database file"
+  despite the backup containing all pages. Test against WAL, not only default SQLite mode.
 
 **Why:** These took real installs and runs to establish and are not visible in any code.
 

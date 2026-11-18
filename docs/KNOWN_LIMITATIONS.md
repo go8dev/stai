@@ -1,11 +1,34 @@
 # Known limitations
 
-What Phase 1 does not do, does not detect, or has not verified. Each entry says what the
+What STAI does not do, does not detect, or has not verified. Each entry says what the
 consequence is and, where there is one, what would remove it. Nothing here is hidden
 behind a default: where a check cannot run or a value is not available, the interface
 says so.
 
-## Not verified until the first publish
+## Phase 2 status and remaining checks
+
+- The owner has published Phase 1 and supplied healthy status/sign-in and intact-audit
+  screenshots. The old first-publish checklist below is retained as a historical baseline.
+  Production restart check 7 remains unconfirmed.
+- Phase 2 changes are workspace-only. No production schema change, publish, VM change
+  or continuous production worker activation has been performed.
+- Production bots default to disabled. The private worker must be explicitly enabled
+  after the owner confirms restart persistence and approves operation.
+- The strategy always rejects entries. The standalone exact-permit validator is tested;
+  the complete owner approval → engine fill path is Phase 4 work, not a claim made here.
+- A five-second snapshot poll is not zero-loss engine recovery under a hard kill.
+  Shutdown snapshots, checksums, idempotent replay and reconciliation are implemented.
+  Real production kill/restart testing and several days' continuous operation remain
+  later acceptance checks.
+- Funding amounts and fees are paper accounting, not a promise of an OKX account's
+  actual fee tier or fills. The book estimator cannot reproduce market impact, latency,
+  partial-fill queues or guaranteed liquidity.
+- No Phase 3 AI calls, Phase 4 emails, daily-loss halts, owner proposal approval, pilot
+  start or later dashboards are included.
+
+See [Phase 2 operation](PHASE2_OPERATIONS.md) for the current runtime and integrity rules.
+
+## First-publish baseline
 
 These depend on Replit's published environment, which does not exist until the owner
 publishes. The publish checklist in the [README](../README.md#publish-checklist) covers
@@ -50,8 +73,8 @@ each of them and says what to do if it fails.
 
 - **Two changes are not detected:** removing the newest records, and replacing the whole
   chain with one whose hashes were recomputed. Both need direct access to the database.
-  A copy of the newest hash kept outside the database would close this gap. Phase 1 keeps
-  none, and whether to add one is not decided.
+  The owner explicitly chose to keep database-only chains in Phase 2, with no external
+  anchor. This limitation applies to the paper ledger as well as the audit trail.
 - **The append-only guard is not a security barrier.** It works on the application's own
   connection and recognises statements by their text. It stops mistakes in application
   code. It does not stop someone who connects with the database credentials.

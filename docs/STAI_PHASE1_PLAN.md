@@ -1,6 +1,6 @@
 # STAI Phase 1 plan
 
-Status: approved by the owner on 17 November 2026, all 23 items as proposed. Phase 1 was built and checked in the workspace on 18 November 2026. It is not published: the test publish of item 23 is the owner's step. Phases 2 to 7 are not started.
+Status: approved by the owner on 17 November 2026, all 23 items as proposed. The owner published Phase 1 on 18 November 2026 and provided healthy production and verified audit screenshots. Restart check 7 remains unconfirmed. Phase 2 is implemented in the workspace; it has not been published. Phases 3 to 7 are not started.
 The decision log at the end records what the owner approved or changed. Item numbers are never reused.
 
 This is the technical review and architecture plan that section 16 of the specification asks
@@ -206,3 +206,6 @@ Where each one stands after the owner's approval on 17 November 2026:
 | 18 Nov 2026 | Analytics | Ported by copying from the handoff, all 191 tests passing. One exception to copying: the data shape `MarketRegimeResponse` (five fields) was rebuilt, because the file that defines it was not in the handoff. The record of every change is in `docs/UPSTREAM_REGISTER.md`. The review of the stop and target rules stays open until before the pilot. |
 | 18 Nov 2026 | 8 | Note: built as approved. The app shows resized copies of the supplied white-text logo, and the simplified S is used only for the browser-tab icon and the small app icons. |
 | 18 Nov 2026 | Inputs | `OPENAI_API_KEY` and `STAI_ALERT_EMAIL` are in Replit Secrets. Phase 1 uses neither. |
+| 18 Nov 2026 | 23 | The owner's production screenshots confirm a production backend, ready schema, reachable OKX and an intact two-event audit chain. Restart check 7 remains unconfirmed; do not enable continuous production bots until it is confirmed. No production changes were made by the agent. |
+| 18 Nov 2026 | Phase 2 | Owner said to proceed. Built public OKX data, Decimal fund/ledger, paper-only engine configuration, closed entry strategy, permit validation, restart snapshots, reconciliation, Scanner and Portfolio. The worker is enabled in development only; production defaults to disabled. No AI calls, proposal workflow, email, pilot start or later phase was built. |
+| 18 Nov 2026 | 20 | Owner chose **Keep database-only chain** after the external-anchor tradeoff was explained. Do not add an external anchor. Tail deletion and privileged whole-chain rewriting remain accepted limitations; both audit and ledger screens/documentation must state the limit accurately. |

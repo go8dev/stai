@@ -36,3 +36,30 @@ PYTHONPATH = "artifacts/api-server"
 
 [services.production.health.startup]
 path = "/api/healthz"
+
+
+# Private worker; no public routes or Freqtrade API ports.
+[[services]]
+name = "Paper Worker"
+localPort = 8099
+paths = []
+
+[services.development.run]
+args = ["python", "-m", "stai.worker"]
+
+[services.development.run.env]
+PORT = "8099"
+STAI_ENV = "development"
+PYTHONPATH = "artifacts/api-server"
+
+# Production intentionally does not opt into continuous bots yet.
+[services.production.run]
+args = ["python", "-m", "stai.worker"]
+
+[services.production.run.env]
+PORT = "8099"
+STAI_ENV = "production"
+PYTHONPATH = "artifacts/api-server"
+
+[services.production.health.startup]
+path = "/healthz"

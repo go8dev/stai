@@ -44,6 +44,8 @@ def persist_market_rows(session: Session, rows: list[MarketScannerRow]) -> None:
                     ),
                     "instrument": instrument,
                     "indicators": indicators,
+                    "bids": [level.model_dump(mode="json") for level in row.bids],
+                    "asks": [level.model_dump(mode="json") for level in row.asks],
                     "detail": row.detail,
                 },
             )

@@ -2,13 +2,34 @@
 
 STAI keeps everything that must survive a restart in PostgreSQL. Development and the
 published app each have their own database, and Replit sets `DATABASE_URL` for each.
-This document covers the Phase 1 structure, the rules every later table follows, how
+This document covers the structure, the rules every later table follows, how
 structure changes reach the published database, and how the audit trail works.
 
 ## Tables
 
-Four tables in the `public` schema. Three belong to STAI; `alembic_version` is the
-migration tool's marker.
+Twelve tables in `public`, including the migration marker. Phase 1 added the identity,
+session and audit tables described below. Phase 2 adds:
+
+| Table | Purpose |
+| --- | --- |
+| `virtual_funds` | Singleton fund, initial 1,000 USDT, initialized idempotently under a lock. |
+| `fund_allocations` | Composite fund/market key; fixed 600 spot and 400 futures allocations. |
+| `ledger_entries` | Decimal signed movements, idempotency keys, canonical hashes and sequence chain. |
+| `market_snapshots` | UUID observations with status, exchange time, prices, rules, indicators and book evidence. |
+| `paper_positions` | Reconciled position quantity, entry/mark, leverage, fees, funding and P&L. |
+| `paper_fills` | Append-only raw and conservative adjusted fill evidence, fees, spread and slippage. |
+| `trading_permits` | Exact owner-approved terms and single-use state; no creation API in Phase 2. |
+| `bot_states` | Private engine status plus explicitly required compressed SQLite snapshot/checksum for recovery. |
+
+Money and quantities use `Numeric(30,12)`; prices are never binary floats in accounting.
+No sequence, server default, trigger or database function is required. The Phase 2
+revision is `10af905d740f`, after `0001`. Application guards cover ledger and fill
+records as well as audit records. Engine snapshot and fill import writes are atomic.
+The owner chose database-only integrity; tail deletion or a privileged full-chain rewrite
+is not detectable. See [Phase 2 operation](PHASE2_OPERATIONS.md).
+
+The foundation reference below describes the `0001` baseline. Its references to one
+revision or no monetary columns describe Phase 1 only, not the current schema.
 
 ### `users`
 

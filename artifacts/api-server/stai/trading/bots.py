@@ -44,14 +44,25 @@ def build_bot_config(bot_type: str, *, database_url: str | None = None) -> dict[
         "stake_amount": 50,
         "max_open_trades": 3,
         "timeframe": "1h",
-        "strategy": "StaiGateStrategy",
+        "entry_pricing": {
+            "price_side": "other",
+            "use_order_book": True,
+            "order_book_top": 1,
+        },
+        "exit_pricing": {
+            "price_side": "other",
+            "use_order_book": True,
+            "order_book_top": 1,
+        },
+        "pairlists": [{"method": "StaticPairList"}],
+        "unfilledtimeout": {"entry": 10, "exit": 10, "unit": "minutes"},
+        "strategy": "StaiFuturesGateStrategy" if futures else "StaiGateStrategy",
         "exchange": {
             "name": "okx",
             "pair_whitelist": pairs,
             "pair_blacklist": [],
+            "ccxt_config": {"options": {"fetchMarkets": {"types": ["spot", "swap"]}}},
         },
-        "api_server": {"enabled": False},
-        "telegram": {"enabled": False},
         "initial_state": "running",
         "internals": {"process_throttle_secs": 5},
     }
@@ -86,13 +97,12 @@ def validate_bot_config(config: dict[str, object], bot_type: str) -> None:
     if exchange.get("name") != "okx":
         raise UnsafeBotConfiguration("only OKX is supported")
     if any(
-        key.lower() in {"key", "secret", "password", "api_key", "passphrase"}
-        for key in exchange
+        key.lower() in {"key", "secret", "password", "api_key", "passphrase"} for key in exchange
     ):
         raise UnsafeBotConfiguration("exchange credentials are not permitted")
-    if config.get("api_server") != {"enabled": False}:
+    if "api_server" in config:
         raise UnsafeBotConfiguration("the bot API must remain disabled")
-    if config.get("telegram") != {"enabled": False}:
+    if "telegram" in config:
         raise UnsafeBotConfiguration("external bot messaging must remain disabled")
 
 
@@ -140,9 +150,7 @@ class BotSupervisor:
                 userdir.mkdir(mode=0o700)
                 database_path = userdir / "tradesv3.dryrun.sqlite"
                 if restored_snapshots and bot_type in restored_snapshots:
-                    restore_freqtrade_database(
-                        database_path, *restored_snapshots[bot_type]
-                    )
+                    restore_freqtrade_database(database_path, *restored_snapshots[bot_type])
                 config_path = root / f"{bot_type}.json"
                 config_path.write_text(
                     json.dumps(
@@ -160,6 +168,7 @@ class BotSupervisor:
                     "-m",
                     "freqtrade",
                     "trade",
+                    "--dry-run",
                     "--config",
                     str(config_path),
                     "--userdir",
@@ -167,7 +176,7 @@ class BotSupervisor:
                     "--strategy-path",
                     str(self._strategy_path),
                     "--strategy",
-                    "StaiGateStrategy",
+                    "StaiFuturesGateStrategy" if bot_type == "futures" else "StaiGateStrategy",
                 ]
                 process = subprocess.Popen(  # noqa: S603 - fixed command and generated paths only
                     command,
@@ -191,9 +200,7 @@ class BotSupervisor:
             self.stop_all()
             raise
 
-    def stop_all(
-        self, *, timeout_seconds: float = 10.0
-    ) -> dict[str, tuple[bytes, str]]:
+    def stop_all(self, *, timeout_seconds: float = 10.0) -> dict[str, tuple[bytes, str]]:
         for bot_type, bot in list(self._bots.items()):
             process = bot.process
             if process.poll() is None:
@@ -217,9 +224,7 @@ class BotSupervisor:
 
     def status(self) -> dict[str, str]:
         return {
-            bot_type: (
-                "running" if bot.process.poll() is None else "stopped"
-            )
+            bot_type: ("running" if bot.process.poll() is None else "stopped")
             for bot_type, bot in self._bots.items()
         }
 
@@ -246,13 +251,14 @@ class BotSupervisor:
                 columns = {row["name"] for row in connection.execute("PRAGMA table_info(trades)")}
                 if not columns:
                     return []
-                if not {"id", "pair", "is_open"} <= columns:
+                fields = ("id", "pair", "is_open", "amount", "open_rate", "leverage", "is_short")
+                if not set(fields) <= columns:
                     return None
-                query = "SELECT id, pair, is_open FROM trades WHERE is_open = 1 ORDER BY id"
-                return [
-                    {key: row[key] for key in ("id", "pair", "is_open")}
-                    for row in connection.execute(query)
-                ]
+                query = (
+                    "SELECT id, pair, is_open, amount, open_rate, leverage, is_short "
+                    "FROM trades WHERE is_open = 1 ORDER BY id"
+                )
+                return [{key: row[key] for key in fields} for row in connection.execute(query)]
             finally:
                 connection.close()
         except sqlite3.Error:
@@ -267,13 +273,20 @@ def remove_user_directory(path: Path) -> None:
 def snapshot_freqtrade_database(path: Path) -> bytes:
     """Create a consistent, compressed copy while Freqtrade may still be writing."""
     source = sqlite3.connect(f"file:{path}?mode=ro", uri=True, timeout=3)
-    destination = sqlite3.connect(":memory:")
     try:
-        source.backup(destination)
-        data = destination.serialize()
-        return gzip.compress(data, mtime=0)
+        with tempfile.TemporaryDirectory(prefix="stai-snapshot-") as directory:
+            backup_path = Path(directory) / "backup.sqlite"
+            destination = sqlite3.connect(backup_path)
+            try:
+                source.backup(destination)
+                # An in-memory backup retains WAL header flags. Such serialized bytes
+                # cannot be deserialized without a WAL sidecar. Normalize the isolated
+                # on-disk backup, never the live engine database.
+                destination.execute("PRAGMA journal_mode=DELETE")
+            finally:
+                destination.close()
+            return gzip.compress(backup_path.read_bytes(), mtime=0)
     finally:
-        destination.close()
         source.close()
 
 
@@ -283,14 +296,18 @@ def restore_freqtrade_database(path: Path, snapshot: bytes, expected_sha256: str
         raise UnsafeBotConfiguration("stored Freqtrade state failed its checksum")
     try:
         raw = gzip.decompress(snapshot)
-        validation = sqlite3.connect(":memory:")
-        try:
-            validation.deserialize(raw)
-            integrity = validation.execute("PRAGMA integrity_check").fetchone()
-            if integrity is None or integrity[0] != "ok":
-                raise UnsafeBotConfiguration("stored Freqtrade state failed integrity check")
-        finally:
-            validation.close()
+        with tempfile.TemporaryDirectory(prefix="stai-restore-") as directory:
+            validation_path = Path(directory) / "validation.sqlite"
+            validation_path.write_bytes(raw)
+            validation = sqlite3.connect(validation_path)
+            try:
+                validation.execute("PRAGMA journal_mode=DELETE")
+                integrity = validation.execute("PRAGMA integrity_check").fetchone()
+                if integrity is None or integrity[0] != "ok":
+                    raise UnsafeBotConfiguration("stored Freqtrade state failed integrity check")
+            finally:
+                validation.close()
+            raw = validation_path.read_bytes()
     except (OSError, sqlite3.Error) as exc:
         raise UnsafeBotConfiguration("stored Freqtrade state could not be restored") from exc
     path.write_bytes(raw)

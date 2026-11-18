@@ -120,7 +120,7 @@ def test_the_database_check(owner: Harness) -> None:
     assert database["serverVersion"] == server_version.split(" ")[0]
     assert database["schemaReady"] is True
     assert database["missingTables"] == []
-    assert database["migrationRevision"] == "0001"
+    assert database["migrationRevision"] == "10af905d740f"
     assert database["detail"] is None
 
 
@@ -285,8 +285,20 @@ def test_a_database_without_the_tables(
 
     assert database.status is CheckStatus.DOWN
     assert database.schema_ready is False
-    assert database.missing_tables == ["audit_events", "auth_sessions", "users"]
-    assert database.detail == "Missing tables: audit_events, auth_sessions, users."
+    assert database.missing_tables == [
+        "audit_events",
+        "auth_sessions",
+        "bot_states",
+        "fund_allocations",
+        "ledger_entries",
+        "market_snapshots",
+        "paper_fills",
+        "paper_positions",
+        "trading_permits",
+        "users",
+        "virtual_funds",
+    ]
+    assert database.detail == f"Missing tables: {', '.join(database.missing_tables)}."
     assert database.migration_revision is None
     assert database.latency_ms is not None
     assert database.server_version
@@ -309,7 +321,7 @@ def test_a_database_missing_one_table(
     assert database.status is CheckStatus.DOWN
     assert database.missing_tables == ["auth_sessions"]
     assert database.detail == "Missing tables: auth_sessions."
-    assert database.migration_revision == "0001"
+    assert database.migration_revision == "10af905d740f"
     # The audit table is there and empty, so its own check passes.
     assert audit.status is CheckStatus.OK
     assert audit.event_count == 0

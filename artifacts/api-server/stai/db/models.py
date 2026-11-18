@@ -100,7 +100,7 @@ class VirtualFund(Base):
 
     __tablename__ = "virtual_funds"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
     currency: Mapped[str] = mapped_column(String(12), nullable=False)
     initial_balance: Mapped[Decimal] = mapped_column(Numeric(30, 12), nullable=False)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)

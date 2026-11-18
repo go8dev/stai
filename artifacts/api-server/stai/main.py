@@ -26,8 +26,8 @@ from stai.core.runtime import Runtime
 from stai.core.time import utcnow
 from stai.db.session import Database, DatabaseNotConfigured
 from stai.marketdata.okx_market import OkxMarketData
-from stai.marketdata.provider import set_market_data_provider
 from stai.marketdata.okx_public import OkxPublicProbe
+from stai.marketdata.provider import set_market_data_provider
 from stai.marketdata.routes import router as market_router
 from stai.portfolio.routes import router as portfolio_router
 from stai.system.routes import router as system_router

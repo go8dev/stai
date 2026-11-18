@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import os
 import signal
+import sqlite3
 from contextlib import suppress
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import select, text
@@ -14,11 +17,13 @@ from stai.audit import guards as _audit_guards  # noqa: F401 - install append-on
 from stai.core.config import get_settings, secret_values_from_environment
 from stai.core.logging import StructuredLogger, configure_logging, register_secret_values
 from stai.core.time import utcnow
-from stai.db.models import BotState, PaperPosition
+from stai.db.models import BotState, PaperFill, PaperPosition
 from stai.main import create_app
 from stai.marketdata.service import persist_market_rows
+from stai.trading.accounting import FillRejected, accounting_reconciles
 from stai.trading.bots import BotSupervisor
 from stai.trading.ledger import ensure_fund, verify_ledger
+from stai.trading.reconcile import import_completed_orders
 
 logger = StructuredLogger(__name__)
 WORKER_LOCK_KEY = 0x5354_4149_0004
@@ -27,10 +32,7 @@ SCAN_INTERVAL_SECONDS = 15 * 60
 
 def _prior_states(runtime: Any) -> dict[str, BotState]:
     with runtime.database.session() as session:
-        return {
-            row.bot_id: row
-            for row in session.execute(select(BotState)).scalars().all()
-        }
+        return {row.bot_id: row for row in session.execute(select(BotState)).scalars().all()}
 
 
 def _safe_trade_rows(
@@ -40,9 +42,21 @@ def _safe_trade_rows(
         return None
     result: list[dict[str, object]] = []
     for row in rows:
-        item = {key: value for key, value in row.items() if key in {
-            "id", "pair", "amount", "open_rate", "open_date", "stop_loss", "leverage", "is_short"
-        }}
+        item = {
+            key: value
+            for key, value in row.items()
+            if key
+            in {
+                "id",
+                "pair",
+                "amount",
+                "open_rate",
+                "open_date",
+                "stop_loss",
+                "leverage",
+                "is_short",
+            }
+        }
         item["tradeId"] = f"{bot_type}:{row['id']}"
         result.append(item)
     return result
@@ -58,20 +72,39 @@ def _persist_worker_state(
     now = utcnow()
     current_status = supervisor.status()
     bot_ids = {"spot", "futures"}
-    snapshots = snapshots or {}
+    snapshots = snapshots if snapshots is not None else supervisor.snapshots()
     with runtime.database.session() as session:
         previous_rows = {
-            row.bot_id: row
-            for row in session.execute(select(BotState)).scalars().all()
+            row.bot_id: row for row in session.execute(select(BotState)).scalars().all()
         }
+        import_errors: set[str] = set()
+        for bot_id, (snapshot, _) in snapshots.items():
+            try:
+                with session.begin_nested():
+                    if not verify_ledger(session).ok:
+                        raise FillRejected("ledger verification failed before import")
+                    import_completed_orders(session, bot_id, snapshot)
+            except (FillRejected, ValueError, sqlite3.Error, KeyError, TypeError):
+                import_errors.add(bot_id)
+                logger.warning("Engine fill import blocked", botType=bot_id)
         expected_positions = {
-            position.trade_id
+            (position.market_type, position.trade_id): position
             for position in session.execute(
                 select(PaperPosition).where(PaperPosition.state == "open")
             ).scalars()
         }
         chain = verify_ledger(session)
-        reconciliation_ok = chain.ok
+        accounts_match = accounting_reconciles(session)
+        raw_entries: dict[str, tuple[Decimal, Decimal]] = {}
+        for fill in session.execute(
+            select(PaperFill).where(PaperFill.fill_type == "entry")
+        ).scalars():
+            notional, quantity = raw_entries.get(fill.trade_id, (Decimal("0"), Decimal("0")))
+            raw_entries[fill.trade_id] = (
+                notional + fill.raw_price * fill.quantity,
+                quantity + fill.quantity,
+            )
+        reconciliation_ok = chain.ok and accounts_match
         for bot_id in bot_ids:
             prior = previous_rows.get(bot_id)
             bot_trades = _safe_trade_rows(
@@ -87,11 +120,34 @@ def _persist_worker_state(
                 reconciliation_ok = False
             else:
                 engine_ids = {row["tradeId"] for row in bot_trades}
-                if engine_ids != expected_positions:
+                expected_ids = {
+                    trade_id for market, trade_id in expected_positions if market == bot_id
+                }
+                terms_match = all(
+                    (bot_id, row["tradeId"]) in expected_positions
+                    and row["tradeId"] in raw_entries
+                    and Decimal(str(row.get("amount", "0")))
+                    == expected_positions[(bot_id, row["tradeId"])].quantity
+                    and Decimal(str(row.get("open_rate", "0"))).quantize(Decimal("1e-8"))
+                    == (raw_entries[row["tradeId"]][0] / raw_entries[row["tradeId"]][1]).quantize(
+                        Decimal("1e-8")
+                    )
+                    and Decimal(str(row.get("leverage", "0")))
+                    == expected_positions[(bot_id, row["tradeId"])].leverage
+                    and bool(row.get("is_short"))
+                    == (expected_positions[(bot_id, row["tradeId"])].side == "short")
+                    for row in bot_trades
+                )
+                if (
+                    engine_ids != expected_ids
+                    or not terms_match
+                    or bot_id in import_errors
+                    or current_status.get(bot_id) != "running"
+                ):
                     reconciliation = "blocked"
                     reconciliation_ok = False
                 else:
-                    reconciliation = "clear" if chain.ok else "blocked"
+                    reconciliation = "clear" if chain.ok and accounts_match else "blocked"
             state = {
                 "status": "stopped" if stopped else current_status.get(bot_id, "starting"),
                 "dryRun": True,
@@ -161,12 +217,16 @@ async def run_worker(runtime: Any, stop_event: asyncio.Event) -> None:
             if row.sqlite_snapshot is not None and row.snapshot_sha256 is not None
         }
         supervisor.start_all(restored)
+        next_scan = 0.0
         while not stop_event.is_set():
-            await _scan_once(runtime, supervisor)
+            now = asyncio.get_running_loop().time()
+            if now >= next_scan:
+                await _scan_once(runtime, supervisor)
+                next_scan = now + SCAN_INTERVAL_SECONDS
+            else:
+                _persist_worker_state(runtime, supervisor)
             try:
-                await asyncio.wait_for(
-                    stop_event.wait(), timeout=SCAN_INTERVAL_SECONDS
-                )
+                await asyncio.wait_for(stop_event.wait(), timeout=5)
             except TimeoutError:
                 continue
     finally:
@@ -177,13 +237,11 @@ async def run_worker(runtime: Any, stop_event: asyncio.Event) -> None:
             snapshots=final_snapshots,
             stopped=True,
         )
-        lock_connection.execute(
-            text("SELECT pg_advisory_unlock(:key)"), {"key": WORKER_LOCK_KEY}
-        )
+        lock_connection.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": WORKER_LOCK_KEY})
         lock_connection.close()
 
 
-async def _run() -> None:
+async def _run(*, enable_paper_bots: bool = False) -> None:
     settings = get_settings()
     configure_logging(settings.log_level)
     register_secret_values(secret_values_from_environment())
@@ -193,19 +251,28 @@ async def _run() -> None:
     for signum in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(signum, stop_event.set)
     port = int(os.environ.get("PORT", "8099"))
-    health_server = await asyncio.start_server(  # noqa: S104 - private service health port
-        _health_handler, "0.0.0.0", port
+    health_server = await asyncio.start_server(
+        _health_handler,
+        "0.0.0.0",  # noqa: S104 - private service health port
+        port,
     )
     async with app.router.lifespan_context(app):
         try:
-            await run_worker(app.state.runtime, stop_event)
+            if settings.is_production and not enable_paper_bots:
+                logger.info("Production paper worker is disabled pending the owner's restart check")
+                await stop_event.wait()
+            else:
+                await run_worker(app.state.runtime, stop_event)
         finally:
             health_server.close()
             await health_server.wait_closed()
 
 
 def main() -> None:
-    asyncio.run(_run())
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--enable-paper-bots", action="store_true")
+    args = parser.parse_args()
+    asyncio.run(_run(enable_paper_bots=args.enable_paper_bots))
 
 
 if __name__ == "__main__":

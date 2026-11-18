@@ -28,7 +28,12 @@ import type {
   ErrorResponse,
   HandleBrowserLoginCallbackParams,
   HealthStatus,
+  LedgerList,
+  LedgerVerification,
   ListAuditEventsParams,
+  ListPortfolioLedgerParams,
+  MarketScannerResponse,
+  PortfolioSummary,
   SystemStatus
 } from './api.schemas';
 
@@ -770,4 +775,319 @@ export const useVerifyAuditTrail = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getVerifyAuditTrailMutationOptions(options));
     }
+
+export const getGetMarketScannerUrl = () => {
+
+
+
+
+  return `/api/market/scanner`
+}
+
+/**
+ * @summary Latest public OKX spot and futures scanner data
+ */
+export const getMarketScanner = async ( options?: Parameters<typeof customFetch>[1]): Promise<MarketScannerResponse> => {
+
+  return customFetch<MarketScannerResponse>(getGetMarketScannerUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMarketScannerQueryKey = () => {
+    return [
+    `/api/market/scanner`
+    ] as const;
+    }
+
+
+export const getGetMarketScannerQueryOptions = <TData = Awaited<ReturnType<typeof getMarketScanner>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMarketScanner>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMarketScannerQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMarketScanner>>> = ({ signal }) => getMarketScanner({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMarketScanner>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMarketScannerQueryResult = NonNullable<Awaited<ReturnType<typeof getMarketScanner>>>
+export type GetMarketScannerQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Latest public OKX spot and futures scanner data
+ */
+
+export function useGetMarketScanner<TData = Awaited<ReturnType<typeof getMarketScanner>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMarketScanner>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMarketScannerQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPortfolioSummaryUrl = () => {
+
+
+
+
+  return `/api/portfolio/summary`
+}
+
+/**
+ * @summary Virtual fund balances and ledger status
+ */
+export const getPortfolioSummary = async ( options?: Parameters<typeof customFetch>[1]): Promise<PortfolioSummary> => {
+
+  return customFetch<PortfolioSummary>(getGetPortfolioSummaryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPortfolioSummaryQueryKey = () => {
+    return [
+    `/api/portfolio/summary`
+    ] as const;
+    }
+
+
+export const getGetPortfolioSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getPortfolioSummary>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPortfolioSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPortfolioSummaryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPortfolioSummary>>> = ({ signal }) => getPortfolioSummary({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPortfolioSummary>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPortfolioSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getPortfolioSummary>>>
+export type GetPortfolioSummaryQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Virtual fund balances and ledger status
+ */
+
+export function useGetPortfolioSummary<TData = Awaited<ReturnType<typeof getPortfolioSummary>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPortfolioSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPortfolioSummaryQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListPortfolioLedgerUrl = (params?: ListPortfolioLedgerParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/portfolio/ledger?${stringifiedParams}` : `/api/portfolio/ledger`
+}
+
+/**
+ * @summary Most recent virtual-fund ledger entries
+ */
+export const listPortfolioLedger = async (params?: ListPortfolioLedgerParams, options?: Parameters<typeof customFetch>[1]): Promise<LedgerList> => {
+
+  return customFetch<LedgerList>(getListPortfolioLedgerUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPortfolioLedgerQueryKey = (params?: ListPortfolioLedgerParams,) => {
+    return [
+    `/api/portfolio/ledger`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListPortfolioLedgerQueryOptions = <TData = Awaited<ReturnType<typeof listPortfolioLedger>>, TError = ErrorType<ErrorResponse>>(params?: ListPortfolioLedgerParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPortfolioLedger>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPortfolioLedgerQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPortfolioLedger>>> = ({ signal }) => listPortfolioLedger(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPortfolioLedger>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPortfolioLedgerQueryResult = NonNullable<Awaited<ReturnType<typeof listPortfolioLedger>>>
+export type ListPortfolioLedgerQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Most recent virtual-fund ledger entries
+ */
+
+export function useListPortfolioLedger<TData = Awaited<ReturnType<typeof listPortfolioLedger>>, TError = ErrorType<ErrorResponse>>(
+ params?: ListPortfolioLedgerParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPortfolioLedger>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPortfolioLedgerQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getVerifyPortfolioLedgerUrl = () => {
+
+
+
+
+  return `/api/portfolio/ledger/verify`
+}
+
+/**
+ * @summary Verify the complete virtual-fund ledger chain
+ */
+export const verifyPortfolioLedger = async ( options?: Parameters<typeof customFetch>[1]): Promise<LedgerVerification> => {
+
+  return customFetch<LedgerVerification>(getVerifyPortfolioLedgerUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getVerifyPortfolioLedgerQueryKey = () => {
+    return [
+    `/api/portfolio/ledger/verify`
+    ] as const;
+    }
+
+
+export const getVerifyPortfolioLedgerQueryOptions = <TData = Awaited<ReturnType<typeof verifyPortfolioLedger>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof verifyPortfolioLedger>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getVerifyPortfolioLedgerQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof verifyPortfolioLedger>>> = ({ signal }) => verifyPortfolioLedger({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof verifyPortfolioLedger>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type VerifyPortfolioLedgerQueryResult = NonNullable<Awaited<ReturnType<typeof verifyPortfolioLedger>>>
+export type VerifyPortfolioLedgerQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Verify the complete virtual-fund ledger chain
+ */
+
+export function useVerifyPortfolioLedger<TData = Awaited<ReturnType<typeof verifyPortfolioLedger>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof verifyPortfolioLedger>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getVerifyPortfolioLedgerQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 

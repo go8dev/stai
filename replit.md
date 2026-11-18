@@ -5,8 +5,8 @@ Personal, paper-trading-only crypto research and portfolio platform for one owne
 ## Status
 
 - 17 Nov 2026: the owner approved the plan in `docs/STAI_PHASE1_PLAN.md`, all 23 numbered items as proposed. Its decision log records every approval and change.
-- 18 Nov 2026: Phase 1 (foundation) is built and checked in the workspace. It is not published. Publishing and the checks on the live app are the owner's step and follow the checklist in `README.md`.
-- Work proceeds one phase at a time. Phases 2 to 7 are not started and each needs the owner's go-ahead.
+- 18 Nov 2026: the owner published Phase 1 and supplied healthy production and intact-audit screenshots. Production restart check 7 remains unconfirmed.
+- Phase 2 is implemented in the workspace. Production continuous bots remain disabled by default pending check 7 and the owner's approval. Phases 3 to 7 are not started.
 
 ## Owner rules (do not weaken)
 
@@ -25,7 +25,7 @@ Personal, paper-trading-only crypto research and portfolio platform for one owne
 
 ## Run & Operate
 
-Two workflows run the app in the workspace: `artifacts/api-server: API Server` (the Python backend, under `/api`) and `artifacts/stai: web` (the web app, at `/`). Commands run from the repository root.
+Three STAI workflows run in the workspace: `artifacts/api-server: API Server`, `artifacts/stai: web`, and `artifacts/api-server: Paper Worker` (private health port 8099, no routed path). Commands run from the repository root.
 
 - `pnpm run check` — everything that must pass: lint, type checks, the API contract check and the backend tests
 - `pnpm run lint`, `pnpm run typecheck`, `pnpm run test` — the parts of `check`, one command each
@@ -44,7 +44,7 @@ Two workflows run the app in the workspace: `artifacts/api-server: API Server` (
 - API contract: OpenAPI exported from the backend; Orval generates the typed React Query hooks and Zod validators.
 - Database: Replit PostgreSQL.
 - Checks: Ruff, pytest, ESLint, Prettier, `tsc`, Playwright.
-- Not installed yet: Freqtrade and CCXT (Phase 2), TradingAgents (Phase 3). `pyproject.toml` holds version constraints so they can be added without moving a locked version.
+- Freqtrade 2026.10 and CCXT 4.5.93 are installed. TradingAgents is Phase 3 and remains uninstalled.
 
 ## Where things live
 
@@ -65,7 +65,9 @@ Approved by the owner on 17 Nov 2026. Details and reasons are in the plan.
 
 - One Python application (FastAPI API plus a worker process) and two unmodified Freqtrade dry-run bots, one for spot and one for futures, reachable only from inside the machine. Phase 1 built the API only.
 - STAI's PostgreSQL ledger, in decimal values, is the book of record. Freqtrade is the paper execution engine and is reconciled against it. Each bot keeps its local database file, and STAI stores a copy in PostgreSQL with every trade event because a published machine loses its files at restart.
-- An entry reaches Freqtrade only with a single-use permit issued after the owner approves the exact trade. The gate is built together with Freqtrade in Phase 2.
+- An entry requires a single-use permit for the exact owner-approved terms. Phase 2 builds and tests the validator but deliberately keeps the strategy's entry callback closed and all entry signals zero; Phase 4 connects approval to execution.
+- The owner chose database-only ledger integrity. Do not add an external hash anchor. Tail deletion and privileged full-chain rewriting cannot be detected by that chain alone.
+- The production worker requires the explicit `--enable-paper-bots` command flag. Do not add it until the owner confirms production restart check 7 and authorizes continuous operation.
 - Migrations run in development only. Replit's Publish step applies the production structure and carries no triggers, so append-only is enforced in the application with a hash chain. The backend never creates or alters tables.
 - Sign-in is Replit's sign-in restricted to the owner's account. Hosting is a Reserved VM in Asia, starting at 1 vCPU and 4 GiB.
 - The API is closed by default: middleware requires the owner's session on every path except the health check and the sign-in routes, so a new route is protected without further work. Requests that change something also need the CSRF header, which the generated client attaches.

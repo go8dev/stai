@@ -473,6 +473,10 @@ function AuditSection() {
             Recomputes the hash chain over every recorded event and reports the
             first break, if any.
           </p>
+          <p className="mt-2 text-[11.5px] leading-relaxed text-muted-foreground">
+            Database-only verification cannot detect deletion of the newest
+            events or a privileged rewrite of the whole chain.
+          </p>
           <button
             type="button"
             data-testid="button-verify-audit"

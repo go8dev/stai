@@ -195,8 +195,134 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /market/scanner:
+    get:
+      tags:
+      - market-data
+      summary: Latest public OKX spot and futures scanner data
+      operationId: getMarketScanner
+      responses:
+        '200':
+          description: Public observations with freshness and instrument rules.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketScannerResponse'
+        '401':
+          description: Owner session required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /portfolio/summary:
+    get:
+      tags:
+      - portfolio
+      summary: Virtual fund balances and ledger status
+      operationId: getPortfolioSummary
+      responses:
+        '200':
+          description: Persisted virtual fund balances and engine state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioSummary'
+        '401':
+          description: Owner session required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /portfolio/ledger:
+    get:
+      tags:
+      - portfolio
+      summary: Most recent virtual-fund ledger entries
+      operationId: listPortfolioLedger
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 20
+      responses:
+        '200':
+          description: Recent immutable accounting events.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LedgerList'
+        '401':
+          description: Owner session required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: The limit is out of range.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /portfolio/ledger/verify:
+    get:
+      tags:
+      - portfolio
+      summary: Verify the complete virtual-fund ledger chain
+      operationId: verifyPortfolioLedger
+      responses:
+        '200':
+          description: Database-only hash-chain verification result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LedgerVerification'
+        '401':
+          description: Owner session required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
+    AllocationBalance:
+      properties:
+        marketType:
+          type: string
+          enum:
+          - spot
+          - futures
+        initialBalance:
+          anyOf:
+          - type: number
+          - type: string
+        balance:
+          anyOf:
+          - type: number
+          - type: string
+        collateral:
+          anyOf:
+          - type: number
+          - type: string
+        availableBalance:
+          anyOf:
+          - type: number
+          - type: string
+        exposure:
+          anyOf:
+          - type: number
+          - type: string
+      type: object
+      required:
+      - marketType
+      - initialBalance
+      - balance
+      - collateral
+      - availableBalance
+      - exposure
     AuditBreak:
       properties:
         seq:
@@ -377,6 +503,20 @@ components:
       - environment
       - uptimeSeconds
       - pythonVersion
+    BookLevel:
+      properties:
+        price:
+          anyOf:
+          - type: number
+          - type: string
+        size:
+          anyOf:
+          - type: number
+          - type: string
+      type: object
+      required:
+      - price
+      - size
     BuildInfo:
       properties:
         version:
@@ -393,6 +533,47 @@ components:
       - version
       - commit
       - startedAt
+    CandlePoint:
+      properties:
+        openedAt:
+          type: string
+          format: date-time
+        open:
+          anyOf:
+          - type: number
+          - type: string
+        high:
+          anyOf:
+          - type: number
+          - type: string
+        low:
+          anyOf:
+          - type: number
+          - type: string
+        close:
+          anyOf:
+          - type: number
+          - type: string
+        volume:
+          anyOf:
+          - type: number
+          - type: string
+        quoteVolume:
+          anyOf:
+          - type: number
+          - type: string
+        complete:
+          type: boolean
+      type: object
+      required:
+      - openedAt
+      - open
+      - high
+      - low
+      - close
+      - volume
+      - quoteVolume
+      - complete
     CheckStatus:
       type: string
       enum:
@@ -470,6 +651,137 @@ components:
       type: object
       required:
       - status
+    InstrumentRules:
+      properties:
+        instrumentId:
+          type: string
+        minSize:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        lotSize:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        tickSize:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        contractValue:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        maxLeverage:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+      type: object
+      required:
+      - instrumentId
+      - minSize
+      - lotSize
+      - tickSize
+      - contractValue
+      - maxLeverage
+    LedgerEvent:
+      properties:
+        seq:
+          type: integer
+        occurredAt:
+          type: string
+          format: date-time
+        eventType:
+          type: string
+        marketType:
+          type: string
+          enum:
+          - spot
+          - futures
+        amount:
+          anyOf:
+          - type: number
+          - type: string
+        idempotencyKey:
+          type: string
+        reference:
+          anyOf:
+          - type: string
+          - type: 'null'
+        details:
+          additionalProperties: true
+          type: object
+        hash:
+          type: string
+      type: object
+      required:
+      - seq
+      - occurredAt
+      - eventType
+      - marketType
+      - amount
+      - idempotencyKey
+      - reference
+      - details
+      - hash
+    LedgerList:
+      properties:
+        events:
+          items:
+            $ref: '#/components/schemas/LedgerEvent'
+          type: array
+        total:
+          type: integer
+      type: object
+      required:
+      - events
+      - total
+    LedgerVerification:
+      properties:
+        ok:
+          type: boolean
+        eventsChecked:
+          type: integer
+        firstSeq:
+          anyOf:
+          - type: integer
+          - type: 'null'
+        lastSeq:
+          anyOf:
+          - type: integer
+          - type: 'null'
+        headHash:
+          anyOf:
+          - type: string
+          - type: 'null'
+        firstBreakSeq:
+          anyOf:
+          - type: integer
+          - type: 'null'
+        reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+        durationMs:
+          type: number
+        verifiedAt:
+          type: string
+          format: date-time
+      type: object
+      required:
+      - ok
+      - eventsChecked
+      - firstSeq
+      - lastSeq
+      - headHash
+      - firstBreakSeq
+      - reason
+      - durationMs
+      - verifiedAt
     MarketDataCheck:
       properties:
         status:
@@ -508,6 +820,251 @@ components:
       - clockSkewMs
       - checkedAt
       - detail
+    MarketIndicators:
+      properties:
+        trend:
+          type: string
+        trend15M:
+          type: string
+        rsi:
+          anyOf:
+          - type: number
+          - type: 'null'
+        rsiState:
+          type: string
+        macdDirection:
+          type: string
+        macdDirection15M:
+          type: string
+        volumeStrength:
+          type: string
+        volatilityPct:
+          anyOf:
+          - type: number
+          - type: 'null'
+        candleBehavior:
+          type: string
+        screeningState:
+          type: string
+          enum:
+          - watch
+          - no_alignment
+          - unavailable
+      type: object
+      required:
+      - trend
+      - trend15M
+      - rsi
+      - rsiState
+      - macdDirection
+      - macdDirection15M
+      - volumeStrength
+      - volatilityPct
+      - candleBehavior
+      - screeningState
+    MarketScannerResponse:
+      properties:
+        provider:
+          type: string
+        scannedAt:
+          type: string
+          format: date-time
+        rows:
+          items:
+            $ref: '#/components/schemas/MarketScannerRow'
+          type: array
+      type: object
+      required:
+      - provider
+      - scannedAt
+      - rows
+    MarketScannerRow:
+      properties:
+        symbol:
+          type: string
+        marketType:
+          type: string
+          enum:
+          - spot
+          - futures
+        status:
+          type: string
+          enum:
+          - fresh
+          - stale
+          - unavailable
+        observedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+        exchangeAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+        ageSeconds:
+          anyOf:
+          - type: integer
+          - type: 'null'
+        lastPrice:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        changePct24H:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        volume24H:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        bid:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        ask:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        spreadPct:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        fundingRate:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        nextFundingAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+        instrument:
+          anyOf:
+          - $ref: '#/components/schemas/InstrumentRules'
+          - type: 'null'
+        indicators:
+          anyOf:
+          - $ref: '#/components/schemas/MarketIndicators'
+          - type: 'null'
+        candles:
+          items:
+            $ref: '#/components/schemas/CandlePoint'
+          type: array
+        candles15M:
+          items:
+            $ref: '#/components/schemas/CandlePoint'
+          type: array
+        bids:
+          items:
+            $ref: '#/components/schemas/BookLevel'
+          type: array
+        asks:
+          items:
+            $ref: '#/components/schemas/BookLevel'
+          type: array
+        detail:
+          anyOf:
+          - type: string
+          - type: 'null'
+      type: object
+      required:
+      - symbol
+      - marketType
+      - status
+      - observedAt
+      - exchangeAt
+      - ageSeconds
+      - lastPrice
+      - changePct24H
+      - volume24H
+      - bid
+      - ask
+      - spreadPct
+      - fundingRate
+      - nextFundingAt
+      - instrument
+      - indicators
+      - candles
+      - candles15M
+      - bids
+      - asks
+      - detail
+    PortfolioSummary:
+      properties:
+        fundId:
+          type: integer
+        currency:
+          type: string
+        initialBalance:
+          anyOf:
+          - type: number
+          - type: string
+        equity:
+          anyOf:
+          - type: number
+          - type: string
+        allocations:
+          items:
+            $ref: '#/components/schemas/AllocationBalance'
+          type: array
+        positions:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+        bots:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+        fees:
+          anyOf:
+          - type: number
+          - type: string
+        funding:
+          anyOf:
+          - type: number
+          - type: string
+        realizedPnl:
+          anyOf:
+          - type: number
+          - type: string
+        unrealizedPnl:
+          anyOf:
+          - type: number
+          - type: string
+        ledgerVerified:
+          type: boolean
+        ledgerEvents:
+          type: integer
+        updatedAt:
+          type: string
+          format: date-time
+      type: object
+      required:
+      - fundId
+      - currency
+      - initialBalance
+      - equity
+      - allocations
+      - positions
+      - bots
+      - fees
+      - funding
+      - realizedPnl
+      - unrealizedPnl
+      - ledgerVerified
+      - ledgerEvents
+      - updatedAt
     RuntimeEnvironment:
       type: string
       enum:
@@ -574,3 +1131,7 @@ tags:
   description: Live system checks.
 - name: audit
   description: Append-only audit trail.
+- name: market-data
+  description: Public OKX market observations.
+- name: portfolio
+  description: Virtual fund and paper ledger.

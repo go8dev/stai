@@ -14,7 +14,7 @@ from pandas import DataFrame
 class StaiGateStrategy(IStrategy):
     INTERFACE_VERSION = 3
     timeframe = "1h"
-    can_short = True
+    can_short = False
     minimal_roi = {"0": 10}
     stoploss = -0.05
     startup_candle_count = 100
@@ -67,3 +67,9 @@ class StaiGateStrategy(IStrategy):
         **kwargs,
     ) -> float:
         return min(2.0, max_leverage)
+
+
+class StaiFuturesGateStrategy(StaiGateStrategy):
+    """The same closed gate, with short support only in the futures engine."""
+
+    can_short = True

@@ -58,7 +58,7 @@ def _canonical_hash(
         "occurred_at": as_utc(occurred_at).isoformat(),
         "event_type": event_type,
         "market_type": market_type,
-        "amount": format(amount, "f"),
+        "amount": format(amount, ".12f"),
         "idempotency_key": idempotency_key,
         "reference": reference,
         "details": details,
@@ -71,6 +71,8 @@ def _canonical_hash(
 def _validate_amount(amount: Decimal) -> None:
     if not isinstance(amount, Decimal) or not amount.is_finite():
         raise LedgerInputError("ledger amounts must be finite Decimal values")
+    if abs(amount) >= Decimal("1e18") or amount != amount.quantize(Decimal("1e-12")):
+        raise LedgerInputError("ledger amounts exceed the supported precision")
 
 
 def append_entry(
@@ -108,9 +110,7 @@ def append_entry(
             raise IdempotencyConflict("the ledger idempotency key belongs to another event")
         return existing
 
-        session.execute(
-            text("SELECT pg_advisory_xact_lock(:key)"), {"key": _LEDGER_LOCK_KEY}
-        )
+    session.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": _LEDGER_LOCK_KEY})
     existing = session.execute(
         select(LedgerEntry).where(LedgerEntry.idempotency_key == idempotency_key)
     ).scalar_one_or_none()
@@ -165,12 +165,19 @@ def ensure_fund(session: Session, *, now: datetime | None = None) -> VirtualFund
         select(VirtualFund).where(VirtualFund.id == 1).with_for_update()
     ).scalar_one_or_none()
     if fund is not None:
-        allocations = session.execute(
-            select(FundAllocation).where(FundAllocation.fund_id == fund.id)
-        ).scalars().all()
+        if fund.currency != "USDT" or fund.initial_balance != Decimal("1000"):
+            raise RuntimeError("the virtual fund differs from its approved initial capital")
+        allocations = (
+            session.execute(select(FundAllocation).where(FundAllocation.fund_id == fund.id))
+            .scalars()
+            .all()
+        )
         actual = {allocation.market_type: allocation.initial_balance for allocation in allocations}
-        if actual != {"spot": Decimal("600.000000000000"), "futures": Decimal("400.000000000000")}:
-            raise RuntimeError("the initial virtual-fund allocations do not match the approved plan")
+        expected = {"spot": Decimal("600.000000000000"), "futures": Decimal("400.000000000000")}
+        if actual != expected:
+            raise RuntimeError(
+                "the initial virtual-fund allocations do not match the approved plan"
+            )
         return fund
 
     moment = as_utc(now) if now else utcnow()
@@ -218,13 +225,25 @@ def verify_ledger(session: Session) -> LedgerVerification:
     for expected, row in enumerate(rows, start=1):
         if row.seq != expected:
             return LedgerVerification(
-                False, expected - 1, first_seq, last_seq, previous, row.seq,
-                "sequence_gap", round((time.perf_counter() - started) * 1000, 1)
+                False,
+                expected - 1,
+                first_seq,
+                last_seq,
+                previous,
+                row.seq,
+                "sequence_gap",
+                round((time.perf_counter() - started) * 1000, 1),
             )
         if row.prev_hash != previous:
             return LedgerVerification(
-                False, expected - 1, first_seq, last_seq, previous, row.seq,
-                "prev_hash_mismatch", round((time.perf_counter() - started) * 1000, 1)
+                False,
+                expected - 1,
+                first_seq,
+                last_seq,
+                previous,
+                row.seq,
+                "prev_hash_mismatch",
+                round((time.perf_counter() - started) * 1000, 1),
             )
         expected_hash = _canonical_hash(
             seq=row.seq,
@@ -239,8 +258,14 @@ def verify_ledger(session: Session) -> LedgerVerification:
         )
         if expected_hash != row.hash:
             return LedgerVerification(
-                False, expected - 1, first_seq, last_seq, previous, row.seq,
-                "hash_mismatch", round((time.perf_counter() - started) * 1000, 1)
+                False,
+                expected - 1,
+                first_seq,
+                last_seq,
+                previous,
+                row.seq,
+                "hash_mismatch",
+                round((time.perf_counter() - started) * 1000, 1),
             )
         previous = row.hash
     return LedgerVerification(

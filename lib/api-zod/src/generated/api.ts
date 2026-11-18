@@ -166,3 +166,149 @@ export const VerifyAuditTrailResponse = zod.object({
 })
 
 
+/**
+ * @summary Latest public OKX spot and futures scanner data
+ */
+export const GetMarketScannerResponse = zod.object({
+  "provider": zod.string(),
+  "scannedAt": zod.coerce.date(),
+  "rows": zod.array(zod.object({
+  "symbol": zod.string(),
+  "marketType": zod.enum(['spot', 'futures']),
+  "status": zod.enum(['fresh', 'stale', 'unavailable']),
+  "observedAt": zod.union([zod.coerce.date(),zod.null()]),
+  "exchangeAt": zod.union([zod.coerce.date(),zod.null()]),
+  "ageSeconds": zod.union([zod.number().int(),zod.null()]),
+  "lastPrice": zod.union([zod.number(),zod.string(),zod.null()]),
+  "changePct24H": zod.union([zod.number(),zod.string(),zod.null()]),
+  "volume24H": zod.union([zod.number(),zod.string(),zod.null()]),
+  "bid": zod.union([zod.number(),zod.string(),zod.null()]),
+  "ask": zod.union([zod.number(),zod.string(),zod.null()]),
+  "spreadPct": zod.union([zod.number(),zod.string(),zod.null()]),
+  "fundingRate": zod.union([zod.number(),zod.string(),zod.null()]),
+  "nextFundingAt": zod.union([zod.coerce.date(),zod.null()]),
+  "instrument": zod.union([zod.object({
+  "instrumentId": zod.string(),
+  "minSize": zod.union([zod.number(),zod.string(),zod.null()]),
+  "lotSize": zod.union([zod.number(),zod.string(),zod.null()]),
+  "tickSize": zod.union([zod.number(),zod.string(),zod.null()]),
+  "contractValue": zod.union([zod.number(),zod.string(),zod.null()]),
+  "maxLeverage": zod.union([zod.number(),zod.string(),zod.null()])
+}),zod.null()]),
+  "indicators": zod.union([zod.object({
+  "trend": zod.string(),
+  "trend15M": zod.string(),
+  "rsi": zod.union([zod.number(),zod.null()]),
+  "rsiState": zod.string(),
+  "macdDirection": zod.string(),
+  "macdDirection15M": zod.string(),
+  "volumeStrength": zod.string(),
+  "volatilityPct": zod.union([zod.number(),zod.null()]),
+  "candleBehavior": zod.string(),
+  "screeningState": zod.enum(['watch', 'no_alignment', 'unavailable'])
+}),zod.null()]),
+  "candles": zod.array(zod.object({
+  "openedAt": zod.coerce.date(),
+  "open": zod.union([zod.number(),zod.string()]),
+  "high": zod.union([zod.number(),zod.string()]),
+  "low": zod.union([zod.number(),zod.string()]),
+  "close": zod.union([zod.number(),zod.string()]),
+  "volume": zod.union([zod.number(),zod.string()]),
+  "quoteVolume": zod.union([zod.number(),zod.string()]),
+  "complete": zod.boolean()
+})),
+  "candles15M": zod.array(zod.object({
+  "openedAt": zod.coerce.date(),
+  "open": zod.union([zod.number(),zod.string()]),
+  "high": zod.union([zod.number(),zod.string()]),
+  "low": zod.union([zod.number(),zod.string()]),
+  "close": zod.union([zod.number(),zod.string()]),
+  "volume": zod.union([zod.number(),zod.string()]),
+  "quoteVolume": zod.union([zod.number(),zod.string()]),
+  "complete": zod.boolean()
+})),
+  "bids": zod.array(zod.object({
+  "price": zod.union([zod.number(),zod.string()]),
+  "size": zod.union([zod.number(),zod.string()])
+})),
+  "asks": zod.array(zod.object({
+  "price": zod.union([zod.number(),zod.string()]),
+  "size": zod.union([zod.number(),zod.string()])
+})),
+  "detail": zod.union([zod.string(),zod.null()])
+}))
+})
+
+
+/**
+ * @summary Virtual fund balances and ledger status
+ */
+export const GetPortfolioSummaryResponse = zod.object({
+  "fundId": zod.number().int(),
+  "currency": zod.string(),
+  "initialBalance": zod.union([zod.number(),zod.string()]),
+  "equity": zod.union([zod.number(),zod.string()]),
+  "allocations": zod.array(zod.object({
+  "marketType": zod.enum(['spot', 'futures']),
+  "initialBalance": zod.union([zod.number(),zod.string()]),
+  "balance": zod.union([zod.number(),zod.string()]),
+  "collateral": zod.union([zod.number(),zod.string()]),
+  "availableBalance": zod.union([zod.number(),zod.string()]),
+  "exposure": zod.union([zod.number(),zod.string()])
+})),
+  "positions": zod.array(zod.record(zod.string(), zod.unknown())),
+  "bots": zod.array(zod.record(zod.string(), zod.unknown())),
+  "fees": zod.union([zod.number(),zod.string()]),
+  "funding": zod.union([zod.number(),zod.string()]),
+  "realizedPnl": zod.union([zod.number(),zod.string()]),
+  "unrealizedPnl": zod.union([zod.number(),zod.string()]),
+  "ledgerVerified": zod.boolean(),
+  "ledgerEvents": zod.number().int(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Most recent virtual-fund ledger entries
+ */
+export const listPortfolioLedgerQueryLimitDefault = 20;
+export const listPortfolioLedgerQueryLimitMax = 100;
+
+
+
+export const ListPortfolioLedgerQueryParams = zod.object({
+  "limit": zod.coerce.number().int().min(1).max(listPortfolioLedgerQueryLimitMax).default(listPortfolioLedgerQueryLimitDefault)
+})
+
+export const ListPortfolioLedgerResponse = zod.object({
+  "events": zod.array(zod.object({
+  "seq": zod.number().int(),
+  "occurredAt": zod.coerce.date(),
+  "eventType": zod.string(),
+  "marketType": zod.enum(['spot', 'futures']),
+  "amount": zod.union([zod.number(),zod.string()]),
+  "idempotencyKey": zod.string(),
+  "reference": zod.union([zod.string(),zod.null()]),
+  "details": zod.record(zod.string(), zod.unknown()),
+  "hash": zod.string()
+})),
+  "total": zod.number().int()
+})
+
+
+/**
+ * @summary Verify the complete virtual-fund ledger chain
+ */
+export const VerifyPortfolioLedgerResponse = zod.object({
+  "ok": zod.boolean(),
+  "eventsChecked": zod.number().int(),
+  "firstSeq": zod.union([zod.number().int(),zod.null()]),
+  "lastSeq": zod.union([zod.number().int(),zod.null()]),
+  "headHash": zod.union([zod.string(),zod.null()]),
+  "firstBreakSeq": zod.union([zod.number().int(),zod.null()]),
+  "reason": zod.union([zod.string(),zod.null()]),
+  "durationMs": zod.number(),
+  "verifiedAt": zod.coerce.date()
+})
+
+

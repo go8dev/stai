@@ -6,6 +6,7 @@ import math
 
 from fastapi import APIRouter, Depends
 
+from stai.analytics.schemas.market_data import Candle
 from stai.analytics.utils.indicators import (
     classify_macd,
     classify_rsi,
@@ -15,13 +16,17 @@ from stai.analytics.utils.indicators import (
     detect_strong_momentum,
     detect_trend,
 )
+from stai.core.errors import ErrorResponse
 from stai.core.runtime import Runtime, get_runtime
 from stai.core.time import utcnow
 from stai.marketdata.schemas import MarketIndicators, MarketScannerResponse, MarketScannerRow
 from stai.marketdata.service import persist_market_rows
-from stai.analytics.schemas.market_data import Candle
 
-router = APIRouter(prefix="/api", tags=["market-data"])
+router = APIRouter(
+    prefix="/api",
+    tags=["market-data"],
+    responses={401: {"model": ErrorResponse, "description": "Owner session required."}},
+)
 
 
 def _safe(value: object) -> float | None:
@@ -33,6 +38,7 @@ def _safe(value: object) -> float | None:
 
 
 def _indicator_snapshot(candles: list[object]) -> tuple[object, object] | None:
+    candles = [candle for candle in candles if candle.complete]
     if len(candles) < 30:
         return None
     converted = [
@@ -82,10 +88,7 @@ def _enrich(row: MarketScannerRow) -> MarketScannerRow:
         macd = classify_macd(_safe(h1_row.get("macd_hist")))
         macd_15m = classify_macd(_safe(m15_row.get("macd_hist")))
         volume = classify_volume(_safe(h1_row.get("volume_ratio")))
-        candle = (
-            detect_rejection_candle(h1_row)
-            or detect_strong_momentum(h1_row)
-        )
+        candle = detect_rejection_candle(h1_row) or detect_strong_momentum(h1_row)
         volatility = None
         closes = [_safe(item.get("close")) for _, item in h1_tail.iterrows()]
         highs = [_safe(item.get("high")) for _, item in h1_tail.iterrows()]
@@ -134,6 +137,7 @@ def _enrich(row: MarketScannerRow) -> MarketScannerRow:
     operation_id="getMarketScanner",
     summary="Latest public OKX spot and futures scanner data",
     response_model=MarketScannerResponse,
+    response_description="Public observations with freshness and instrument rules.",
 )
 async def get_market_scanner(
     runtime: Runtime = Depends(get_runtime),

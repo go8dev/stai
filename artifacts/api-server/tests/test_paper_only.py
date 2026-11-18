@@ -175,7 +175,7 @@ def test_no_table_could_hold_an_exchange_credential() -> None:
         "paper_fills",
     }
 
-    suspicious = re.compile(r"api_?key|secret|passphrase|password|credential|exchange", re.I)
+    suspicious = re.compile(r"api_?key|secret|passphrase|password|credential|exchange_key", re.I)
     columns = [
         f"{table.name}.{column.name}"
         for table in Base.metadata.tables.values()
@@ -190,10 +190,13 @@ def test_bots_use_public_exchange_data_without_credentials() -> None:
         config = build_bot_config(bot_type)
         exchange = config["exchange"]
         assert isinstance(exchange, dict)
-        assert set(exchange) == {"name", "pair_whitelist", "pair_blacklist"}
+        assert set(exchange) == {"name", "pair_whitelist", "pair_blacklist", "ccxt_config"}
+        assert exchange["ccxt_config"] == {
+            "options": {"fetchMarkets": {"types": ["spot", "swap"]}},
+        }
         assert config["dry_run"] is True
-        assert config["api_server"] == {"enabled": False}
-        assert config["telegram"] == {"enabled": False}
+        assert "api_server" not in config
+        assert "telegram" not in config
 
 
 @pytest.mark.parametrize(

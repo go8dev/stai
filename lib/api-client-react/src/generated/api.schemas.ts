@@ -5,6 +5,23 @@
  * STAI API contract. Generated from the Python backend; do not edit by hand.
  * OpenAPI spec version: 0.1.0
  */
+export type AllocationBalanceMarketType = typeof AllocationBalanceMarketType[keyof typeof AllocationBalanceMarketType];
+
+
+export const AllocationBalanceMarketType = {
+  spot: 'spot',
+  futures: 'futures',
+} as const;
+
+export interface AllocationBalance {
+  marketType: AllocationBalanceMarketType;
+  initialBalance: number | string;
+  balance: number | string;
+  collateral: number | string;
+  availableBalance: number | string;
+  exposure: number | string;
+}
+
 export type AuditBreakReason = typeof AuditBreakReason[keyof typeof AuditBreakReason];
 
 
@@ -92,10 +109,26 @@ export interface BackendCheck {
   pythonVersion: string;
 }
 
+export interface BookLevel {
+  price: number | string;
+  size: number | string;
+}
+
 export interface BuildInfo {
   version: string;
   commit: string | null;
   startedAt: string;
+}
+
+export interface CandlePoint {
+  openedAt: string;
+  open: number | string;
+  high: number | string;
+  low: number | string;
+  close: number | string;
+  volume: number | string;
+  quoteVolume: number | string;
+  complete: boolean;
 }
 
 export interface CsrfToken {
@@ -129,6 +162,54 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface InstrumentRules {
+  instrumentId: string;
+  minSize: number | string | null;
+  lotSize: number | string | null;
+  tickSize: number | string | null;
+  contractValue: number | string | null;
+  maxLeverage: number | string | null;
+}
+
+export type LedgerEventMarketType = typeof LedgerEventMarketType[keyof typeof LedgerEventMarketType];
+
+
+export const LedgerEventMarketType = {
+  spot: 'spot',
+  futures: 'futures',
+} as const;
+
+export type LedgerEventDetails = { [key: string]: unknown };
+
+export interface LedgerEvent {
+  seq: number;
+  occurredAt: string;
+  eventType: string;
+  marketType: LedgerEventMarketType;
+  amount: number | string;
+  idempotencyKey: string;
+  reference: string | null;
+  details: LedgerEventDetails;
+  hash: string;
+}
+
+export interface LedgerList {
+  events: LedgerEvent[];
+  total: number;
+}
+
+export interface LedgerVerification {
+  ok: boolean;
+  eventsChecked: number;
+  firstSeq: number | null;
+  lastSeq: number | null;
+  headHash: string | null;
+  firstBreakSeq: number | null;
+  reason: string | null;
+  durationMs: number;
+  verifiedAt: string;
+}
+
 export interface MarketDataCheck {
   status: CheckStatus;
   provider: string;
@@ -138,6 +219,96 @@ export interface MarketDataCheck {
   clockSkewMs: number | null;
   checkedAt: string;
   detail: string | null;
+}
+
+export type MarketIndicatorsScreeningState = typeof MarketIndicatorsScreeningState[keyof typeof MarketIndicatorsScreeningState];
+
+
+export const MarketIndicatorsScreeningState = {
+  watch: 'watch',
+  no_alignment: 'no_alignment',
+  unavailable: 'unavailable',
+} as const;
+
+export interface MarketIndicators {
+  trend: string;
+  trend15M: string;
+  rsi: number | null;
+  rsiState: string;
+  macdDirection: string;
+  macdDirection15M: string;
+  volumeStrength: string;
+  volatilityPct: number | null;
+  candleBehavior: string;
+  screeningState: MarketIndicatorsScreeningState;
+}
+
+export type MarketScannerRowMarketType = typeof MarketScannerRowMarketType[keyof typeof MarketScannerRowMarketType];
+
+
+export const MarketScannerRowMarketType = {
+  spot: 'spot',
+  futures: 'futures',
+} as const;
+
+export type MarketScannerRowStatus = typeof MarketScannerRowStatus[keyof typeof MarketScannerRowStatus];
+
+
+export const MarketScannerRowStatus = {
+  fresh: 'fresh',
+  stale: 'stale',
+  unavailable: 'unavailable',
+} as const;
+
+export interface MarketScannerRow {
+  symbol: string;
+  marketType: MarketScannerRowMarketType;
+  status: MarketScannerRowStatus;
+  observedAt: string | null;
+  exchangeAt: string | null;
+  ageSeconds: number | null;
+  lastPrice: number | string | null;
+  changePct24H: number | string | null;
+  volume24H: number | string | null;
+  bid: number | string | null;
+  ask: number | string | null;
+  spreadPct: number | string | null;
+  fundingRate: number | string | null;
+  nextFundingAt: string | null;
+  instrument: InstrumentRules | null;
+  indicators: MarketIndicators | null;
+  candles: CandlePoint[];
+  candles15M: CandlePoint[];
+  bids: BookLevel[];
+  asks: BookLevel[];
+  detail: string | null;
+}
+
+export interface MarketScannerResponse {
+  provider: string;
+  scannedAt: string;
+  rows: MarketScannerRow[];
+}
+
+export type PortfolioSummaryPositionsItem = { [key: string]: unknown };
+
+export type PortfolioSummaryBotsItem = { [key: string]: unknown };
+
+export interface PortfolioSummary {
+  fundId: number;
+  currency: string;
+  initialBalance: number | string;
+  equity: number | string;
+  allocations: AllocationBalance[];
+  positions: PortfolioSummaryPositionsItem[];
+  bots: PortfolioSummaryBotsItem[];
+  fees: number | string;
+  funding: number | string;
+  realizedPnl: number | string;
+  unrealizedPnl: number | string;
+  ledgerVerified: boolean;
+  ledgerEvents: number;
+  updatedAt: string;
 }
 
 /**
@@ -183,6 +354,14 @@ error?: string;
 };
 
 export type ListAuditEventsParams = {
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: number;
+};
+
+export type ListPortfolioLedgerParams = {
 /**
  * @minimum 1
  * @maximum 100

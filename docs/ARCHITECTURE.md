@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes what Phase 1 built and how its parts work together. The approved
+This document describes the foundation and Phase 2. The approved
 plan for all seven phases, with the reasons for each choice, is
 [STAI_PHASE1_PLAN.md](STAI_PHASE1_PLAN.md). Where this document and the code disagree,
 the code is right and this document needs correcting.
@@ -11,16 +11,35 @@ the code is right and this document needs correcting.
 | --- | --- | --- |
 | Web app | A static React site. It holds no secrets and no data of its own. It calls the backend under `/api` on the same address. | `artifacts/stai/` |
 | Backend | One Python process: FastAPI served by Uvicorn. The only part that talks to the database and to outside services. | `artifacts/api-server/stai/` |
-| Database | PostgreSQL. Phase 1 uses three tables: the owner's user record, sign-in sessions and the audit trail. | [DATABASE.md](DATABASE.md) |
+| Database | PostgreSQL: identity, sessions, audit, virtual fund, ledger, market observations, paper fills/positions, permits and engine recovery snapshots. | [DATABASE.md](DATABASE.md) |
 | Replit sign-in | The outside service that proves who is signing in (OpenID Connect). | `https://replit.com/oidc` |
-| OKX public API | Outside market data, called without keys. Phase 1 asks it only for the server time. | `https://www.okx.com` |
+| OKX public API | Public time, candles, ticker, order book, instrument rules and swap funding, without credentials. | `https://www.okx.com` |
+| Paper Worker | Separate Python process, two private unmodified Freqtrade dry-run processes; no publicly routed worker or bot API. | [PHASE2_OPERATIONS.md](PHASE2_OPERATIONS.md) |
 
 Replit's proxy sends every path under `/api` to the backend and everything else to the web
 app. In development the web app is served by Vite; when published it is a folder of static
 files, and any path that is not a file returns `index.html`.
 
-Not built yet, and not running: the worker process, the two Freqtrade bots, the
-market-data service and the AI committee. They arrive in Phases 2 and 3.
+The worker and bots are configured for the workspace. Continuous production operation
+defaults to disabled pending the owner's restart check. The strategy refuses all entries
+until Phase 4 connects the owner approval workflow. The AI committee remains Phase 3.
+
+### Phase 2 data path
+
+Public OKX adapter → timestamp validation → copied analytics and persisted snapshots →
+Market Scanner. PostgreSQL fund/ledger and engine states → Portfolio.
+The private worker scans every 15 minutes, reconciles about every 5 seconds and saves
+checksummed engine snapshots in PostgreSQL. Completed orders are imported only with
+consumed owner-permit and timely book evidence, in the same transaction as the snapshot.
+The database-only hash-chain choice and its limitations are recorded in the plan.
+
+Additional protected GET routes: `/api/market/scanner`, `/api/portfolio/summary`,
+`/api/portfolio/ledger` and `/api/portfolio/ledger/verify`. All use the same owner gate,
+generated API client and error envelope. No Phase 2 trading mutation route exists.
+See [Phase 2 operation](PHASE2_OPERATIONS.md) for fee, recovery and reconciliation rules.
+
+The detailed foundation walkthrough below describes the Phase 1 baseline; references
+to Phase 2 as future work in that historical walkthrough are superseded by this section.
 
 ## How the backend handles a request
 

@@ -10,11 +10,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from stai.core.time import as_utc, utcnow
-from stai.db.models import PaperPosition, TradingPermit
+from stai.db.models import BotState, MarketSnapshot, PaperPosition, TradingPermit
+from stai.trading.accounting import accounting_reconciles
+from stai.trading.ledger import verify_ledger
 
 
 class PermitDenied(RuntimeError):
@@ -42,6 +44,7 @@ def consume_permit(
 ) -> TradingPermit:
     """Atomically consume a permit only when every approved term still matches."""
     moment = as_utc(now) if now is not None else utcnow()
+    session.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": 0x5354_4149_0005})
     if any(
         not isinstance(value, Decimal) or not value.is_finite()
         for value in (
@@ -54,9 +57,7 @@ def consume_permit(
     ):
         raise PermitDenied("entry values are invalid")
     permit = session.execute(
-        select(TradingPermit)
-        .where(TradingPermit.id == request.permit_id)
-        .with_for_update()
+        select(TradingPermit).where(TradingPermit.id == request.permit_id).with_for_update()
     ).scalar_one_or_none()
     if permit is None:
         raise PermitDenied("no owner approval matches this entry")
@@ -70,8 +71,8 @@ def consume_permit(
         or permit.side != request.side
     ):
         raise PermitDenied("entry differs from the approved instrument or side")
-    if request.notional <= 0 or request.notional > permit.max_notional:
-        raise PermitDenied("entry exceeds the approved amount")
+    if request.notional <= 0 or request.notional != permit.max_notional:
+        raise PermitDenied("entry differs from the exact approved amount")
     if request.price <= 0:
         raise PermitDenied("entry price is invalid")
     drift_pct = abs(request.price - permit.approved_price) / permit.approved_price * 100
@@ -90,9 +91,7 @@ def consume_permit(
     if request.market_type == "futures" and not Decimal("1") <= request.leverage <= Decimal("2"):
         raise PermitDenied("futures leverage must be between 1x and 2x")
     open_positions = session.execute(
-        select(func.count())
-        .select_from(PaperPosition)
-        .where(PaperPosition.state == "open")
+        select(func.count()).select_from(PaperPosition).where(PaperPosition.state == "open")
     ).scalar_one()
     if open_positions >= 3:
         raise PermitDenied("the three-position portfolio limit has been reached")
@@ -100,6 +99,30 @@ def consume_permit(
         raise PermitDenied("long stop and target must bracket the approved entry price")
     if request.side == "short" and not request.target_price < request.price < request.stop_price:
         raise PermitDenied("short stop and target must bracket the approved entry price")
+    if not verify_ledger(session).ok or not accounting_reconciles(session):
+        raise PermitDenied("ledger integrity is not clear")
+    bot = session.get(BotState, request.market_type)
+    if (
+        bot is None
+        or not 0 <= (moment - bot.saved_at).total_seconds() <= 960
+        or bot.state.get("status") != "running"
+        or bot.state.get("reconciliation") != "clear"
+    ):
+        raise PermitDenied("paper engine reconciliation is not current and clear")
+    symbol = request.instrument.split(":", maxsplit=1)[0]
+    quote = session.execute(
+        select(MarketSnapshot)
+        .where(MarketSnapshot.symbol == symbol, MarketSnapshot.market_type == request.market_type)
+        .order_by(MarketSnapshot.observed_at.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+    if (
+        quote is None
+        or quote.status != "fresh"
+        or quote.exchange_at is None
+        or not 0 <= (moment - quote.exchange_at).total_seconds() <= 60
+    ):
+        raise PermitDenied("market data is not current")
     permit.consumed = True
     permit.consumed_at = moment
     session.flush()

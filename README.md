@@ -9,8 +9,16 @@ exchange API keys. Tests fail if any of those is added.
 
 ## Status
 
-Phase 1 of 7 (foundation) is built. It is not published yet: publishing is the owner's
-step, described in the [publish checklist](#publish-checklist) below.
+Phase 2 of 7 (paper engine) is implemented in the workspace. Phase 1 has been published
+by the owner: the supplied production screenshots confirm sign-in, healthy services and
+an intact audit chain. Production restart check 7 is still unconfirmed. Phase 2 has not
+been published or applied to production.
+
+Phase 2 adds the public OKX Scanner, persistent 1,000 USDT fund, Decimal ledger, Portfolio,
+two private Freqtrade dry-run bots and a background worker. The strategy emits no entry
+signals and refuses every entry. The exact-parameter, single-use permit validator is
+tested separately; Phase 4 connects the owner's approval flow. No trades or pilot start
+automatically.
 
 What exists:
 
@@ -18,8 +26,8 @@ What exists:
   Any other account is refused and shown its own account ID. Everything except the health
   check and the sign-in routes is closed to signed-out visitors.
 - The dark STAI interface with navigation to the ten modules of the specification and a
-  PAPER label on every screen. Each module screen says that it is not built yet and names
-  the phase that delivers it.
+  PAPER label on every screen. Scanner and Portfolio use real data; the other module
+  screens name the later phase that delivers them.
 - A System Status screen with live checks from the server: backend, database, OKX public
   data, the audit trail, the build, and the time in UTC and Asia/Manila.
 - A PostgreSQL structure created by migrations, and an append-only audit trail of
@@ -27,16 +35,25 @@ What exists:
 - The Smart Trader analytics (indicators, BTC regime, market snapshot, setup scoring),
   ported by copying, with their 191 tests passing.
 
-What does not exist yet: the trading engine, the market-data service, the virtual fund
-and its ledger (Phase 2), the AI committee (Phase 3), proposals, the risk engine and
+What does not exist yet: the AI committee (Phase 3), proposals, the risk engine and
 emails (Phase 4), and the content of the dashboards (Phase 5). No screen shows sample or
 made-up numbers.
 
 ## Run and check
 
-In the Replit workspace two workflows start the services: `artifacts/api-server: API
-Server` (the Python backend, under `/api`) and `artifacts/stai: web` (the web app, at
-`/`). All commands below run from the repository root.
+Three STAI workflows run in the workspace: `artifacts/api-server: API Server`,
+`artifacts/stai: web` and `artifacts/api-server: Paper Worker`. The worker's health port
+8099 has no public route; neither bot exposes an API. All commands below run from the root.
+
+The production worker starts **disabled** by default. Only after the owner confirms
+check 7, reviews the Phase 2 schema changes and authorizes continuous operation should its
+production command gain `--enable-paper-bots`. That flag still cannot enable trading:
+entry signals and the strategy gate remain closed until Phase 4.
+
+The worker scans every 15 minutes and reconciles/snapshots every 5 seconds. A shutdown
+stores final checksummed SQLite snapshots in PostgreSQL. Unknown fills, missing timely
+book evidence, mismatched balances/positions or broken ledger integrity block reconciliation.
+See [Phase 2 operation](docs/PHASE2_OPERATIONS.md) before running it.
 
 | Command | What it does |
 | --- | --- |

@@ -19,6 +19,8 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { AppShell } from '@/components/app-shell';
 import NotFound from '@/pages/not-found';
 import SystemStatusPage from '@/pages/system-status';
+import MarketScannerPage from '@/pages/market-scanner';
+import PortfolioPage from '@/pages/portfolio';
 import { NotBuiltPage } from '@/pages/not-built';
 import { LoadingScreen, SignInScreen } from '@/pages/sign-in';
 import { MODULES, SYSTEM_STATUS_PATH } from '@/lib/modules';
@@ -57,6 +59,8 @@ function Router() {
           <Redirect to={SYSTEM_STATUS_PATH} replace />
         </Route>
         <Route path={SYSTEM_STATUS_PATH} component={SystemStatusPage} />
+        <Route path="/market-scanner" component={MarketScannerPage} />
+        <Route path="/portfolio" component={PortfolioPage} />
         {MODULES.map((m) => (
           <Route key={m.id} path={m.path}>
             <NotBuiltPage module={m} />

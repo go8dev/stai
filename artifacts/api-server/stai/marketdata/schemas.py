@@ -96,6 +96,9 @@ class AllocationBalance(ApiModel):
     market_type: MarketType
     initial_balance: Decimal
     balance: Decimal
+    collateral: Decimal
+    available_balance: Decimal
+    exposure: Decimal
 
 
 class PortfolioSummary(ApiModel):

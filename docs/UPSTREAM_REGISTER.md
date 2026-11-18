@@ -11,8 +11,8 @@ Versions and licences were read from the installed packages' own metadata on
 ## How versions are fixed
 
 - **Python.** `pyproject.toml` pins each direct dependency to one exact version, and
-  `uv.lock` fixes all 41 packages: 34 run on the published machine and 7 more are for the
-  checks only. `uv sync --frozen` installs exactly that set.
+  `uv.lock` fixes the runtime and checks-only dependency sets. `uv sync --frozen`
+  installs exactly that set, including the Phase 2 engine dependencies.
 - **TypeScript.** `pnpm-lock.yaml` fixes every package. Versions shared by several
   packages are in the catalog in `pnpm-workspace.yaml`. A release must be at least a day
   old before pnpm installs it (`minimumReleaseAge`), except Replit's own packages.
@@ -144,16 +144,20 @@ so the browser fetches nothing from a font service or any other third party.
 | Replit PostgreSQL | Everything STAI stores. | `DATABASE_URL`, provided by Replit, separately for development and for the published app. |
 | Replit hosting | Reserved VM for the backend, static hosting for the web app. | None in the project. |
 
-## Planned, not installed
+## Phase 2 additions and later dependencies
 
-Nothing in this section is declared, locked or installed in Phase 1. Versions and
-licences are the ones recorded in the plan from the runtime checks made before Phase 1.
+Freqtrade 2026.10, its matching client and CCXT 4.5.93 are now installed and locked.
+Freqtrade remains unmodified and is launched only as a separate dry-run process.
+STAI's strategy subclass, public-data adapter, ledger, supervisor and snapshot reader
+are project code. TA-Lib is an engine dependency (the installed package includes its
+BSD licence file). The remaining AI and email entries below are still future work.
+No OpenAI call is made in Phase 2, and the supplied key remains unused.
 
 | Package | Version | Licence | Arrives in |
 | --- | --- | --- | --- |
-| Freqtrade | 2026.10 | GPL-3.0 | Phase 2 |
-| CCXT | 4.5.93 | MIT | Phase 2 |
-| TA-Lib | 0.8.3 | To be recorded when installed | Phase 2 |
+| Freqtrade / freqtrade-client | 2026.10 | GPLv3 | Installed, Phase 2 |
+| CCXT | 4.5.93 | MIT | Installed, Phase 2 |
+| TA-Lib | 0.8.3 | BSD | Installed, Phase 2 |
 | TradingAgents | 0.7.1, from its GitHub release tag | Apache-2.0 | Phase 3 |
 | LangGraph | 1.2.22 | MIT | Phase 3 |
 | OpenAI library | 3.52.0 | To be recorded when installed | Phase 3 |
@@ -162,10 +166,9 @@ licences are the ones recorded in the plan from the runtime checks made before P
 
 **Version constraints.** `pyproject.toml` lists 142 exact versions under
 `constraint-dependencies`. They are the set that was resolved for the Phase 1 backend
-together with Freqtrade 2026.10 and TradingAgents 0.7.1. The 41 packages locked today are
-among them with identical versions. The other 101 are not installed. The list exists so
-that Phases 2 and 3 can add the two engines without moving a version that is already in
-use.
+together with Freqtrade 2026.10 and TradingAgents 0.7.1. Phase 2 has now installed the
+paper-engine subset. The current `uv.lock` is authoritative for what is installed;
+the constraints reserve compatible versions for Phase 3 without installing its AI engine.
 
 **Licence note from the plan.** GPL-3.0 places no obligation on personal use. The
 approval gate of Phase 2 plugs into Freqtrade, so the GPL would apply to it if STAI were
@@ -183,8 +186,8 @@ ever distributed. Distribution or commercial use needs a legal review first.
 4. **Migrations run in development only.** Replit's Publish step applies structure to the
    published database and carries no triggers, so append-only is enforced in the
    application with a hash chain. See [DATABASE.md](DATABASE.md).
-5. **No exchange library in Phase 1.** The OKX check is one public request sent with
-   httpx. CCXT and Freqtrade arrive in Phase 2.
+5. **Public data only.** Phase 2's scanner uses allowlisted public httpx GETs.
+   Freqtrade/CCXT run only in fixed dry-run bots with no exchange credentials.
 6. **Fonts are bundled** through the Fontsource packages instead of a font service.
 7. **The logo is used as supplied.** See [Brand files](#brand-files).
 8. **The ported analytics are exempt from formatting and most style rules,** so each file

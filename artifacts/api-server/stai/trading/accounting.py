@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from decimal import Decimal, ROUND_DOWN
+from decimal import ROUND_DOWN, Decimal
 from typing import Literal
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from stai.core.time import as_utc, utcnow
@@ -94,9 +94,7 @@ def estimate_taker_fill(
     mid = (best_bid + best_ask) / 2
     spread_pct = (best_ask - best_bid) / mid * 100
     best_side = best_ask if side == "long" else best_bid
-    slippage_pct = (
-        abs(price - best_side) / best_side * 100 if best_side != 0 else Decimal("0")
-    )
+    slippage_pct = abs(price - best_side) / best_side * 100 if best_side != 0 else Decimal("0")
     return FillEstimate(
         side=side,
         quantity=quantity,
@@ -137,6 +135,15 @@ def record_fill(
     """Record one actual Freqtrade dry-run fill and idempotent ledger movements."""
     if not fill_id or len(fill_id) > 128 or not trade_id or len(trade_id) > 64:
         raise ValueError("fill and trade identifiers are required")
+    if (
+        market_type not in {"spot", "futures"}
+        or side not in {"long", "short"}
+        or fill_type not in {"entry", "exit"}
+        or liquidity not in {"maker", "taker"}
+    ):
+        raise ValueError("invalid fill classification")
+    # Serialize fill imports and their cash movements as one transaction.
+    session.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": 0x5354_4149_0006})
     if market_type == "spot" and (side != "long" or leverage != Decimal("1")):
         raise ValueError("spot paper fills must be long-only and unleveraged")
     if market_type == "futures" and not Decimal("1") <= leverage <= Decimal("2"):
@@ -153,6 +160,9 @@ def record_fill(
         if name in {"spread_pct", "slippage_pct"} and value < 0:
             raise ValueError(f"{name} cannot be negative")
     rate = fee_schedule.rate(market_type, liquidity)
+    _require_decimal(rate, "fee rate")
+    if rate < 0:
+        raise ValueError("fee rate cannot be negative")
     moment = as_utc(occurred_at) if occurred_at else utcnow()
     fee = (quantity * fill_price * rate).quantize(Decimal("0.000000000001"))
     prior = session.execute(
@@ -172,8 +182,7 @@ def record_fill(
             and prior.fee_rate == rate
             and prior.spread_pct == spread_pct
             and prior.slippage_pct == slippage_pct
-            and prior.details
-            == {"liquidity": liquidity, "leverage": format(leverage, "f")}
+            and prior.details == {"liquidity": liquidity, "leverage": format(leverage, "f")}
         )
         if not expected:
             raise FillConflict("the fill ID was already recorded with different values")
@@ -239,6 +248,7 @@ def record_fill(
             position.state = "closed"
             position.closed_at = moment
 
+    session.flush()  # Persist a new position before its fill's foreign key is inserted.
     fill = PaperFill(
         fill_id=fill_id,
         trade_id=trade_id,
@@ -289,7 +299,7 @@ def record_fill(
             session,
             event_type="fill",
             market_type=market_type,
-            amount=cash_delta,
+            amount=cash_delta.quantize(Decimal("1e-12")),
             idempotency_key=f"fill:{fill_id}:cash",
             reference=trade_id,
             details={"instrument": instrument, "fillType": fill_type},
@@ -300,7 +310,7 @@ def record_fill(
             session,
             event_type="realized_pnl",
             market_type=market_type,
-            amount=pnl,
+            amount=pnl.quantize(Decimal("1e-12")),
             idempotency_key=f"fill:{fill_id}:pnl",
             reference=trade_id,
             details={"instrument": instrument},
@@ -337,15 +347,13 @@ def record_funding(
         raise ValueError("funding event ID is required")
     _require_decimal(amount, "funding amount")
     position = session.execute(
-        select(PaperPosition).where(PaperPosition.trade_id == trade_id)
+        select(PaperPosition).where(PaperPosition.trade_id == trade_id).with_for_update()
     ).scalar_one_or_none()
     if position is None or position.market_type != "futures":
         raise FillRejected("funding requires a known futures position")
     moment = as_utc(occurred_at) if occurred_at else utcnow()
     existing = session.execute(
-        select(LedgerEntry).where(
-            LedgerEntry.idempotency_key == f"funding:{event_id}"
-        )
+        select(LedgerEntry).where(LedgerEntry.idempotency_key == f"funding:{event_id}")
     ).scalar_one_or_none()
     if existing is not None:
         if existing.amount != amount or existing.reference != trade_id:
@@ -362,3 +370,45 @@ def record_funding(
         details={"currency": "USDT"},
         occurred_at=moment,
     )
+
+
+def accounting_reconciles(session: Session) -> bool:
+    """Cross-check the cash ledger against immutable fills and position totals."""
+    entries = session.execute(select(LedgerEntry)).scalars().all()
+    fills = session.execute(select(PaperFill)).scalars().all()
+    positions = session.execute(select(PaperPosition)).scalars().all()
+    quantum = Decimal("1e-12")
+    for market, initial in (("spot", Decimal("600")), ("futures", Decimal("400"))):
+        actual = sum((row.amount for row in entries if row.market_type == market), Decimal("0"))
+        market_fills = [row for row in fills if row.market_type == market]
+        market_positions = [row for row in positions if row.market_type == market]
+        expected = initial - sum((row.fee for row in market_fills), Decimal("0"))
+        expected += sum((row.total_funding for row in market_positions), Decimal("0"))
+        if market == "spot":
+            expected += sum(
+                (
+                    (Decimal("-1") if row.fill_type == "entry" else Decimal("1"))
+                    * (row.quantity * row.fill_price).quantize(quantum)
+                    for row in market_fills
+                ),
+                Decimal("0"),
+            )
+        else:
+            expected += sum((row.realized_pnl for row in market_positions), Decimal("0"))
+        if actual.quantize(quantum) != expected.quantize(quantum):
+            return False
+    for position in positions:
+        trade_fills = [row for row in fills if row.trade_id == position.trade_id]
+        entered = [row for row in trade_fills if row.fill_type == "entry"]
+        entry_qty = sum((row.quantity for row in entered), Decimal("0"))
+        exit_qty = sum(
+            (row.quantity for row in trade_fills if row.fill_type == "exit"), Decimal("0")
+        )
+        if entry_qty <= 0 or position.quantity != entry_qty - exit_qty:
+            return False
+        average = sum((row.quantity * row.fill_price for row in entered), Decimal("0")) / entry_qty
+        if position.entry_price.quantize(quantum) != average.quantize(quantum):
+            return False
+        if position.total_fees != sum((row.fee for row in trade_fills), Decimal("0")):
+            return False
+    return True
