@@ -1,0 +1,130 @@
+[
+  {
+    "key": "intraday-momentum",
+    "title": "Bitcoin intraday time series momentum",
+    "url": "https://onlinelibrary.wiley.com/doi/full/10.1111/fire.12290",
+    "publishedDate": "2022",
+    "tier": 1,
+    "savedEvidencePath": "research/sources/bitcoin-intraday-momentum-01-shen-wiley.md"
+  },
+  {
+    "key": "intraday-reversal",
+    "title": "Intraday return predictability in the cryptocurrency markets: Momentum, reversal, or both",
+    "url": "https://www.sciencedirect.com/science/article/pii/S1062940822000833",
+    "publishedDate": "2022",
+    "tier": 1,
+    "savedEvidencePath": "research/sources/intraday-return-predictability-02-sciencedirect.md"
+  },
+  {
+    "key": "bitcoin-technical-rules",
+    "title": "Are simple technical trading rules profitable in bitcoin markets?",
+    "url": "https://www.sciencedirect.com/science/article/pii/S1059056024003010",
+    "publishedDate": "2024-06",
+    "tier": 1,
+    "savedEvidencePath": "research/sources/bitcoin-technical-rules-costs-03-sciencedirect.md"
+  },
+  {
+    "key": "intraday-candles-2026",
+    "title": "Intraday price forecasts using candlestick patterns in cryptocurrency markets",
+    "url": "https://www.sciencedirect.com/science/article/pii/S1059056026002716",
+    "publishedDate": "2026-06",
+    "tier": 1,
+    "savedEvidencePath": "research/sources/crypto-intraday-candlestick-patterns-2026-01-sciencedirect.md"
+  },
+  {
+    "key": "crypto-recent-momentum",
+    "title": "Momentum in the Cryptocurrency Market: A Comprehensive Analysis under Realistic Assumptions",
+    "url": "https://academic.oup.com/raps/advance-article/doi/10.1093/rapstu/raag011/8914819",
+    "publishedDate": "2026-10-13",
+    "tier": 1,
+    "savedEvidencePath": "research/sources/search-snippets-current.md"
+  },
+  {
+    "key": "crypto-technical-costs",
+    "title": "Technical analysis in cryptocurrency markets: Do transaction costs and bubbles matter?",
+    "url": "https://www.sciencedirect.com/science/article/abs/pii/S1042443122000816",
+    "publishedDate": "2022-07",
+    "tier": 1,
+    "savedEvidencePath": "research/sources/search-snippets-current.md"
+  },
+  {
+    "key": "okx-api",
+    "title": "OKX V5 API documentation",
+    "url": "https://www.okx.com/docs-v5/en/",
+    "publishedDate": null,
+    "tier": 1,
+    "savedEvidencePath": "research/sources/okx-01-api-reference.md"
+  },
+  {
+    "key": "okx-funding",
+    "title": "Perpetual funding fee mechanism",
+    "url": "https://www.okx.com/en-us/help/perps-funding-fee-mechanism",
+    "publishedDate": "Updated 2026-10-28",
+    "tier": 1,
+    "savedEvidencePath": "research/sources/okx-05-funding-mechanism.md"
+  },
+  {
+    "key": "adaptive-exits",
+    "title": "Conditional Effectiveness of Volatility-Adaptive Exit Rules in Algorithmic Trading Systems: Evidence from the USD/JPY Market",
+    "url": "https://www.mdpi.com/1911-8074/19/8/554",
+    "publishedDate": "2026",
+    "tier": 1,
+    "savedEvidencePath": "research/sources/volatility-04-adaptive-exits.md"
+  },
+  {
+    "key": "fmsb-ai",
+    "title": "AI in Trading",
+    "url": "https://fmsb.com/wp-content/uploads/2026/02/FMSB-AI-in-Trading_Final_12.02.26_FINAL.pdf",
+    "publishedDate": "2026-02-12",
+    "tier": 2,
+    "savedEvidencePath": "research/sources/fmsb-03-ai-trading.pdf.md"
+  },
+  {
+    "key": "pbo",
+    "title": "The Probability of Backtest Overfitting",
+    "url": "https://www.davidhbailey.com/dhbpapers/backtest-prob.pdf",
+    "publishedDate": "2017",
+    "tier": 1,
+    "savedEvidencePath": "research/sources/bailey-01-probability-backtest-overfitting.md"
+  },
+  {
+    "key": "deflated-sharpe",
+    "title": "The Deflated Sharpe Ratio: Correcting for Selection Bias, Backtest Overfitting and Non-Normality",
+    "url": "https://www.davidhbailey.com/dhbpapers/deflated-sharpe.pdf",
+    "publishedDate": "2014",
+    "tier": 1,
+    "savedEvidencePath": "research/sources/bailey-02-deflated-sharpe-ratio.md"
+  },
+  {
+    "key": "oos-methods",
+    "title": "Backtest overfitting in the machine learning era: A comparison of out-of-sample testing methods in a synthetic controlled environment",
+    "url": "https://www.sciencedirect.com/science/article/abs/pii/S0950705124011110",
+    "publishedDate": "2024-12-03",
+    "tier": 1,
+    "savedEvidencePath": "research/sources/financial-validation-03-oos-methods-comparison.md"
+  },
+  {
+    "key": "trading-costs",
+    "title": "No pain, no gain: You should always incorporate trading costs for a bias-free evaluation of trading rule overperformance",
+    "url": "https://www.sciencedirect.com/science/article/abs/pii/S0165176522001720",
+    "publishedDate": "2022",
+    "tier": 1,
+    "savedEvidencePath": "research/sources/search-snippets-04-06.md"
+  },
+  {
+    "key": "look-ahead-convention",
+    "title": "A Look-Ahead Convention in Intraday Price-Structure Backtests",
+    "url": "https://quarkresearch.cc/papers/look-ahead-convention-intraday-price-backtests.pdf",
+    "publishedDate": null,
+    "tier": 3,
+    "savedEvidencePath": "research/sources/search-snippets-04-06.md"
+  },
+  {
+    "key": "recent-hourly-effects",
+    "title": "Are day-of-the-week effects in cryptocurrencies real? Intraday evidence from active and less active cryptocurrencies",
+    "url": "https://www.sciencedirect.com/science/article/pii/S1544612326011621",
+    "publishedDate": "2026-11",
+    "tier": 1,
+    "savedEvidencePath": "research/sources/search-snippets-current.md"
+  }
+]

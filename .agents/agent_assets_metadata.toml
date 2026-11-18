@@ -45,3 +45,17 @@ storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/conversation:438f7a81-
 storage_version_token = "1794917217284401"
 content_type = "image/png"
 source_uri = "file://stai_review/STAI_logo_files_compared.png"
+
+[[outputs]]
+id = "LnN0B9TwDJxxJjaKYHtGW"
+uri = "file://research/notes.md"
+type = "text"
+title = "Research Notes: STAI Intraday Strategy"
+description = "Scope, questions, and source-tracked findings for the strategy recommendation."
+logical_id = "ae949f7b-5800-45f7-9edf-d8250e4bed20"
+content_hash = "sha256:4903858f16005a2e9cff96e2e7478dd23cb484d5ad0fa0b3dbae5e6257ae1253"
+size = 2497
+mtime_ms = 1794994033084
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7706c7d9-5d6b-4c81-bbe3-7534c69d723d/ae949f7b-5800-45f7-9edf-d8250e4bed20/22501e6f-3568-4d79-8bd8-ed7d0328b85b"
+storage_version_token = "1794994041817657"
+content_type = "text/markdown"
