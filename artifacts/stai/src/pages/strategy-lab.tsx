@@ -50,6 +50,7 @@ import {
   BacktestSegmentSummary,
   segmentLabel,
 } from '@/components/backtest-segment-summary';
+import { StructuralChallenger } from '@/pages/structural-challenger';
 
 const CHART_COLORS = {
   blue: '#51c8b5',
@@ -1419,7 +1420,7 @@ function ResultView({
   );
 }
 
-export default function StrategyLabPage() {
+function EmaStrategyLabPage() {
   const queryClient = useQueryClient();
   const overviewQuery = useGetStrategyLabOverview({
     query: { queryKey: getGetStrategyLabOverviewQueryKey() },
@@ -2017,5 +2018,55 @@ export default function StrategyLabPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function StrategyLabPage() {
+  const [activeView, setActiveView] = useState<'baseline' | 'challenger'>(
+    'baseline',
+  );
+
+  return (
+    <>
+      <nav
+        className="mx-auto flex max-w-[1500px] gap-1 px-4 pt-4 sm:px-6 lg:px-8"
+        aria-label="Strategy research views"
+        data-testid="nav-strategy-lab-views"
+      >
+        <button
+          type="button"
+          className={cn(
+            'focus-ring rounded border border-border/70 px-3 py-2 text-[11px] transition-colors',
+            activeView === 'baseline'
+              ? 'bg-card text-foreground'
+              : 'text-muted-foreground hover:text-foreground',
+          )}
+          aria-pressed={activeView === 'baseline'}
+          data-testid="button-view-ema-baseline"
+          onClick={() => setActiveView('baseline')}
+        >
+          EMA baseline
+        </button>
+        <button
+          type="button"
+          className={cn(
+            'focus-ring rounded border border-border/70 px-3 py-2 text-[11px] transition-colors',
+            activeView === 'challenger'
+              ? 'bg-card text-foreground'
+              : 'text-muted-foreground hover:text-foreground',
+          )}
+          aria-pressed={activeView === 'challenger'}
+          data-testid="button-view-structural-challenger"
+          onClick={() => setActiveView('challenger')}
+        >
+          Structural pullback challenger
+        </button>
+      </nav>
+      {activeView === 'challenger' ? (
+        <StructuralChallenger />
+      ) : (
+        <EmaStrategyLabPage />
+      )}
+    </>
   );
 }

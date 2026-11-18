@@ -1057,6 +1057,398 @@ export interface StrategyLabOverview {
   recentRuns: BacktestListItem[];
 }
 
+export type StructuralBacktestInputSymbol = typeof StructuralBacktestInputSymbol[keyof typeof StructuralBacktestInputSymbol];
+
+
+export const StructuralBacktestInputSymbol = {
+  BTCUSDT: 'BTCUSDT',
+  ETHUSDT: 'ETHUSDT',
+  SOLUSDT: 'SOLUSDT',
+} as const;
+
+export type StructuralBacktestInputSamplePeriod = typeof StructuralBacktestInputSamplePeriod[keyof typeof StructuralBacktestInputSamplePeriod];
+
+
+export const StructuralBacktestInputSamplePeriod = {
+  development: 'development',
+  future_validation: 'future_validation',
+} as const;
+
+export interface StructuralBacktestInput {
+  symbol: StructuralBacktestInputSymbol;
+  samplePeriod: StructuralBacktestInputSamplePeriod;
+}
+
+export type StructuralBacktestResultSymbol = typeof StructuralBacktestResultSymbol[keyof typeof StructuralBacktestResultSymbol];
+
+
+export const StructuralBacktestResultSymbol = {
+  BTCUSDT: 'BTCUSDT',
+  ETHUSDT: 'ETHUSDT',
+  SOLUSDT: 'SOLUSDT',
+} as const;
+
+export type StructuralBacktestResultSamplePeriod = typeof StructuralBacktestResultSamplePeriod[keyof typeof StructuralBacktestResultSamplePeriod];
+
+
+export const StructuralBacktestResultSamplePeriod = {
+  development: 'development',
+  future_validation: 'future_validation',
+} as const;
+
+export type StructuralStrategyConfigurationEntryMethodsItem = typeof StructuralStrategyConfigurationEntryMethodsItem[keyof typeof StructuralStrategyConfigurationEntryMethodsItem];
+
+
+export const StructuralStrategyConfigurationEntryMethodsItem = {
+  next_candle_market: 'next_candle_market',
+  anchor_limit: 'anchor_limit',
+} as const;
+
+export interface StructuralStrategyConfiguration {
+  strategyVersion: string;
+  trendTimeframe: string;
+  entryTimeframe: string;
+  swingLeftBars: number;
+  swingRightBars: number;
+  zoneClusterAtr: number | string;
+  supportResistanceProximityAtr: number | string;
+  confirmationExpiryBars: number;
+  maxChaseAtr: number | string;
+  structuralStopBufferAtr: number | string;
+  targetOffsetBeforeZoneAtr: number | string;
+  minimumNetRewardRisk: number | string;
+  holdingPeriodsMinutes: number[];
+  entryMethods: StructuralStrategyConfigurationEntryMethodsItem[];
+  marketCostSensitivityBps: number[];
+  notionalUsdt: number | string;
+  leverage: number | string;
+  noLookaheadRule: string;
+  executionAssumptions: string[];
+}
+
+export type StructuralCandleCoverageSymbol = typeof StructuralCandleCoverageSymbol[keyof typeof StructuralCandleCoverageSymbol];
+
+
+export const StructuralCandleCoverageSymbol = {
+  BTCUSDT: 'BTCUSDT',
+  ETHUSDT: 'ETHUSDT',
+  SOLUSDT: 'SOLUSDT',
+} as const;
+
+export type StructuralCandleCoverageMarketType = typeof StructuralCandleCoverageMarketType[keyof typeof StructuralCandleCoverageMarketType];
+
+
+export const StructuralCandleCoverageMarketType = {
+  spot: 'spot',
+  futures: 'futures',
+} as const;
+
+export type StructuralCandleCoverageTimeframe = typeof StructuralCandleCoverageTimeframe[keyof typeof StructuralCandleCoverageTimeframe];
+
+
+export const StructuralCandleCoverageTimeframe = {
+  '1m': '1m',
+  '15m': '15m',
+  '1h': '1h',
+} as const;
+
+export interface StructuralCandleCoverage {
+  symbol: StructuralCandleCoverageSymbol;
+  marketType: StructuralCandleCoverageMarketType;
+  timeframe: StructuralCandleCoverageTimeframe;
+  requestedStart: string;
+  requestedEnd: string;
+  firstCandleAt: string | null;
+  lastCandleAt: string | null;
+  actualClosedCandles: number;
+  expectedCandles: number;
+  missingCandles: number;
+  coveragePct: number | string;
+  gapRanges: string[];
+}
+
+export type StructuralWindowSamplePeriod = typeof StructuralWindowSamplePeriod[keyof typeof StructuralWindowSamplePeriod];
+
+
+export const StructuralWindowSamplePeriod = {
+  development: 'development',
+  future_validation: 'future_validation',
+} as const;
+
+export type StructuralWindowStatus = typeof StructuralWindowStatus[keyof typeof StructuralWindowStatus];
+
+
+export const StructuralWindowStatus = {
+  ready: 'ready',
+  pending: 'pending',
+} as const;
+
+export interface StructuralWindow {
+  samplePeriod: StructuralWindowSamplePeriod;
+  startsAt: string;
+  endsAt: string;
+  status: StructuralWindowStatus;
+  note: string;
+}
+
+export type StructuralSegmentMarketType = typeof StructuralSegmentMarketType[keyof typeof StructuralSegmentMarketType];
+
+
+export const StructuralSegmentMarketType = {
+  spot: 'spot',
+  futures: 'futures',
+} as const;
+
+export type StructuralSegmentSide = typeof StructuralSegmentSide[keyof typeof StructuralSegmentSide];
+
+
+export const StructuralSegmentSide = {
+  long: 'long',
+  short: 'short',
+} as const;
+
+export type StructuralSegmentEntryMethod = typeof StructuralSegmentEntryMethod[keyof typeof StructuralSegmentEntryMethod];
+
+
+export const StructuralSegmentEntryMethod = {
+  next_candle_market: 'next_candle_market',
+  anchor_limit: 'anchor_limit',
+} as const;
+
+export type StructuralEntryOrderSide = typeof StructuralEntryOrderSide[keyof typeof StructuralEntryOrderSide];
+
+
+export const StructuralEntryOrderSide = {
+  long: 'long',
+  short: 'short',
+} as const;
+
+export type StructuralEntryOrderEntryMethod = typeof StructuralEntryOrderEntryMethod[keyof typeof StructuralEntryOrderEntryMethod];
+
+
+export const StructuralEntryOrderEntryMethod = {
+  next_candle_market: 'next_candle_market',
+  anchor_limit: 'anchor_limit',
+} as const;
+
+export type StructuralEntryOrderStatus = typeof StructuralEntryOrderStatus[keyof typeof StructuralEntryOrderStatus];
+
+
+export const StructuralEntryOrderStatus = {
+  filled: 'filled',
+  unfilled: 'unfilled',
+  cancelled: 'cancelled',
+  rejected: 'rejected',
+  untestable: 'untestable',
+} as const;
+
+export interface StructuralEntryOrder {
+  candidateId: string;
+  signalAt: string;
+  side: StructuralEntryOrderSide;
+  entryMethod: StructuralEntryOrderEntryMethod;
+  proposedPrice: number | string;
+  plannedNetRewardRisk: number | string | null;
+  expiresAt: string;
+  status: StructuralEntryOrderStatus;
+  filledAt: string | null;
+  fillPrice: number | string | null;
+  reason: string;
+}
+
+export type StructuralTradeSide = typeof StructuralTradeSide[keyof typeof StructuralTradeSide];
+
+
+export const StructuralTradeSide = {
+  long: 'long',
+  short: 'short',
+} as const;
+
+export type StructuralTradeEntryMethod = typeof StructuralTradeEntryMethod[keyof typeof StructuralTradeEntryMethod];
+
+
+export const StructuralTradeEntryMethod = {
+  next_candle_market: 'next_candle_market',
+  anchor_limit: 'anchor_limit',
+} as const;
+
+export type StructuralTradeExitReason = typeof StructuralTradeExitReason[keyof typeof StructuralTradeExitReason];
+
+
+export const StructuralTradeExitReason = {
+  stop_loss: 'stop_loss',
+  take_profit: 'take_profit',
+  time_limit: 'time_limit',
+} as const;
+
+export interface StructuralTrade {
+  candidateId: string;
+  signalAt: string;
+  enteredAt: string;
+  exitedAt: string;
+  side: StructuralTradeSide;
+  entryMethod: StructuralTradeEntryMethod;
+  proposedEntryPrice: number | string;
+  entryPrice: number | string;
+  stopPrice: number | string;
+  targetPrice: number | string;
+  plannedNetRewardRisk: number | string;
+  exitPrice: number | string;
+  exitReason: StructuralTradeExitReason;
+  holdingMinutes: number;
+  grossPnlUsdt: number | string;
+  feesUsdt: number | string;
+  makerFeesUsdt: number | string;
+  takerFeesUsdt: number | string;
+  fundingUsdt: number | string;
+  modeledMarketCostUsdt: number | string;
+  netPnlUsdt: number | string;
+  stopZoneLower: number | string;
+  stopZoneUpper: number | string;
+  targetZoneLower: number | string;
+  targetZoneUpper: number | string;
+}
+
+export interface StructuralCostResult {
+  marketCostBps: number;
+  metrics: BacktestMetrics;
+  trades: StructuralTrade[];
+}
+
+export interface StructuralSegment {
+  marketType: StructuralSegmentMarketType;
+  side: StructuralSegmentSide;
+  entryMethod: StructuralSegmentEntryMethod;
+  maxHoldMinutes: number;
+  candidateCount: number;
+  rewardRiskRejected: number;
+  ordersPlaced: number;
+  ordersFilled: number;
+  unfilledLimits: number;
+  cancelledOrders: number;
+  untestableCandidates: number;
+  overlappingSignalsSkipped: number;
+  orders: StructuralEntryOrder[];
+  costResults: StructuralCostResult[];
+}
+
+export type StructuralCandidateEvidenceSymbol = typeof StructuralCandidateEvidenceSymbol[keyof typeof StructuralCandidateEvidenceSymbol];
+
+
+export const StructuralCandidateEvidenceSymbol = {
+  BTCUSDT: 'BTCUSDT',
+  ETHUSDT: 'ETHUSDT',
+  SOLUSDT: 'SOLUSDT',
+} as const;
+
+export type StructuralCandidateEvidenceMarketType = typeof StructuralCandidateEvidenceMarketType[keyof typeof StructuralCandidateEvidenceMarketType];
+
+
+export const StructuralCandidateEvidenceMarketType = {
+  spot: 'spot',
+  futures: 'futures',
+} as const;
+
+export type StructuralCandidateEvidenceSide = typeof StructuralCandidateEvidenceSide[keyof typeof StructuralCandidateEvidenceSide];
+
+
+export const StructuralCandidateEvidenceSide = {
+  long: 'long',
+  short: 'short',
+} as const;
+
+export type StructuralCandidateEvidenceEntryMethod = typeof StructuralCandidateEvidenceEntryMethod[keyof typeof StructuralCandidateEvidenceEntryMethod];
+
+
+export const StructuralCandidateEvidenceEntryMethod = {
+  next_candle_market: 'next_candle_market',
+  anchor_limit: 'anchor_limit',
+} as const;
+
+export type StructuralCandidateEvidenceEvidence = { [key: string]: unknown };
+
+/**
+ * Research-only evidence snapshot compatible with proposal price/risk terms.
+ */
+export interface StructuralCandidateEvidence {
+  candidateId: string;
+  symbol: StructuralCandidateEvidenceSymbol;
+  marketType: StructuralCandidateEvidenceMarketType;
+  side: StructuralCandidateEvidenceSide;
+  entryMethod: StructuralCandidateEvidenceEntryMethod;
+  strategyVersion: string;
+  signalAt: string;
+  confirmationAt: string;
+  anchorPrice: number | string;
+  proposedEntryPrice: number | string;
+  stopPrice: number | string;
+  targetPrice: number | string;
+  plannedNetRewardRisk: number | string;
+  notionalUsdt: number | string;
+  leverage: number | string;
+  plannedLossUsdt: number | string;
+  estimatedCostUsdt: number | string;
+  evidence: StructuralCandidateEvidenceEvidence;
+  committeeStatus: 'not_run';
+}
+
+export interface StructuralBacktestResult {
+  id: string;
+  createdAt: string;
+  symbol: StructuralBacktestResultSymbol;
+  strategy: StructuralStrategyConfiguration;
+  samplePeriod: StructuralBacktestResultSamplePeriod;
+  requestedStart: string;
+  requestedEnd: string;
+  dataSha256: string;
+  candleCoverage: StructuralCandleCoverage[];
+  fundingCoverage: FundingCoverage;
+  futureValidationWindow: StructuralWindow;
+  segments: StructuralSegment[];
+  candidateEvidence: StructuralCandidateEvidence[];
+  committeeReviewStatus: 'not_run';
+  committeeNotice: string;
+  notes: string[];
+}
+
+export type StructuralRunListItemSymbol = typeof StructuralRunListItemSymbol[keyof typeof StructuralRunListItemSymbol];
+
+
+export const StructuralRunListItemSymbol = {
+  BTCUSDT: 'BTCUSDT',
+  ETHUSDT: 'ETHUSDT',
+  SOLUSDT: 'SOLUSDT',
+} as const;
+
+export type StructuralRunListItemSamplePeriod = typeof StructuralRunListItemSamplePeriod[keyof typeof StructuralRunListItemSamplePeriod];
+
+
+export const StructuralRunListItemSamplePeriod = {
+  development: 'development',
+  future_validation: 'future_validation',
+} as const;
+
+export interface StructuralRunListItem {
+  id: string;
+  createdAt: string;
+  symbol: StructuralRunListItemSymbol;
+  strategyVersion: string;
+  samplePeriod: StructuralRunListItemSamplePeriod;
+  requestedStart: string;
+  requestedEnd: string;
+  dataSha256: string;
+  completedTrades: number;
+}
+
+export interface StructuralLabOverview {
+  strategy: StructuralStrategyConfiguration;
+  developmentWindow: StructuralWindow;
+  futureValidationWindow: StructuralWindow;
+  committeeReviewStatus: 'not_run';
+  committeeNotice: string;
+  recentRuns: StructuralRunListItem[];
+}
+
 /**
  * STAI has one mode. There is no live value and no switch to add one.
  */

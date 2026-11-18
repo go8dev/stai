@@ -677,6 +677,431 @@ export const GetStrategyLabOverviewResponse = zod.object({
 
 
 /**
+ * @summary Get the isolated structural pullback research setup
+ */
+export const GetStructuralChallengerOverviewResponse = zod.object({
+  "strategy": zod.object({
+  "strategyVersion": zod.string(),
+  "trendTimeframe": zod.string(),
+  "entryTimeframe": zod.string(),
+  "swingLeftBars": zod.number().int(),
+  "swingRightBars": zod.number().int(),
+  "zoneClusterAtr": zod.union([zod.number(),zod.string()]),
+  "supportResistanceProximityAtr": zod.union([zod.number(),zod.string()]),
+  "confirmationExpiryBars": zod.number().int(),
+  "maxChaseAtr": zod.union([zod.number(),zod.string()]),
+  "structuralStopBufferAtr": zod.union([zod.number(),zod.string()]),
+  "targetOffsetBeforeZoneAtr": zod.union([zod.number(),zod.string()]),
+  "minimumNetRewardRisk": zod.union([zod.number(),zod.string()]),
+  "holdingPeriodsMinutes": zod.array(zod.number().int()),
+  "entryMethods": zod.array(zod.enum(['next_candle_market', 'anchor_limit'])),
+  "marketCostSensitivityBps": zod.array(zod.number().int()),
+  "notionalUsdt": zod.union([zod.number(),zod.string()]),
+  "leverage": zod.union([zod.number(),zod.string()]),
+  "noLookaheadRule": zod.string(),
+  "executionAssumptions": zod.array(zod.string())
+}),
+  "developmentWindow": zod.object({
+  "samplePeriod": zod.enum(['development', 'future_validation']),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "status": zod.enum(['ready', 'pending']),
+  "note": zod.string()
+}),
+  "futureValidationWindow": zod.object({
+  "samplePeriod": zod.enum(['development', 'future_validation']),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "status": zod.enum(['ready', 'pending']),
+  "note": zod.string()
+}),
+  "committeeReviewStatus": zod.literal("not_run"),
+  "committeeNotice": zod.string(),
+  "recentRuns": zod.array(zod.object({
+  "id": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "symbol": zod.enum(['BTCUSDT', 'ETHUSDT', 'SOLUSDT']),
+  "strategyVersion": zod.string(),
+  "samplePeriod": zod.enum(['development', 'future_validation']),
+  "requestedStart": zod.coerce.date(),
+  "requestedEnd": zod.coerce.date(),
+  "dataSha256": zod.string(),
+  "completedTrades": zod.number().int()
+}))
+})
+
+
+/**
+ * @summary List saved structural pullback research runs
+ */
+export const ListStructuralChallengerBacktestsResponseItem = zod.object({
+  "id": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "symbol": zod.enum(['BTCUSDT', 'ETHUSDT', 'SOLUSDT']),
+  "strategyVersion": zod.string(),
+  "samplePeriod": zod.enum(['development', 'future_validation']),
+  "requestedStart": zod.coerce.date(),
+  "requestedEnd": zod.coerce.date(),
+  "dataSha256": zod.string(),
+  "completedTrades": zod.number().int()
+})
+export const ListStructuralChallengerBacktestsResponse = zod.array(ListStructuralChallengerBacktestsResponseItem)
+
+
+/**
+ * @summary Run the isolated structural pullback historical challenger
+ */
+export const CreateStructuralChallengerBacktestBody = zod.object({
+  "symbol": zod.enum(['BTCUSDT', 'ETHUSDT', 'SOLUSDT']),
+  "samplePeriod": zod.enum(['development', 'future_validation'])
+})
+
+export const createStructuralChallengerBacktestResponseSegmentsItemCostResultsItemMetricsUnfilledEntryOrdersDefault = 0;
+export const createStructuralChallengerBacktestResponseSegmentsItemCostResultsItemMetricsTotalMakerFeesUsdtDefault = `0`;
+export const createStructuralChallengerBacktestResponseSegmentsItemCostResultsItemMetricsTotalTakerFeesUsdtDefault = `0`;
+
+export const CreateStructuralChallengerBacktestResponse = zod.object({
+  "id": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "symbol": zod.enum(['BTCUSDT', 'ETHUSDT', 'SOLUSDT']),
+  "strategy": zod.object({
+  "strategyVersion": zod.string(),
+  "trendTimeframe": zod.string(),
+  "entryTimeframe": zod.string(),
+  "swingLeftBars": zod.number().int(),
+  "swingRightBars": zod.number().int(),
+  "zoneClusterAtr": zod.union([zod.number(),zod.string()]),
+  "supportResistanceProximityAtr": zod.union([zod.number(),zod.string()]),
+  "confirmationExpiryBars": zod.number().int(),
+  "maxChaseAtr": zod.union([zod.number(),zod.string()]),
+  "structuralStopBufferAtr": zod.union([zod.number(),zod.string()]),
+  "targetOffsetBeforeZoneAtr": zod.union([zod.number(),zod.string()]),
+  "minimumNetRewardRisk": zod.union([zod.number(),zod.string()]),
+  "holdingPeriodsMinutes": zod.array(zod.number().int()),
+  "entryMethods": zod.array(zod.enum(['next_candle_market', 'anchor_limit'])),
+  "marketCostSensitivityBps": zod.array(zod.number().int()),
+  "notionalUsdt": zod.union([zod.number(),zod.string()]),
+  "leverage": zod.union([zod.number(),zod.string()]),
+  "noLookaheadRule": zod.string(),
+  "executionAssumptions": zod.array(zod.string())
+}),
+  "samplePeriod": zod.enum(['development', 'future_validation']),
+  "requestedStart": zod.coerce.date(),
+  "requestedEnd": zod.coerce.date(),
+  "dataSha256": zod.string(),
+  "candleCoverage": zod.array(zod.object({
+  "symbol": zod.enum(['BTCUSDT', 'ETHUSDT', 'SOLUSDT']),
+  "marketType": zod.enum(['spot', 'futures']),
+  "timeframe": zod.enum(['1m', '15m', '1h']),
+  "requestedStart": zod.coerce.date(),
+  "requestedEnd": zod.coerce.date(),
+  "firstCandleAt": zod.union([zod.coerce.date(),zod.null()]),
+  "lastCandleAt": zod.union([zod.coerce.date(),zod.null()]),
+  "actualClosedCandles": zod.number().int(),
+  "expectedCandles": zod.number().int(),
+  "missingCandles": zod.number().int(),
+  "coveragePct": zod.union([zod.number(),zod.string()]),
+  "gapRanges": zod.array(zod.string())
+})),
+  "fundingCoverage": zod.object({
+  "status": zod.enum(['not_applicable', 'available', 'partial', 'unavailable']),
+  "records": zod.number().int(),
+  "firstEventAt": zod.union([zod.coerce.date(),zod.null()]),
+  "lastEventAt": zod.union([zod.coerce.date(),zod.null()]),
+  "note": zod.string()
+}),
+  "futureValidationWindow": zod.object({
+  "samplePeriod": zod.enum(['development', 'future_validation']),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "status": zod.enum(['ready', 'pending']),
+  "note": zod.string()
+}),
+  "segments": zod.array(zod.object({
+  "marketType": zod.enum(['spot', 'futures']),
+  "side": zod.enum(['long', 'short']),
+  "entryMethod": zod.enum(['next_candle_market', 'anchor_limit']),
+  "maxHoldMinutes": zod.number().int(),
+  "candidateCount": zod.number().int(),
+  "rewardRiskRejected": zod.number().int(),
+  "ordersPlaced": zod.number().int(),
+  "ordersFilled": zod.number().int(),
+  "unfilledLimits": zod.number().int(),
+  "cancelledOrders": zod.number().int(),
+  "untestableCandidates": zod.number().int(),
+  "overlappingSignalsSkipped": zod.number().int(),
+  "orders": zod.array(zod.object({
+  "candidateId": zod.string(),
+  "signalAt": zod.coerce.date(),
+  "side": zod.enum(['long', 'short']),
+  "entryMethod": zod.enum(['next_candle_market', 'anchor_limit']),
+  "proposedPrice": zod.union([zod.number(),zod.string()]),
+  "plannedNetRewardRisk": zod.union([zod.number(),zod.string(),zod.null()]),
+  "expiresAt": zod.coerce.date(),
+  "status": zod.enum(['filled', 'unfilled', 'cancelled', 'rejected', 'untestable']),
+  "filledAt": zod.union([zod.coerce.date(),zod.null()]),
+  "fillPrice": zod.union([zod.number(),zod.string(),zod.null()]),
+  "reason": zod.string()
+})),
+  "costResults": zod.array(zod.object({
+  "marketCostBps": zod.number().int(),
+  "metrics": zod.object({
+  "tradeCount": zod.number().int(),
+  "wins": zod.number().int(),
+  "losses": zod.number().int(),
+  "breakeven": zod.number().int(),
+  "winRatePct": zod.union([zod.number(),zod.string(),zod.null()]),
+  "expectancyUsdt": zod.union([zod.number(),zod.string(),zod.null()]),
+  "expectancyPctOfNotional": zod.union([zod.number(),zod.string(),zod.null()]),
+  "profitFactor": zod.union([zod.number(),zod.string(),zod.null()]),
+  "profitFactorNote": zod.union([zod.string(),zod.null()]),
+  "maxDrawdownUsdt": zod.union([zod.number(),zod.string()]),
+  "maxDrawdownPct": zod.union([zod.number(),zod.string()]),
+  "cumulativePnlUsdt": zod.union([zod.number(),zod.string()]),
+  "cumulativeReturnPct": zod.union([zod.number(),zod.string()]),
+  "endingEquityUsdt": zod.union([zod.number(),zod.string()]),
+  "totalFeesUsdt": zod.union([zod.number(),zod.string()]),
+  "totalFundingUsdt": zod.union([zod.number(),zod.string()]),
+  "totalSpreadCostUsdt": zod.union([zod.number(),zod.string()]),
+  "totalSlippageCostUsdt": zod.union([zod.number(),zod.string()]),
+  "excludedUnclosedTrades": zod.number().int(),
+  "unfilledEntryOrders": zod.number().int().default(createStructuralChallengerBacktestResponseSegmentsItemCostResultsItemMetricsUnfilledEntryOrdersDefault),
+  "totalMakerFeesUsdt": zod.union([zod.number(),zod.string()]).default(createStructuralChallengerBacktestResponseSegmentsItemCostResultsItemMetricsTotalMakerFeesUsdtDefault),
+  "totalTakerFeesUsdt": zod.union([zod.number(),zod.string()]).default(createStructuralChallengerBacktestResponseSegmentsItemCostResultsItemMetricsTotalTakerFeesUsdtDefault)
+}),
+  "trades": zod.array(zod.object({
+  "candidateId": zod.string(),
+  "signalAt": zod.coerce.date(),
+  "enteredAt": zod.coerce.date(),
+  "exitedAt": zod.coerce.date(),
+  "side": zod.enum(['long', 'short']),
+  "entryMethod": zod.enum(['next_candle_market', 'anchor_limit']),
+  "proposedEntryPrice": zod.union([zod.number(),zod.string()]),
+  "entryPrice": zod.union([zod.number(),zod.string()]),
+  "stopPrice": zod.union([zod.number(),zod.string()]),
+  "targetPrice": zod.union([zod.number(),zod.string()]),
+  "plannedNetRewardRisk": zod.union([zod.number(),zod.string()]),
+  "exitPrice": zod.union([zod.number(),zod.string()]),
+  "exitReason": zod.enum(['stop_loss', 'take_profit', 'time_limit']),
+  "holdingMinutes": zod.number().int(),
+  "grossPnlUsdt": zod.union([zod.number(),zod.string()]),
+  "feesUsdt": zod.union([zod.number(),zod.string()]),
+  "makerFeesUsdt": zod.union([zod.number(),zod.string()]),
+  "takerFeesUsdt": zod.union([zod.number(),zod.string()]),
+  "fundingUsdt": zod.union([zod.number(),zod.string()]),
+  "modeledMarketCostUsdt": zod.union([zod.number(),zod.string()]),
+  "netPnlUsdt": zod.union([zod.number(),zod.string()]),
+  "stopZoneLower": zod.union([zod.number(),zod.string()]),
+  "stopZoneUpper": zod.union([zod.number(),zod.string()]),
+  "targetZoneLower": zod.union([zod.number(),zod.string()]),
+  "targetZoneUpper": zod.union([zod.number(),zod.string()])
+}))
+}))
+})),
+  "candidateEvidence": zod.array(zod.object({
+  "candidateId": zod.string(),
+  "symbol": zod.enum(['BTCUSDT', 'ETHUSDT', 'SOLUSDT']),
+  "marketType": zod.enum(['spot', 'futures']),
+  "side": zod.enum(['long', 'short']),
+  "entryMethod": zod.enum(['next_candle_market', 'anchor_limit']),
+  "strategyVersion": zod.string(),
+  "signalAt": zod.coerce.date(),
+  "confirmationAt": zod.coerce.date(),
+  "anchorPrice": zod.union([zod.number(),zod.string()]),
+  "proposedEntryPrice": zod.union([zod.number(),zod.string()]),
+  "stopPrice": zod.union([zod.number(),zod.string()]),
+  "targetPrice": zod.union([zod.number(),zod.string()]),
+  "plannedNetRewardRisk": zod.union([zod.number(),zod.string()]),
+  "notionalUsdt": zod.union([zod.number(),zod.string()]),
+  "leverage": zod.union([zod.number(),zod.string()]),
+  "plannedLossUsdt": zod.union([zod.number(),zod.string()]),
+  "estimatedCostUsdt": zod.union([zod.number(),zod.string()]),
+  "evidence": zod.record(zod.string(), zod.unknown()),
+  "committeeStatus": zod.literal("not_run")
+}).describe('Research-only evidence snapshot compatible with proposal price/risk terms.')),
+  "committeeReviewStatus": zod.literal("not_run"),
+  "committeeNotice": zod.string(),
+  "notes": zod.array(zod.string())
+})
+
+
+/**
+ * @summary Get one saved structural pullback research run
+ */
+export const GetStructuralChallengerBacktestParams = zod.object({
+  "run_id": zod.coerce.string()
+})
+
+export const getStructuralChallengerBacktestResponseSegmentsItemCostResultsItemMetricsUnfilledEntryOrdersDefault = 0;
+export const getStructuralChallengerBacktestResponseSegmentsItemCostResultsItemMetricsTotalMakerFeesUsdtDefault = `0`;
+export const getStructuralChallengerBacktestResponseSegmentsItemCostResultsItemMetricsTotalTakerFeesUsdtDefault = `0`;
+
+export const GetStructuralChallengerBacktestResponse = zod.object({
+  "id": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "symbol": zod.enum(['BTCUSDT', 'ETHUSDT', 'SOLUSDT']),
+  "strategy": zod.object({
+  "strategyVersion": zod.string(),
+  "trendTimeframe": zod.string(),
+  "entryTimeframe": zod.string(),
+  "swingLeftBars": zod.number().int(),
+  "swingRightBars": zod.number().int(),
+  "zoneClusterAtr": zod.union([zod.number(),zod.string()]),
+  "supportResistanceProximityAtr": zod.union([zod.number(),zod.string()]),
+  "confirmationExpiryBars": zod.number().int(),
+  "maxChaseAtr": zod.union([zod.number(),zod.string()]),
+  "structuralStopBufferAtr": zod.union([zod.number(),zod.string()]),
+  "targetOffsetBeforeZoneAtr": zod.union([zod.number(),zod.string()]),
+  "minimumNetRewardRisk": zod.union([zod.number(),zod.string()]),
+  "holdingPeriodsMinutes": zod.array(zod.number().int()),
+  "entryMethods": zod.array(zod.enum(['next_candle_market', 'anchor_limit'])),
+  "marketCostSensitivityBps": zod.array(zod.number().int()),
+  "notionalUsdt": zod.union([zod.number(),zod.string()]),
+  "leverage": zod.union([zod.number(),zod.string()]),
+  "noLookaheadRule": zod.string(),
+  "executionAssumptions": zod.array(zod.string())
+}),
+  "samplePeriod": zod.enum(['development', 'future_validation']),
+  "requestedStart": zod.coerce.date(),
+  "requestedEnd": zod.coerce.date(),
+  "dataSha256": zod.string(),
+  "candleCoverage": zod.array(zod.object({
+  "symbol": zod.enum(['BTCUSDT', 'ETHUSDT', 'SOLUSDT']),
+  "marketType": zod.enum(['spot', 'futures']),
+  "timeframe": zod.enum(['1m', '15m', '1h']),
+  "requestedStart": zod.coerce.date(),
+  "requestedEnd": zod.coerce.date(),
+  "firstCandleAt": zod.union([zod.coerce.date(),zod.null()]),
+  "lastCandleAt": zod.union([zod.coerce.date(),zod.null()]),
+  "actualClosedCandles": zod.number().int(),
+  "expectedCandles": zod.number().int(),
+  "missingCandles": zod.number().int(),
+  "coveragePct": zod.union([zod.number(),zod.string()]),
+  "gapRanges": zod.array(zod.string())
+})),
+  "fundingCoverage": zod.object({
+  "status": zod.enum(['not_applicable', 'available', 'partial', 'unavailable']),
+  "records": zod.number().int(),
+  "firstEventAt": zod.union([zod.coerce.date(),zod.null()]),
+  "lastEventAt": zod.union([zod.coerce.date(),zod.null()]),
+  "note": zod.string()
+}),
+  "futureValidationWindow": zod.object({
+  "samplePeriod": zod.enum(['development', 'future_validation']),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "status": zod.enum(['ready', 'pending']),
+  "note": zod.string()
+}),
+  "segments": zod.array(zod.object({
+  "marketType": zod.enum(['spot', 'futures']),
+  "side": zod.enum(['long', 'short']),
+  "entryMethod": zod.enum(['next_candle_market', 'anchor_limit']),
+  "maxHoldMinutes": zod.number().int(),
+  "candidateCount": zod.number().int(),
+  "rewardRiskRejected": zod.number().int(),
+  "ordersPlaced": zod.number().int(),
+  "ordersFilled": zod.number().int(),
+  "unfilledLimits": zod.number().int(),
+  "cancelledOrders": zod.number().int(),
+  "untestableCandidates": zod.number().int(),
+  "overlappingSignalsSkipped": zod.number().int(),
+  "orders": zod.array(zod.object({
+  "candidateId": zod.string(),
+  "signalAt": zod.coerce.date(),
+  "side": zod.enum(['long', 'short']),
+  "entryMethod": zod.enum(['next_candle_market', 'anchor_limit']),
+  "proposedPrice": zod.union([zod.number(),zod.string()]),
+  "plannedNetRewardRisk": zod.union([zod.number(),zod.string(),zod.null()]),
+  "expiresAt": zod.coerce.date(),
+  "status": zod.enum(['filled', 'unfilled', 'cancelled', 'rejected', 'untestable']),
+  "filledAt": zod.union([zod.coerce.date(),zod.null()]),
+  "fillPrice": zod.union([zod.number(),zod.string(),zod.null()]),
+  "reason": zod.string()
+})),
+  "costResults": zod.array(zod.object({
+  "marketCostBps": zod.number().int(),
+  "metrics": zod.object({
+  "tradeCount": zod.number().int(),
+  "wins": zod.number().int(),
+  "losses": zod.number().int(),
+  "breakeven": zod.number().int(),
+  "winRatePct": zod.union([zod.number(),zod.string(),zod.null()]),
+  "expectancyUsdt": zod.union([zod.number(),zod.string(),zod.null()]),
+  "expectancyPctOfNotional": zod.union([zod.number(),zod.string(),zod.null()]),
+  "profitFactor": zod.union([zod.number(),zod.string(),zod.null()]),
+  "profitFactorNote": zod.union([zod.string(),zod.null()]),
+  "maxDrawdownUsdt": zod.union([zod.number(),zod.string()]),
+  "maxDrawdownPct": zod.union([zod.number(),zod.string()]),
+  "cumulativePnlUsdt": zod.union([zod.number(),zod.string()]),
+  "cumulativeReturnPct": zod.union([zod.number(),zod.string()]),
+  "endingEquityUsdt": zod.union([zod.number(),zod.string()]),
+  "totalFeesUsdt": zod.union([zod.number(),zod.string()]),
+  "totalFundingUsdt": zod.union([zod.number(),zod.string()]),
+  "totalSpreadCostUsdt": zod.union([zod.number(),zod.string()]),
+  "totalSlippageCostUsdt": zod.union([zod.number(),zod.string()]),
+  "excludedUnclosedTrades": zod.number().int(),
+  "unfilledEntryOrders": zod.number().int().default(getStructuralChallengerBacktestResponseSegmentsItemCostResultsItemMetricsUnfilledEntryOrdersDefault),
+  "totalMakerFeesUsdt": zod.union([zod.number(),zod.string()]).default(getStructuralChallengerBacktestResponseSegmentsItemCostResultsItemMetricsTotalMakerFeesUsdtDefault),
+  "totalTakerFeesUsdt": zod.union([zod.number(),zod.string()]).default(getStructuralChallengerBacktestResponseSegmentsItemCostResultsItemMetricsTotalTakerFeesUsdtDefault)
+}),
+  "trades": zod.array(zod.object({
+  "candidateId": zod.string(),
+  "signalAt": zod.coerce.date(),
+  "enteredAt": zod.coerce.date(),
+  "exitedAt": zod.coerce.date(),
+  "side": zod.enum(['long', 'short']),
+  "entryMethod": zod.enum(['next_candle_market', 'anchor_limit']),
+  "proposedEntryPrice": zod.union([zod.number(),zod.string()]),
+  "entryPrice": zod.union([zod.number(),zod.string()]),
+  "stopPrice": zod.union([zod.number(),zod.string()]),
+  "targetPrice": zod.union([zod.number(),zod.string()]),
+  "plannedNetRewardRisk": zod.union([zod.number(),zod.string()]),
+  "exitPrice": zod.union([zod.number(),zod.string()]),
+  "exitReason": zod.enum(['stop_loss', 'take_profit', 'time_limit']),
+  "holdingMinutes": zod.number().int(),
+  "grossPnlUsdt": zod.union([zod.number(),zod.string()]),
+  "feesUsdt": zod.union([zod.number(),zod.string()]),
+  "makerFeesUsdt": zod.union([zod.number(),zod.string()]),
+  "takerFeesUsdt": zod.union([zod.number(),zod.string()]),
+  "fundingUsdt": zod.union([zod.number(),zod.string()]),
+  "modeledMarketCostUsdt": zod.union([zod.number(),zod.string()]),
+  "netPnlUsdt": zod.union([zod.number(),zod.string()]),
+  "stopZoneLower": zod.union([zod.number(),zod.string()]),
+  "stopZoneUpper": zod.union([zod.number(),zod.string()]),
+  "targetZoneLower": zod.union([zod.number(),zod.string()]),
+  "targetZoneUpper": zod.union([zod.number(),zod.string()])
+}))
+}))
+})),
+  "candidateEvidence": zod.array(zod.object({
+  "candidateId": zod.string(),
+  "symbol": zod.enum(['BTCUSDT', 'ETHUSDT', 'SOLUSDT']),
+  "marketType": zod.enum(['spot', 'futures']),
+  "side": zod.enum(['long', 'short']),
+  "entryMethod": zod.enum(['next_candle_market', 'anchor_limit']),
+  "strategyVersion": zod.string(),
+  "signalAt": zod.coerce.date(),
+  "confirmationAt": zod.coerce.date(),
+  "anchorPrice": zod.union([zod.number(),zod.string()]),
+  "proposedEntryPrice": zod.union([zod.number(),zod.string()]),
+  "stopPrice": zod.union([zod.number(),zod.string()]),
+  "targetPrice": zod.union([zod.number(),zod.string()]),
+  "plannedNetRewardRisk": zod.union([zod.number(),zod.string()]),
+  "notionalUsdt": zod.union([zod.number(),zod.string()]),
+  "leverage": zod.union([zod.number(),zod.string()]),
+  "plannedLossUsdt": zod.union([zod.number(),zod.string()]),
+  "estimatedCostUsdt": zod.union([zod.number(),zod.string()]),
+  "evidence": zod.record(zod.string(), zod.unknown()),
+  "committeeStatus": zod.literal("not_run")
+}).describe('Research-only evidence snapshot compatible with proposal price/risk terms.')),
+  "committeeReviewStatus": zod.literal("not_run"),
+  "committeeNotice": zod.string(),
+  "notes": zod.array(zod.string())
+})
+
+
+/**
  * @summary List recent owner Strategy Laboratory runs
  */
 export const ListStrategyBacktestsResponseItem = zod.object({

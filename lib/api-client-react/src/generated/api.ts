@@ -50,6 +50,10 @@ import type {
   ProposalDecision,
   ProposalView,
   StrategyLabOverview,
+  StructuralBacktestInput,
+  StructuralBacktestResult,
+  StructuralLabOverview,
+  StructuralRunListItem,
   SystemStatus
 } from './api.schemas';
 
@@ -1965,6 +1969,397 @@ export function useGetStrategyLabOverview<TData = Awaited<ReturnType<typeof getS
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetStrategyLabOverviewQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetStructuralChallengerOverviewUrl = () => {
+
+
+
+
+  return `/api/strategy-lab/structural`
+}
+
+/**
+ * @summary Get the isolated structural pullback research setup
+ */
+export const getStructuralChallengerOverview = async ( options?: Parameters<typeof customFetch>[1]): Promise<StructuralLabOverview> => {
+
+  return customFetch<StructuralLabOverview>(getGetStructuralChallengerOverviewUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStructuralChallengerOverviewQueryKey = () => {
+    return [
+    `/api/strategy-lab/structural`
+    ] as const;
+    }
+
+
+export const getGetStructuralChallengerOverviewQueryOptions = <TData = Awaited<ReturnType<typeof getStructuralChallengerOverview>>, TError = ErrorType<ErrorResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStructuralChallengerOverview>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStructuralChallengerOverviewQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStructuralChallengerOverview>>> = ({ signal }) => getStructuralChallengerOverview({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStructuralChallengerOverview>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetStructuralChallengerOverviewQueryResult = NonNullable<Awaited<ReturnType<typeof getStructuralChallengerOverview>>>
+export type GetStructuralChallengerOverviewQueryError = ErrorType<ErrorResponse>
+
+
+export function useGetStructuralChallengerOverview<TData = Awaited<ReturnType<typeof getStructuralChallengerOverview>>, TError = ErrorType<ErrorResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStructuralChallengerOverview>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getStructuralChallengerOverview>>,
+          TError,
+          Awaited<ReturnType<typeof getStructuralChallengerOverview>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetStructuralChallengerOverview<TData = Awaited<ReturnType<typeof getStructuralChallengerOverview>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStructuralChallengerOverview>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getStructuralChallengerOverview>>,
+          TError,
+          Awaited<ReturnType<typeof getStructuralChallengerOverview>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetStructuralChallengerOverview<TData = Awaited<ReturnType<typeof getStructuralChallengerOverview>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStructuralChallengerOverview>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get the isolated structural pullback research setup
+ */
+
+export function useGetStructuralChallengerOverview<TData = Awaited<ReturnType<typeof getStructuralChallengerOverview>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStructuralChallengerOverview>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetStructuralChallengerOverviewQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListStructuralChallengerBacktestsUrl = () => {
+
+
+
+
+  return `/api/strategy-lab/structural/backtests`
+}
+
+/**
+ * @summary List saved structural pullback research runs
+ */
+export const listStructuralChallengerBacktests = async ( options?: Parameters<typeof customFetch>[1]): Promise<StructuralRunListItem[]> => {
+
+  return customFetch<StructuralRunListItem[]>(getListStructuralChallengerBacktestsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListStructuralChallengerBacktestsQueryKey = () => {
+    return [
+    `/api/strategy-lab/structural/backtests`
+    ] as const;
+    }
+
+
+export const getListStructuralChallengerBacktestsQueryOptions = <TData = Awaited<ReturnType<typeof listStructuralChallengerBacktests>>, TError = ErrorType<ErrorResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStructuralChallengerBacktests>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListStructuralChallengerBacktestsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listStructuralChallengerBacktests>>> = ({ signal }) => listStructuralChallengerBacktests({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listStructuralChallengerBacktests>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListStructuralChallengerBacktestsQueryResult = NonNullable<Awaited<ReturnType<typeof listStructuralChallengerBacktests>>>
+export type ListStructuralChallengerBacktestsQueryError = ErrorType<ErrorResponse>
+
+
+export function useListStructuralChallengerBacktests<TData = Awaited<ReturnType<typeof listStructuralChallengerBacktests>>, TError = ErrorType<ErrorResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStructuralChallengerBacktests>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listStructuralChallengerBacktests>>,
+          TError,
+          Awaited<ReturnType<typeof listStructuralChallengerBacktests>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListStructuralChallengerBacktests<TData = Awaited<ReturnType<typeof listStructuralChallengerBacktests>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStructuralChallengerBacktests>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listStructuralChallengerBacktests>>,
+          TError,
+          Awaited<ReturnType<typeof listStructuralChallengerBacktests>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListStructuralChallengerBacktests<TData = Awaited<ReturnType<typeof listStructuralChallengerBacktests>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStructuralChallengerBacktests>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary List saved structural pullback research runs
+ */
+
+export function useListStructuralChallengerBacktests<TData = Awaited<ReturnType<typeof listStructuralChallengerBacktests>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStructuralChallengerBacktests>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListStructuralChallengerBacktestsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateStructuralChallengerBacktestUrl = () => {
+
+
+
+
+  return `/api/strategy-lab/structural/backtests`
+}
+
+/**
+ * @summary Run the isolated structural pullback historical challenger
+ */
+export const createStructuralChallengerBacktest = async (structuralBacktestInput: StructuralBacktestInput, options?: Parameters<typeof customFetch>[1]): Promise<StructuralBacktestResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<StructuralBacktestResult>(getCreateStructuralChallengerBacktestUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(structuralBacktestInput)
+  }
+);}
+
+
+
+
+
+export const getCreateStructuralChallengerBacktestMutationKey = () => ['createStructuralChallengerBacktest'] as const;
+
+export const getCreateStructuralChallengerBacktestMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createStructuralChallengerBacktest>>, TError,CreateStructuralChallengerBacktestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createStructuralChallengerBacktest>>, TError,CreateStructuralChallengerBacktestMutationVariables, TContext> => {
+
+const mutationKey = getCreateStructuralChallengerBacktestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createStructuralChallengerBacktest>>, CreateStructuralChallengerBacktestMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createStructuralChallengerBacktest(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateStructuralChallengerBacktestMutationResult = NonNullable<Awaited<ReturnType<typeof createStructuralChallengerBacktest>>>
+    export type CreateStructuralChallengerBacktestMutationBody = BodyType<StructuralBacktestInput>
+    export type CreateStructuralChallengerBacktestMutationError = ErrorType<ErrorResponse>
+    export type CreateStructuralChallengerBacktestMutationVariables = {data: BodyType<StructuralBacktestInput>}
+
+    /**
+ * @summary Run the isolated structural pullback historical challenger
+ */
+export const useCreateStructuralChallengerBacktest = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createStructuralChallengerBacktest>>, TError,CreateStructuralChallengerBacktestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createStructuralChallengerBacktest>>,
+        TError,
+        CreateStructuralChallengerBacktestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateStructuralChallengerBacktestMutationOptions(options), queryClient);
+    }
+
+export const getGetStructuralChallengerBacktestUrl = (runId: string,) => {
+
+
+
+
+  return `/api/strategy-lab/structural/backtests/${runId}`
+}
+
+/**
+ * @summary Get one saved structural pullback research run
+ */
+export const getStructuralChallengerBacktest = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<StructuralBacktestResult> => {
+
+  return customFetch<StructuralBacktestResult>(getGetStructuralChallengerBacktestUrl(runId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStructuralChallengerBacktestQueryKey = (runId: string,) => {
+    return [
+    `/api/strategy-lab/structural/backtests/${runId}`
+    ] as const;
+    }
+
+
+export const getGetStructuralChallengerBacktestQueryOptions = <TData = Awaited<ReturnType<typeof getStructuralChallengerBacktest>>, TError = ErrorType<ErrorResponse>>(runId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStructuralChallengerBacktest>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStructuralChallengerBacktestQueryKey(runId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStructuralChallengerBacktest>>> = ({ signal }) => getStructuralChallengerBacktest(runId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: runId !== null && runId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStructuralChallengerBacktest>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetStructuralChallengerBacktestQueryResult = NonNullable<Awaited<ReturnType<typeof getStructuralChallengerBacktest>>>
+export type GetStructuralChallengerBacktestQueryError = ErrorType<ErrorResponse>
+
+
+export function useGetStructuralChallengerBacktest<TData = Awaited<ReturnType<typeof getStructuralChallengerBacktest>>, TError = ErrorType<ErrorResponse>>(
+ runId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStructuralChallengerBacktest>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getStructuralChallengerBacktest>>,
+          TError,
+          Awaited<ReturnType<typeof getStructuralChallengerBacktest>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetStructuralChallengerBacktest<TData = Awaited<ReturnType<typeof getStructuralChallengerBacktest>>, TError = ErrorType<ErrorResponse>>(
+ runId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStructuralChallengerBacktest>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getStructuralChallengerBacktest>>,
+          TError,
+          Awaited<ReturnType<typeof getStructuralChallengerBacktest>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetStructuralChallengerBacktest<TData = Awaited<ReturnType<typeof getStructuralChallengerBacktest>>, TError = ErrorType<ErrorResponse>>(
+ runId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStructuralChallengerBacktest>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get one saved structural pullback research run
+ */
+
+export function useGetStructuralChallengerBacktest<TData = Awaited<ReturnType<typeof getStructuralChallengerBacktest>>, TError = ErrorType<ErrorResponse>>(
+ runId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStructuralChallengerBacktest>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetStructuralChallengerBacktestQueryOptions(runId,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

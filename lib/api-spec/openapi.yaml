@@ -496,6 +496,131 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /strategy-lab/structural:
+    get:
+      tags:
+      - strategy-lab
+      summary: Get the isolated structural pullback research setup
+      operationId: getStructuralChallengerOverview
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StructuralLabOverview'
+        '401':
+          description: Owner session required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /strategy-lab/structural/backtests:
+    get:
+      tags:
+      - strategy-lab
+      summary: List saved structural pullback research runs
+      operationId: listStructuralChallengerBacktests
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/StructuralRunListItem'
+                type: array
+        '401':
+          description: Owner session required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags:
+      - strategy-lab
+      summary: Run the isolated structural pullback historical challenger
+      operationId: createStructuralChallengerBacktest
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StructuralBacktestInput'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StructuralBacktestResult'
+        '401':
+          description: Owner session required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Same-origin CSRF check failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: The future validation window is locked or already used.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Research inputs are invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Historical OKX data is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /strategy-lab/structural/backtests/{run_id}:
+    get:
+      tags:
+      - strategy-lab
+      summary: Get one saved structural pullback research run
+      operationId: getStructuralChallengerBacktest
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StructuralBacktestResult'
+        '401':
+          description: Owner session required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Research run was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Invalid run identifier.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /strategy-lab/backtests:
     get:
       tags:
@@ -3006,6 +3131,697 @@ components:
       - tradingEnabled
       - proposalCreationEnabled
       - notice
+    StructuralBacktestInput:
+      properties:
+        symbol:
+          type: string
+          enum:
+          - BTCUSDT
+          - ETHUSDT
+          - SOLUSDT
+        samplePeriod:
+          type: string
+          enum:
+          - development
+          - future_validation
+      type: object
+      required:
+      - symbol
+      - samplePeriod
+    StructuralBacktestResult:
+      properties:
+        id:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        symbol:
+          type: string
+          enum:
+          - BTCUSDT
+          - ETHUSDT
+          - SOLUSDT
+        strategy:
+          $ref: '#/components/schemas/StructuralStrategyConfiguration'
+        samplePeriod:
+          type: string
+          enum:
+          - development
+          - future_validation
+        requestedStart:
+          type: string
+          format: date-time
+        requestedEnd:
+          type: string
+          format: date-time
+        dataSha256:
+          type: string
+        candleCoverage:
+          items:
+            $ref: '#/components/schemas/StructuralCandleCoverage'
+          type: array
+        fundingCoverage:
+          $ref: '#/components/schemas/FundingCoverage'
+        futureValidationWindow:
+          $ref: '#/components/schemas/StructuralWindow'
+        segments:
+          items:
+            $ref: '#/components/schemas/StructuralSegment'
+          type: array
+        candidateEvidence:
+          items:
+            $ref: '#/components/schemas/StructuralCandidateEvidence'
+          type: array
+        committeeReviewStatus:
+          type: string
+          const: not_run
+        committeeNotice:
+          type: string
+        notes:
+          items:
+            type: string
+          type: array
+      type: object
+      required:
+      - id
+      - createdAt
+      - symbol
+      - strategy
+      - samplePeriod
+      - requestedStart
+      - requestedEnd
+      - dataSha256
+      - candleCoverage
+      - fundingCoverage
+      - futureValidationWindow
+      - segments
+      - candidateEvidence
+      - committeeReviewStatus
+      - committeeNotice
+      - notes
+    StructuralCandidateEvidence:
+      properties:
+        candidateId:
+          type: string
+        symbol:
+          type: string
+          enum:
+          - BTCUSDT
+          - ETHUSDT
+          - SOLUSDT
+        marketType:
+          type: string
+          enum:
+          - spot
+          - futures
+        side:
+          type: string
+          enum:
+          - long
+          - short
+        entryMethod:
+          type: string
+          enum:
+          - next_candle_market
+          - anchor_limit
+        strategyVersion:
+          type: string
+        signalAt:
+          type: string
+          format: date-time
+        confirmationAt:
+          type: string
+          format: date-time
+        anchorPrice:
+          anyOf:
+          - type: number
+          - type: string
+        proposedEntryPrice:
+          anyOf:
+          - type: number
+          - type: string
+        stopPrice:
+          anyOf:
+          - type: number
+          - type: string
+        targetPrice:
+          anyOf:
+          - type: number
+          - type: string
+        plannedNetRewardRisk:
+          anyOf:
+          - type: number
+          - type: string
+        notionalUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        leverage:
+          anyOf:
+          - type: number
+          - type: string
+        plannedLossUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        estimatedCostUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        evidence:
+          additionalProperties: true
+          type: object
+        committeeStatus:
+          type: string
+          const: not_run
+      type: object
+      required:
+      - candidateId
+      - symbol
+      - marketType
+      - side
+      - entryMethod
+      - strategyVersion
+      - signalAt
+      - confirmationAt
+      - anchorPrice
+      - proposedEntryPrice
+      - stopPrice
+      - targetPrice
+      - plannedNetRewardRisk
+      - notionalUsdt
+      - leverage
+      - plannedLossUsdt
+      - estimatedCostUsdt
+      - evidence
+      - committeeStatus
+      description: Research-only evidence snapshot compatible with proposal price/risk terms.
+    StructuralCandleCoverage:
+      properties:
+        symbol:
+          type: string
+          enum:
+          - BTCUSDT
+          - ETHUSDT
+          - SOLUSDT
+        marketType:
+          type: string
+          enum:
+          - spot
+          - futures
+        timeframe:
+          type: string
+          enum:
+          - 1m
+          - 15m
+          - 1h
+        requestedStart:
+          type: string
+          format: date-time
+        requestedEnd:
+          type: string
+          format: date-time
+        firstCandleAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+        lastCandleAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+        actualClosedCandles:
+          type: integer
+        expectedCandles:
+          type: integer
+        missingCandles:
+          type: integer
+        coveragePct:
+          anyOf:
+          - type: number
+          - type: string
+        gapRanges:
+          items:
+            type: string
+          type: array
+      type: object
+      required:
+      - symbol
+      - marketType
+      - timeframe
+      - requestedStart
+      - requestedEnd
+      - firstCandleAt
+      - lastCandleAt
+      - actualClosedCandles
+      - expectedCandles
+      - missingCandles
+      - coveragePct
+      - gapRanges
+    StructuralCostResult:
+      properties:
+        marketCostBps:
+          type: integer
+        metrics:
+          $ref: '#/components/schemas/BacktestMetrics'
+        trades:
+          items:
+            $ref: '#/components/schemas/StructuralTrade'
+          type: array
+      type: object
+      required:
+      - marketCostBps
+      - metrics
+      - trades
+    StructuralEntryOrder:
+      properties:
+        candidateId:
+          type: string
+        signalAt:
+          type: string
+          format: date-time
+        side:
+          type: string
+          enum:
+          - long
+          - short
+        entryMethod:
+          type: string
+          enum:
+          - next_candle_market
+          - anchor_limit
+        proposedPrice:
+          anyOf:
+          - type: number
+          - type: string
+        plannedNetRewardRisk:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        expiresAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+          - filled
+          - unfilled
+          - cancelled
+          - rejected
+          - untestable
+        filledAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+        fillPrice:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        reason:
+          type: string
+      type: object
+      required:
+      - candidateId
+      - signalAt
+      - side
+      - entryMethod
+      - proposedPrice
+      - plannedNetRewardRisk
+      - expiresAt
+      - status
+      - filledAt
+      - fillPrice
+      - reason
+    StructuralLabOverview:
+      properties:
+        strategy:
+          $ref: '#/components/schemas/StructuralStrategyConfiguration'
+        developmentWindow:
+          $ref: '#/components/schemas/StructuralWindow'
+        futureValidationWindow:
+          $ref: '#/components/schemas/StructuralWindow'
+        committeeReviewStatus:
+          type: string
+          const: not_run
+        committeeNotice:
+          type: string
+        recentRuns:
+          items:
+            $ref: '#/components/schemas/StructuralRunListItem'
+          type: array
+      type: object
+      required:
+      - strategy
+      - developmentWindow
+      - futureValidationWindow
+      - committeeReviewStatus
+      - committeeNotice
+      - recentRuns
+    StructuralRunListItem:
+      properties:
+        id:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        symbol:
+          type: string
+          enum:
+          - BTCUSDT
+          - ETHUSDT
+          - SOLUSDT
+        strategyVersion:
+          type: string
+        samplePeriod:
+          type: string
+          enum:
+          - development
+          - future_validation
+        requestedStart:
+          type: string
+          format: date-time
+        requestedEnd:
+          type: string
+          format: date-time
+        dataSha256:
+          type: string
+        completedTrades:
+          type: integer
+      type: object
+      required:
+      - id
+      - createdAt
+      - symbol
+      - strategyVersion
+      - samplePeriod
+      - requestedStart
+      - requestedEnd
+      - dataSha256
+      - completedTrades
+    StructuralSegment:
+      properties:
+        marketType:
+          type: string
+          enum:
+          - spot
+          - futures
+        side:
+          type: string
+          enum:
+          - long
+          - short
+        entryMethod:
+          type: string
+          enum:
+          - next_candle_market
+          - anchor_limit
+        maxHoldMinutes:
+          type: integer
+        candidateCount:
+          type: integer
+        rewardRiskRejected:
+          type: integer
+        ordersPlaced:
+          type: integer
+        ordersFilled:
+          type: integer
+        unfilledLimits:
+          type: integer
+        cancelledOrders:
+          type: integer
+        untestableCandidates:
+          type: integer
+        overlappingSignalsSkipped:
+          type: integer
+        orders:
+          items:
+            $ref: '#/components/schemas/StructuralEntryOrder'
+          type: array
+        costResults:
+          items:
+            $ref: '#/components/schemas/StructuralCostResult'
+          type: array
+      type: object
+      required:
+      - marketType
+      - side
+      - entryMethod
+      - maxHoldMinutes
+      - candidateCount
+      - rewardRiskRejected
+      - ordersPlaced
+      - ordersFilled
+      - unfilledLimits
+      - cancelledOrders
+      - untestableCandidates
+      - overlappingSignalsSkipped
+      - orders
+      - costResults
+    StructuralStrategyConfiguration:
+      properties:
+        strategyVersion:
+          type: string
+        trendTimeframe:
+          type: string
+        entryTimeframe:
+          type: string
+        swingLeftBars:
+          type: integer
+        swingRightBars:
+          type: integer
+        zoneClusterAtr:
+          anyOf:
+          - type: number
+          - type: string
+        supportResistanceProximityAtr:
+          anyOf:
+          - type: number
+          - type: string
+        confirmationExpiryBars:
+          type: integer
+        maxChaseAtr:
+          anyOf:
+          - type: number
+          - type: string
+        structuralStopBufferAtr:
+          anyOf:
+          - type: number
+          - type: string
+        targetOffsetBeforeZoneAtr:
+          anyOf:
+          - type: number
+          - type: string
+        minimumNetRewardRisk:
+          anyOf:
+          - type: number
+          - type: string
+        holdingPeriodsMinutes:
+          items:
+            type: integer
+          type: array
+        entryMethods:
+          items:
+            type: string
+            enum:
+            - next_candle_market
+            - anchor_limit
+          type: array
+        marketCostSensitivityBps:
+          items:
+            type: integer
+          type: array
+        notionalUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        leverage:
+          anyOf:
+          - type: number
+          - type: string
+        noLookaheadRule:
+          type: string
+        executionAssumptions:
+          items:
+            type: string
+          type: array
+      type: object
+      required:
+      - strategyVersion
+      - trendTimeframe
+      - entryTimeframe
+      - swingLeftBars
+      - swingRightBars
+      - zoneClusterAtr
+      - supportResistanceProximityAtr
+      - confirmationExpiryBars
+      - maxChaseAtr
+      - structuralStopBufferAtr
+      - targetOffsetBeforeZoneAtr
+      - minimumNetRewardRisk
+      - holdingPeriodsMinutes
+      - entryMethods
+      - marketCostSensitivityBps
+      - notionalUsdt
+      - leverage
+      - noLookaheadRule
+      - executionAssumptions
+    StructuralTrade:
+      properties:
+        candidateId:
+          type: string
+        signalAt:
+          type: string
+          format: date-time
+        enteredAt:
+          type: string
+          format: date-time
+        exitedAt:
+          type: string
+          format: date-time
+        side:
+          type: string
+          enum:
+          - long
+          - short
+        entryMethod:
+          type: string
+          enum:
+          - next_candle_market
+          - anchor_limit
+        proposedEntryPrice:
+          anyOf:
+          - type: number
+          - type: string
+        entryPrice:
+          anyOf:
+          - type: number
+          - type: string
+        stopPrice:
+          anyOf:
+          - type: number
+          - type: string
+        targetPrice:
+          anyOf:
+          - type: number
+          - type: string
+        plannedNetRewardRisk:
+          anyOf:
+          - type: number
+          - type: string
+        exitPrice:
+          anyOf:
+          - type: number
+          - type: string
+        exitReason:
+          type: string
+          enum:
+          - stop_loss
+          - take_profit
+          - time_limit
+        holdingMinutes:
+          type: integer
+        grossPnlUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        feesUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        makerFeesUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        takerFeesUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        fundingUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        modeledMarketCostUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        netPnlUsdt:
+          anyOf:
+          - type: number
+          - type: string
+        stopZoneLower:
+          anyOf:
+          - type: number
+          - type: string
+        stopZoneUpper:
+          anyOf:
+          - type: number
+          - type: string
+        targetZoneLower:
+          anyOf:
+          - type: number
+          - type: string
+        targetZoneUpper:
+          anyOf:
+          - type: number
+          - type: string
+      type: object
+      required:
+      - candidateId
+      - signalAt
+      - enteredAt
+      - exitedAt
+      - side
+      - entryMethod
+      - proposedEntryPrice
+      - entryPrice
+      - stopPrice
+      - targetPrice
+      - plannedNetRewardRisk
+      - exitPrice
+      - exitReason
+      - holdingMinutes
+      - grossPnlUsdt
+      - feesUsdt
+      - makerFeesUsdt
+      - takerFeesUsdt
+      - fundingUsdt
+      - modeledMarketCostUsdt
+      - netPnlUsdt
+      - stopZoneLower
+      - stopZoneUpper
+      - targetZoneLower
+      - targetZoneUpper
+    StructuralWindow:
+      properties:
+        samplePeriod:
+          type: string
+          enum:
+          - development
+          - future_validation
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+          - ready
+          - pending
+        note:
+          type: string
+      type: object
+      required:
+      - samplePeriod
+      - startsAt
+      - endsAt
+      - status
+      - note
     SystemStatus:
       properties:
         overall:

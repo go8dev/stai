@@ -299,7 +299,7 @@ def test_the_market_data_interface_can_only_read() -> None:
     assert methods == {"get_ticker", "get_candles"}
 
 
-def test_the_app_has_one_state_changing_route_and_it_is_not_about_orders(
+def test_state_changing_routes_are_approved_and_not_about_orders(
     harness: Harness,
 ) -> None:
     routes = {
@@ -316,6 +316,7 @@ def test_the_app_has_one_state_changing_route_and_it_is_not_about_orders(
         ("POST", "/api/proposals/{proposal_id}/reject"),
         ("POST", "/api/strategy-lab/backtests"),
         ("POST", "/api/strategy-lab/backtests/{run_id}/reviews"),
+        ("POST", "/api/strategy-lab/structural/backtests"),
     }
     words = re.compile(r"order|trade|position|withdraw|transfer|credential|key|live|exchange")
     assert [path for _, path in sorted(routes) if words.search(path)] == []

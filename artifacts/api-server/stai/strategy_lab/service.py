@@ -31,6 +31,9 @@ from stai.strategy_lab.schemas import (
     StrategyLabOverview,
     StrategyLabStatus,
 )
+from stai.strategy_lab.structural_engine import (
+    STRATEGY_VERSION as STRUCTURAL_STRATEGY_VERSION,
+)
 
 
 def _status(runtime: Runtime) -> StrategyLabStatus:
@@ -73,7 +76,10 @@ def _list_item(row: StrategyBacktestRun) -> BacktestListItem:
 def overview(session: Session, user_id: str, runtime: Runtime) -> StrategyLabOverview:
     rows = session.execute(
         select(StrategyBacktestRun)
-        .where(StrategyBacktestRun.user_id == user_id)
+        .where(
+            StrategyBacktestRun.user_id == user_id,
+            StrategyBacktestRun.strategy_version != STRUCTURAL_STRATEGY_VERSION,
+        )
         .order_by(StrategyBacktestRun.created_at.desc())
         .limit(20)
     ).scalars()
@@ -87,7 +93,10 @@ def overview(session: Session, user_id: str, runtime: Runtime) -> StrategyLabOve
 def list_runs(session: Session, user_id: str) -> list[BacktestListItem]:
     rows = session.execute(
         select(StrategyBacktestRun)
-        .where(StrategyBacktestRun.user_id == user_id)
+        .where(
+            StrategyBacktestRun.user_id == user_id,
+            StrategyBacktestRun.strategy_version != STRUCTURAL_STRATEGY_VERSION,
+        )
         .order_by(StrategyBacktestRun.created_at.desc())
         .limit(20)
     ).scalars()
@@ -99,6 +108,7 @@ def get_run(session: Session, *, user_id: str, run_id: str) -> BacktestResult | 
         select(StrategyBacktestRun).where(
             StrategyBacktestRun.id == run_id,
             StrategyBacktestRun.user_id == user_id,
+            StrategyBacktestRun.strategy_version != STRUCTURAL_STRATEGY_VERSION,
         )
     ).scalar_one_or_none()
     return _result(row) if row is not None else None
@@ -109,6 +119,7 @@ def get_run_record(session: Session, *, user_id: str, run_id: str) -> StrategyBa
         select(StrategyBacktestRun).where(
             StrategyBacktestRun.id == run_id,
             StrategyBacktestRun.user_id == user_id,
+            StrategyBacktestRun.strategy_version != STRUCTURAL_STRATEGY_VERSION,
         )
     ).scalar_one_or_none()
 

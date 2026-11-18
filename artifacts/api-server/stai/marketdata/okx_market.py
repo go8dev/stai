@@ -7,6 +7,7 @@ no credentials, private endpoints, or methods that can change an exchange state.
 from __future__ import annotations
 
 import asyncio
+import math
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
@@ -92,6 +93,8 @@ class OkxMarketData:
         self._stale_after_seconds = stale_after_seconds
         self._semaphore = asyncio.Semaphore(concurrency)
         self._instrument_cache: dict[str, tuple[datetime, dict[str, InstrumentRules]]] = {}
+        self._historical_request_lock = asyncio.Lock()
+        self._last_historical_request_at: float | None = None
 
     async def _get(self, path: str, params: dict[str, str]) -> dict[str, Any]:
         if path not in MARKET_PATHS:
@@ -120,6 +123,18 @@ class OkxMarketData:
             raise MarketDataUnavailable(
                 "OKX public market data returned an unexpected response."
             ) from exc
+
+    async def _get_historical_page(self, path: str, params: dict[str, str]) -> dict[str, Any]:
+        """Pace historical endpoint requests across concurrent backtest series."""
+        async with self._historical_request_lock:
+            loop = asyncio.get_running_loop()
+            now = loop.time()
+            if self._last_historical_request_at is not None:
+                delay = 0.12 - (now - self._last_historical_request_at)
+                if delay > 0:
+                    await asyncio.sleep(delay)
+            self._last_historical_request_at = loop.time()
+            return await self._get(path, params)
 
     async def get_ticker(self, symbol: str) -> Ticker | None:
         """Provider implementation used by the existing exchange-neutral analytics."""
@@ -188,26 +203,37 @@ class OkxMarketData:
         market_type: MarketType,
         start_at: datetime,
         end_at: datetime,
+        *,
+        timeframe: str = "15m",
     ) -> list[CandlePoint]:
-        """Fetch a bounded, timestamped set of closed 15-minute OKX candles."""
-        if symbol not in SYMBOLS or market_type not in {"spot", "futures"}:
+        """Fetch a bounded, timestamped set of closed OKX historical candles."""
+        if (
+            symbol not in SYMBOLS
+            or market_type not in {"spot", "futures"}
+            or timeframe not in _BAR_OKX
+        ):
             raise ValueError("Unsupported historical market.")
         if start_at.tzinfo is None or end_at.tzinfo is None or start_at >= end_at:
             raise ValueError("Historical candle bounds must be ordered timezone-aware times.")
         instrument_id = _instrument_id(symbol, market_type)
         start_ms = int(start_at.timestamp() * 1000)
         end_ms = int(end_at.timestamp() * 1000)
+        interval_ms = _BAR_MS[timeframe]
+        page_limit = 300 if timeframe == "1m" else 100
+        page_count = min(
+            600,
+            max(1, math.ceil((end_ms - start_ms) / (interval_ms * page_limit)) + 2),
+        )
         cursor = end_ms
         by_open_time: dict[int, CandlePoint] = {}
 
-        # 30 requested days plus warm-up is below this defensive page ceiling.
-        for _ in range(45):
-            payload = await self._get(
+        for _ in range(page_count):
+            payload = await self._get_historical_page(
                 "/api/v5/market/history-candles",
                 {
                     "instId": instrument_id,
-                    "bar": "15m",
-                    "limit": "100",
+                    "bar": _BAR_OKX[timeframe],
+                    "limit": str(page_limit),
                     "after": str(cursor),
                 },
             )
@@ -234,14 +260,25 @@ class OkxMarketData:
                     complete=True,
                 )
             oldest_ms = min(timestamps)
-            if oldest_ms <= start_ms or oldest_ms >= cursor:
+            if oldest_ms < start_ms or oldest_ms >= cursor:
+                break
+            if oldest_ms == start_ms:
+                cursor = oldest_ms
                 break
             cursor = oldest_ms
-            await asyncio.sleep(0.12)
 
         if not by_open_time:
             raise MarketDataUnavailable("OKX returned no closed candles for this period.")
         return [by_open_time[key] for key in sorted(by_open_time)]
+
+    async def get_instrument_rule(self, symbol: str, market_type: MarketType) -> InstrumentRules:
+        """Return current public instrument rules needed to model one-tick limits."""
+        instrument_id = _instrument_id(symbol, market_type)
+        rules = await self._instrument_rules(market_type, instrument_id)
+        rule = rules.get(instrument_id)
+        if rule is None or rule.tick_size is None or rule.tick_size <= 0:
+            raise MarketDataUnavailable("OKX did not return a usable instrument tick size.")
+        return rule
 
     async def get_historical_funding(
         self,
@@ -261,7 +298,7 @@ class OkxMarketData:
         by_funding_time: dict[int, Decimal] = {}
 
         for _ in range(10):
-            payload = await self._get(
+            payload = await self._get_historical_page(
                 "/api/v5/public/funding-rate-history",
                 {"instId": instrument_id, "limit": "100", "after": str(cursor)},
             )
@@ -284,7 +321,6 @@ class OkxMarketData:
             if oldest_ms <= start_ms or oldest_ms >= cursor:
                 break
             cursor = oldest_ms
-            await asyncio.sleep(0.12)
 
         return [
             (_moment(timestamp, "historical funding time"), by_funding_time[timestamp])

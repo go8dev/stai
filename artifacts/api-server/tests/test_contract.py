@@ -51,6 +51,10 @@ OPERATIONS = {
     ("GET", "/strategy-lab/backtests/{run_id}"): "getStrategyBacktest",
     ("GET", "/strategy-lab/backtests/{run_id}/reviews"): "listStrategyBacktestReviews",
     ("POST", "/strategy-lab/backtests/{run_id}/reviews"): "createStrategyBacktestReview",
+    ("GET", "/strategy-lab/structural"): "getStructuralChallengerOverview",
+    ("GET", "/strategy-lab/structural/backtests"): "listStructuralChallengerBacktests",
+    ("GET", "/strategy-lab/structural/backtests/{run_id}"): "getStructuralChallengerBacktest",
+    ("POST", "/strategy-lab/structural/backtests"): "createStructuralChallengerBacktest",
 }
 
 
@@ -190,7 +194,7 @@ def test_the_contract_is_openapi_3_1_served_under_the_api_path(stored: dict[str,
     assert API_PREFIX == "/api"
 
 
-def test_the_contract_lists_exactly_the_operations_of_phase_one(stored: dict[str, Any]) -> None:
+def test_the_contract_lists_exactly_the_approved_operations(stored: dict[str, Any]) -> None:
     found = {key: operation["operationId"] for key, operation in operations(stored).items()}
 
     assert found == OPERATIONS
@@ -249,6 +253,7 @@ def test_every_operation_that_changes_something_documents_the_csrf_refusal(
         ("POST", "/proposals/{proposal_id}/reject"),
         ("POST", "/strategy-lab/backtests"),
         ("POST", "/strategy-lab/backtests/{run_id}/reviews"),
+        ("POST", "/strategy-lab/structural/backtests"),
     }
     for key in changing:
         assert "403" in operations(stored)[key]["responses"], key
