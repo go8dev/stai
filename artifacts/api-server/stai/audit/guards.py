@@ -21,9 +21,11 @@ from typing import Any
 from sqlalchemy import Engine, event
 from sqlalchemy.orm import ORMExecuteState, Session
 
-from stai.db.models import AuditEvent
+from stai.db.models import AuditEvent, LedgerEntry, PaperFill
 
 AUDIT_TABLE = AuditEvent.__tablename__
+LEDGER_TABLE = LedgerEntry.__tablename__
+FILL_TABLE = PaperFill.__tablename__
 
 
 class AuditImmutableError(RuntimeError):
@@ -31,7 +33,12 @@ class AuditImmutableError(RuntimeError):
 
 
 _COMMENTS = re.compile(r"/\*.*?\*/|--[^\n]*", re.DOTALL)
-_TABLE = re.compile(rf"(?<![A-Za-z0-9_]){re.escape(AUDIT_TABLE)}(?![A-Za-z0-9_])", re.IGNORECASE)
+_TABLE = re.compile(
+    rf"(?<![A-Za-z0-9_])(?:{re.escape(AUDIT_TABLE)}|{re.escape(LEDGER_TABLE)}|"
+    rf"{re.escape(FILL_TABLE)})"
+    r"(?![A-Za-z0-9_])",
+    re.IGNORECASE,
+)
 _FORBIDDEN = re.compile(
     r"(?<![A-Za-z0-9_])(UPDATE|DELETE|TRUNCATE|DROP|ALTER|MERGE|RENAME)(?![A-Za-z0-9_])",
     re.IGNORECASE,
@@ -50,7 +57,9 @@ def statement_violates_append_only(statement: str) -> bool:
 
 
 def _refuse(action: str) -> None:
-    raise AuditImmutableError(f"audit_events is append-only: {action} is not allowed")
+    raise AuditImmutableError(
+        f"audit, ledger and paper-fill records are append-only: {action} is not allowed"
+    )
 
 
 @event.listens_for(AuditEvent, "before_update")
@@ -63,12 +72,32 @@ def _block_orm_delete(mapper: Any, connection: Any, target: Any) -> None:
     _refuse("DELETE")
 
 
+@event.listens_for(LedgerEntry, "before_update")
+def _block_ledger_update(mapper: Any, connection: Any, target: Any) -> None:
+    _refuse("UPDATE")
+
+
+@event.listens_for(LedgerEntry, "before_delete")
+def _block_ledger_delete(mapper: Any, connection: Any, target: Any) -> None:
+    _refuse("DELETE")
+
+
+@event.listens_for(PaperFill, "before_update")
+def _block_fill_update(mapper: Any, connection: Any, target: Any) -> None:
+    _refuse("UPDATE")
+
+
+@event.listens_for(PaperFill, "before_delete")
+def _block_fill_delete(mapper: Any, connection: Any, target: Any) -> None:
+    _refuse("DELETE")
+
+
 @event.listens_for(Session, "do_orm_execute")
 def _block_orm_bulk(state: ORMExecuteState) -> None:
     if not (state.is_update or state.is_delete):
         return
     for mapper in state.all_mappers:
-        if mapper.class_ is AuditEvent:
+        if mapper.class_ in {AuditEvent, LedgerEntry, PaperFill}:
             _refuse("UPDATE" if state.is_update else "DELETE")
 
 

@@ -25,7 +25,11 @@ from stai.core.middleware import RequestContextMiddleware
 from stai.core.runtime import Runtime
 from stai.core.time import utcnow
 from stai.db.session import Database, DatabaseNotConfigured
+from stai.marketdata.okx_market import OkxMarketData
+from stai.marketdata.provider import set_market_data_provider
 from stai.marketdata.okx_public import OkxPublicProbe
+from stai.marketdata.routes import router as market_router
+from stai.portfolio.routes import router as portfolio_router
 from stai.system.routes import router as system_router
 
 logger = StructuredLogger(__name__)
@@ -54,6 +58,7 @@ def build_app(
         if settings.repl_id
         else None
     )
+    okx_market_data = OkxMarketData(http, settings.okx_base_url, clock=clock)
     runtime = Runtime(
         settings=settings,
         database=Database(settings),
@@ -61,9 +66,11 @@ def build_app(
         owns_http=owns_http,
         oidc=oidc,
         market_data_probe=OkxPublicProbe(http, settings.okx_base_url, clock=clock),
+        okx_market_data=okx_market_data,
         clock=clock,
         started_at=clock(),
     )
+    set_market_data_provider(okx_market_data)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -110,6 +117,8 @@ def build_app(
     app.include_router(system_router)
     app.include_router(auth_router)
     app.include_router(audit_router)
+    app.include_router(market_router)
+    app.include_router(portfolio_router)
 
     # Added last runs first: request context wraps the gate, the gate wraps every route.
     app.add_middleware(AuthGateMiddleware, runtime=runtime)

@@ -20,7 +20,19 @@ from stai.db.base import Base
 from .conftest import API_ROOT, AppFactory, DatabaseFactory, alembic_config
 from .support import sign_in
 
-APPLICATION_TABLES = {"users", "auth_sessions", "audit_events"}
+APPLICATION_TABLES = {
+    "users",
+    "auth_sessions",
+    "audit_events",
+    "virtual_funds",
+    "fund_allocations",
+    "ledger_entries",
+    "market_snapshots",
+    "bot_states",
+    "trading_permits",
+    "paper_positions",
+    "paper_fills",
+}
 VERSIONS = API_ROOT / "migrations" / "versions"
 
 
@@ -57,14 +69,14 @@ def fresh(database_factory: DatabaseFactory) -> Iterator[tuple[str, Engine]]:
 # -- what the migrations build ----------------------------------------------------------------
 
 
-def test_a_new_database_gets_exactly_the_phase_one_tables(fresh: tuple[str, Engine]) -> None:
+def test_a_new_database_gets_exactly_the_migrated_tables(fresh: tuple[str, Engine]) -> None:
     url, engine = fresh
     assert public_tables(engine) == set()
 
     command.upgrade(alembic_config(url), "head")
 
     assert public_tables(engine) == APPLICATION_TABLES | {"alembic_version"}
-    assert scalar(engine, "SELECT version_num FROM alembic_version") == "0001"
+    assert scalar(engine, "SELECT version_num FROM alembic_version") == "10af905d740f"
     for table in APPLICATION_TABLES:
         assert scalar(engine, f"SELECT count(*) FROM {table}") == 0
 
@@ -102,6 +114,45 @@ def test_keys_checks_and_indexes_have_their_explicit_names(_admin_engine: Engine
         "fk_auth_sessions_user_id_users",
         "pk_audit_events",
         "ck_audit_events_seq_positive",
+        "pk_virtual_funds",
+        "pk_fund_allocations",
+        "fk_fund_allocations_fund_id_virtual_funds",
+        "ck_fund_allocations_market_type",
+        "ck_fund_allocations_balance_nonnegative",
+        "pk_ledger_entries",
+        "ck_ledger_entries_seq_positive",
+        "ck_ledger_entries_market_type",
+        "pk_market_snapshots",
+        "ck_market_snapshots_market_type",
+        "ck_market_snapshots_status",
+        "pk_bot_states",
+        "pk_trading_permits",
+        "ck_trading_permits_market_type",
+        "ck_trading_permits_side",
+        "ck_trading_permits_notional_positive",
+        "ck_trading_permits_price_positive",
+        "ck_trading_permits_drift_nonnegative",
+        "ck_trading_permits_leverage_range",
+        "pk_paper_positions",
+        "ck_paper_positions_market_type",
+        "ck_paper_positions_side",
+        "ck_paper_positions_state",
+        "ck_paper_positions_quantity_nonnegative",
+        "ck_paper_positions_entry_price_positive",
+        "ck_paper_positions_mark_price_positive",
+        "ck_paper_positions_leverage_range",
+        "pk_paper_fills",
+        "fk_paper_fills_trade_id_paper_positions",
+        "ck_paper_fills_market_type",
+        "ck_paper_fills_side",
+        "ck_paper_fills_fill_type",
+        "ck_paper_fills_quantity_positive",
+        "ck_paper_fills_raw_price_positive",
+        "ck_paper_fills_fill_price_positive",
+        "ck_paper_fills_fee_nonnegative",
+        "ck_paper_fills_fee_rate_nonnegative",
+        "ck_paper_fills_spread_nonnegative",
+        "ck_paper_fills_slippage_nonnegative",
     }
     assert set(indexes) == {
         "pk_users",
@@ -113,6 +164,22 @@ def test_keys_checks_and_indexes_have_their_explicit_names(_admin_engine: Engine
         "uq_audit_events_hash",
         "ix_audit_events_event_type",
         "ix_audit_events_occurred_at",
+        "pk_virtual_funds",
+        "pk_fund_allocations",
+        "pk_ledger_entries",
+        "uq_ledger_entries_hash",
+        "uq_ledger_entries_idempotency_key",
+        "uq_ledger_entries_prev_hash",
+        "ix_ledger_entries_occurred_at",
+        "pk_market_snapshots",
+        "ix_market_snapshots_symbol_market_time",
+        "pk_bot_states",
+        "pk_trading_permits",
+        "ix_trading_permits_expiry",
+        "pk_paper_positions",
+        "ix_paper_positions_state_market",
+        "pk_paper_fills",
+        "ix_paper_fills_trade_time",
     }
     assert "UNIQUE" in indexes["uq_audit_events_prev_hash"]
     assert "UNIQUE" in indexes["uq_audit_events_hash"]
@@ -156,12 +223,15 @@ def test_running_the_migrations_twice_changes_nothing(fresh: tuple[str, Engine])
 def test_the_revisions_form_one_line(database_url: str) -> None:
     scripts = ScriptDirectory.from_config(alembic_config(database_url))
 
-    assert scripts.get_heads() == ["0001"]
+    assert scripts.get_heads() == ["10af905d740f"]
     assert scripts.get_bases() == ["0001"]
     revisions = list(scripts.walk_revisions())
-    assert [revision.revision for revision in revisions] == ["0001"]
+    assert [revision.revision for revision in revisions] == ["10af905d740f", "0001"]
     # File names start with the revision, so they sort in the order they apply.
-    assert sorted(path.name for path in VERSIONS.glob("*.py")) == ["0001_users_sessions_audit.py"]
+    assert sorted(path.name for path in VERSIONS.glob("*.py")) == [
+        "0001_users_sessions_audit.py",
+        "10af905d740f_phase2_fund_ledger_market_data.py",
+    ]
 
 
 def test_the_sql_can_be_printed_instead_of_run(fresh: tuple[str, Engine]) -> None:
@@ -245,6 +315,17 @@ def test_every_timestamp_carries_a_time_zone(_admin_engine: Engine) -> None:
         ("auth_sessions", "created_at"),
         ("auth_sessions", "expires_at"),
         ("audit_events", "occurred_at"),
+        ("virtual_funds", "created_at"),
+        ("ledger_entries", "occurred_at"),
+        ("market_snapshots", "observed_at"),
+        ("market_snapshots", "exchange_at"),
+        ("trading_permits", "approved_at"),
+        ("trading_permits", "expires_at"),
+        ("trading_permits", "consumed_at"),
+        ("bot_states", "saved_at"),
+        ("paper_positions", "opened_at"),
+        ("paper_positions", "closed_at"),
+        ("paper_fills", "occurred_at"),
     }
     assert {row.data_type for row in timestamps} == {"timestamp with time zone"}
 

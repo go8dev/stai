@@ -14,6 +14,7 @@ from stai.core.config import Settings
 from stai.core.ratelimit import RateLimiter
 from stai.core.time import utcnow
 from stai.db.session import Database
+from stai.marketdata.okx_market import OkxMarketData
 from stai.marketdata.okx_public import OkxPublicProbe
 
 
@@ -25,6 +26,7 @@ class Runtime:
     owns_http: bool
     oidc: OidcClient | None
     market_data_probe: OkxPublicProbe
+    okx_market_data: OkxMarketData
     rate_limiter: RateLimiter = field(default_factory=RateLimiter)
     clock: Callable[[], datetime] = utcnow
     started_at: datetime = field(default_factory=utcnow)

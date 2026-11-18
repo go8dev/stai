@@ -218,7 +218,76 @@ class FakeProvider:
                 return httpx.Response(200, content=body)
             return httpx.Response(200, json=body)
         millis = int(self.okx_time().timestamp() * 1000)
-        return httpx.Response(200, json={"code": "0", "msg": "", "data": [{"ts": str(millis)}]})
+        path = request.url.path
+        params = dict(request.url.params)
+        if path == "/api/v5/public/time":
+            data: list[dict[str, Any]] = [{"ts": str(millis)}]
+        elif path == "/api/v5/market/ticker":
+            data = [
+                {
+                    "instId": params["instId"],
+                    "last": "100",
+                    "open24h": "98",
+                    "high24h": "102",
+                    "low24h": "97",
+                    "vol24h": "1000",
+                    "volCcy24h": "100000",
+                    "bidPx": "99.9",
+                    "askPx": "100.1",
+                    "ts": str(millis),
+                }
+            ]
+        elif path == "/api/v5/market/candles":
+            step = 900_000 if params.get("bar") == "15m" else 3_600_000
+            data = []
+            for index in range(100):
+                timestamp = millis - (99 - index) * step
+                close = 90 + index * 0.1
+                data.append(
+                    [
+                        str(timestamp),
+                        str(close - 0.05),
+                        str(close + 0.25),
+                        str(close - 0.2),
+                        str(close),
+                        "10",
+                        "10",
+                        "1000",
+                        "1",
+                    ]
+                )
+            data.reverse()
+        elif path == "/api/v5/market/books":
+            data = [
+                {
+                    "bids": [["99.9", "1000", "0", "1"], ["99.8", "1000", "0", "1"]],
+                    "asks": [["100.1", "1000", "0", "1"], ["100.2", "1000", "0", "1"]],
+                    "ts": str(millis),
+                }
+            ]
+        elif path == "/api/v5/public/instruments":
+            suffix = "-SWAP" if params.get("instType") == "SWAP" else ""
+            data = [
+                {
+                    "instId": f"{symbol[:-4]}-USDT{suffix}",
+                    "minSz": "0.01",
+                    "lotSz": "0.01",
+                    "tickSz": "0.1",
+                    "ctVal": "0.01" if suffix else "",
+                }
+                for symbol in ("BTCUSDT", "ETHUSDT", "SOLUSDT")
+            ]
+        elif path == "/api/v5/public/funding-rate":
+            data = [
+                {
+                    "instId": params["instId"],
+                    "fundingRate": "0.0001",
+                    "nextFundingTime": str(millis + 28_800_000),
+                }
+            ]
+        else:
+            return httpx.Response(404, json={"code": "404", "msg": "not found", "data": []})
+        return httpx.Response(200, json={"code": "0", "msg": "", "data": data})
 
 
 # -- sign-in steps ----------------------------------------------------------------------------

@@ -54,7 +54,19 @@ from .support import (
 API_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = API_ROOT.parents[1]
 
-_TABLES = ("auth_sessions", "users", "audit_events")
+_TABLES = (
+    "market_snapshots",
+    "paper_fills",
+    "paper_positions",
+    "bot_states",
+    "trading_permits",
+    "ledger_entries",
+    "fund_allocations",
+    "virtual_funds",
+    "auth_sessions",
+    "users",
+    "audit_events",
+)
 
 
 def alembic_config(database_url: str) -> Config:

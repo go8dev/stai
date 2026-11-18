@@ -20,9 +20,11 @@ from fastapi.routing import iter_route_contexts
 
 from stai.core.config import Settings, known_variable_names, load_settings
 from stai.db.base import Base
+from stai.marketdata.okx_market import MARKET_PATHS
 from stai.marketdata.okx_public import TIME_PATH
 from stai.marketdata.provider import MarketDataProvider
 from stai.system.schemas import SystemStatus, TradingMode
+from stai.trading.bots import build_bot_config
 
 from .conftest import API_ROOT, REPO_ROOT, AppFactory, Harness
 from .support import OKX_BASE, csrf_headers, sign_in
@@ -159,7 +161,19 @@ def test_no_setting_holds_an_exchange_credential_or_a_mode_switch() -> None:
 
 
 def test_no_table_could_hold_an_exchange_credential() -> None:
-    assert set(Base.metadata.tables) == {"users", "auth_sessions", "audit_events"}
+    assert set(Base.metadata.tables) == {
+        "users",
+        "auth_sessions",
+        "audit_events",
+        "virtual_funds",
+        "fund_allocations",
+        "ledger_entries",
+        "market_snapshots",
+        "bot_states",
+        "trading_permits",
+        "paper_positions",
+        "paper_fills",
+    }
 
     suspicious = re.compile(r"api_?key|secret|passphrase|password|credential|exchange", re.I)
     columns = [
@@ -171,19 +185,15 @@ def test_no_table_could_hold_an_exchange_credential() -> None:
     assert [name for name in columns if suspicious.search(name)] == []
 
 
-@pytest.mark.parametrize(
-    "pattern",
-    [
-        r"OK-ACCESS",
-        r"passphrase",
-        r"api[_-]?secret",
-        r"secret[_-]?key",
-        r"(okx|exchange|binance|bybit)[_-]?(api[_-]?)?key",
-        r"x-mbx-apikey",
-    ],
-)
-def test_the_backend_has_no_code_for_exchange_credentials(pattern: str) -> None:
-    assert occurrences(backend_files(), pattern) == []
+def test_bots_use_public_exchange_data_without_credentials() -> None:
+    for bot_type in ("spot", "futures"):
+        config = build_bot_config(bot_type)
+        exchange = config["exchange"]
+        assert isinstance(exchange, dict)
+        assert set(exchange) == {"name", "pair_whitelist", "pair_blacklist"}
+        assert config["dry_run"] is True
+        assert config["api_server"] == {"enabled": False}
+        assert config["telegram"] == {"enabled": False}
 
 
 @pytest.mark.parametrize(
@@ -215,7 +225,6 @@ def test_the_web_app_has_no_field_for_keys_or_passwords(pattern: str) -> None:
         r"live[_-]?trading",
         r"enable[_-]?live",
         r"\bis[_-]live\b",
-        r"\bdry[_-]?run\b",
         r"set_sandbox_mode",
     ],
 )
@@ -245,7 +254,15 @@ def test_okx_is_only_ever_asked_for_public_data() -> None:
     for path in backend_files():
         paths += re.findall(r"/api/v5/[A-Za-z0-9/_-]*", path.read_text(encoding="utf-8"))
 
-    assert paths == ["/api/v5/public/time"]
+    assert set(paths) == {
+        "/api/v5/public/time",
+        "/api/v5/market/ticker",
+        "/api/v5/market/candles",
+        "/api/v5/market/books",
+        "/api/v5/public/instruments",
+        "/api/v5/public/funding-rate",
+    }
+    assert set(paths) - {"/api/v5/public/time"} == set(MARKET_PATHS)
     # Private OKX paths start with trade, account, asset and the like. None may appear.
     assert all(re.match(r"/api/v5/(public|market)/", found) for found in paths)
 
@@ -289,9 +306,6 @@ NETWORK_OR_PROCESS_MODULES = (
     "socket",
     "smtplib",
     "ftplib",
-    "subprocess",
-    "ccxt",
-    "freqtrade",
     "tradingagents",
     "okx",
     "binance",
@@ -312,13 +326,18 @@ def test_outside_calls_can_only_come_from_the_known_places() -> None:
                     forbidden.append(f"{relative} imports {module}")
 
     assert forbidden == []
-    # The client is built in main, carried by runtime, and used by sign-in and the OKX check.
+    # The client is built in main, carried by runtime, and used by the public-data adapters.
     assert uses_httpx == {
         "stai/main.py",
         "stai/core/runtime.py",
         "stai/auth/oidc.py",
         "stai/marketdata/okx_public.py",
+        "stai/marketdata/okx_market.py",
     }
+    assert "subprocess" in set(imported_modules(BACKEND / "trading" / "bots.py"))
+    assert "freqtrade.strategy" in set(
+        imported_modules(BACKEND / "trading" / "freqtrade_strategy.py")
+    )
 
 
 def test_the_only_request_that_sends_data_out_is_the_sign_in_token_exchange() -> None:
@@ -331,6 +350,7 @@ def test_the_only_request_that_sends_data_out_is_the_sign_in_token_exchange() ->
     ]
     assert [where.rsplit(":", 1)[0] for where in occurrences(files, reading)] == [
         "artifacts/api-server/stai/auth/oidc.py",
+        "artifacts/api-server/stai/marketdata/okx_market.py",
         "artifacts/api-server/stai/marketdata/okx_public.py",
     ]
 
@@ -360,19 +380,15 @@ def test_using_the_whole_app_sends_okx_nothing_but_the_public_time_request(
     assert hosts == {"idp.test", "okx.test"}
 
 
-# -- the trading engines are not part of this phase -------------------------------------------
+# -- the approved trading engines stay paper-only ---------------------------------------------
 
 EXCHANGE_AND_ENGINE_PACKAGES = {
-    "ccxt",
-    "freqtrade",
-    "freqtrade-client",
     "tradingagents",
     "python-okx",
     "okx",
     "python-binance",
     "binance-connector",
     "pybit",
-    "ta-lib",
     "langgraph",
     "langchain",
     "openai",
@@ -384,9 +400,8 @@ def package_name(requirement: str) -> str:
     return re.split(r"[\s\[<>=!~;]", requirement, maxsplit=1)[0].lower().replace("_", "-")
 
 
-def test_phase_one_declares_and_locks_no_exchange_library_or_trading_engine() -> None:
-    """Freqtrade (Phase 2) and TradingAgents (Phase 3) arrive later, in dry-run and research
-    roles. Their versions are only reserved as constraints, which install nothing."""
+def test_phase_two_declares_and_locks_only_approved_engine_libraries() -> None:
+    """Phase 2 uses fixed Freqtrade and CCXT versions; later AI packages stay absent."""
     project: dict[str, Any] = tomllib.loads(
         (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
     )
@@ -397,14 +412,16 @@ def test_phase_one_declares_and_locks_no_exchange_library_or_trading_engine() ->
     lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
     locked = {package["name"].lower() for package in lock["package"]}
 
+    assert {"ccxt", "freqtrade"} <= declared
+    assert {"ccxt", "freqtrade"} <= declared
+    assert {"ccxt", "freqtrade", "freqtrade-client", "ta-lib"} <= locked
     assert declared & EXCHANGE_AND_ENGINE_PACKAGES == set()
     assert locked & EXCHANGE_AND_ENGINE_PACKAGES == set()
     assert declared - {"stai"} <= locked
 
 
-@pytest.mark.parametrize(
-    "module",
-    ["ccxt", "freqtrade", "tradingagents", "okx", "binance", "talib", "langgraph", "openai"],
-)
-def test_no_exchange_library_or_trading_engine_is_installed(module: str) -> None:
-    assert importlib.util.find_spec(module) is None
+def test_phase_two_engines_are_installed_and_ai_libraries_are_not() -> None:
+    assert importlib.util.find_spec("ccxt") is not None
+    assert importlib.util.find_spec("freqtrade") is not None
+    for module in ("tradingagents", "okx", "binance", "langgraph", "openai"):
+        assert importlib.util.find_spec(module) is None

@@ -1,0 +1,373 @@
+"""Read-only OKX market data for the scanner and the ported analytics.
+
+Every request is a GET to an explicitly public OKX market-data route. There are
+no credentials, private endpoints, or methods that can change an exchange state.
+"""
+
+from __future__ import annotations
+
+import asyncio
+from datetime import UTC, datetime
+from decimal import Decimal, InvalidOperation
+from typing import Any
+
+import httpx
+
+from stai.analytics.schemas.market_data import Candle, Ticker
+from stai.core.logging import StructuredLogger
+from stai.core.time import utcnow
+from stai.marketdata.schemas import (
+    BookLevel,
+    CandlePoint,
+    InstrumentRules,
+    MarketScannerRow,
+    MarketType,
+)
+
+logger = StructuredLogger(__name__)
+
+SYMBOLS = ("BTCUSDT", "ETHUSDT", "SOLUSDT")
+MARKET_PATHS = frozenset(
+    {
+        "/api/v5/market/ticker",
+        "/api/v5/market/candles",
+        "/api/v5/market/books",
+        "/api/v5/public/instruments",
+        "/api/v5/public/funding-rate",
+    }
+)
+MAX_RESPONSE_BYTES = 1_000_000
+STALE_AFTER_SECONDS = 60
+_BAR_MS = {"1m": 60_000, "15m": 900_000, "1h": 3_600_000, "4h": 14_400_000}
+_BAR_OKX = {"1m": "1m", "15m": "15m", "1h": "1H", "4h": "4H"}
+
+
+class MarketDataUnavailable(RuntimeError):
+    """A public OKX answer was missing or could not be validated."""
+
+
+def _decimal(value: Any, field: str) -> Decimal:
+    try:
+        result = Decimal(str(value))
+    except (InvalidOperation, ValueError, TypeError) as exc:
+        raise MarketDataUnavailable(f"OKX returned an invalid {field}.") from exc
+    if not result.is_finite():
+        raise MarketDataUnavailable(f"OKX returned an invalid {field}.")
+    return result
+
+
+def _moment(milliseconds: Any, field: str) -> datetime:
+    try:
+        value = int(str(milliseconds))
+        return datetime.fromtimestamp(value / 1000, tz=UTC)
+    except (ValueError, TypeError, OverflowError, OSError) as exc:
+        raise MarketDataUnavailable(f"OKX returned an invalid {field}.") from exc
+
+
+def _instrument_id(symbol: str, market_type: MarketType) -> str:
+    if symbol not in SYMBOLS:
+        raise ValueError("Unsupported scanner symbol.")
+    base = f"{symbol[:-4]}-USDT"
+    return f"{base}-SWAP" if market_type == "futures" else base
+
+
+class OkxMarketData:
+    """Public-data adapter shared by analytics and the Phase 2 Market Scanner."""
+
+    def __init__(
+        self,
+        http: httpx.AsyncClient,
+        base_url: str,
+        *,
+        clock=utcnow,
+        stale_after_seconds: int = STALE_AFTER_SECONDS,
+        concurrency: int = 4,
+    ) -> None:
+        self._http = http
+        self._base_url = base_url.rstrip("/")
+        self._clock = clock
+        self._stale_after_seconds = stale_after_seconds
+        self._semaphore = asyncio.Semaphore(concurrency)
+        self._instrument_cache: dict[str, tuple[datetime, dict[str, InstrumentRules]]] = {}
+
+    async def _get(self, path: str, params: dict[str, str]) -> dict[str, Any]:
+        if path not in MARKET_PATHS:
+            raise ValueError("Only public OKX market-data routes are allowed.")
+        async with self._semaphore:
+            try:
+                response = await self._http.get(
+                    f"{self._base_url}{path}",
+                    params=params,
+                    headers={"Accept": "application/json"},
+                )
+            except httpx.HTTPError as exc:
+                raise MarketDataUnavailable("OKX public market data could not be reached.") from exc
+        if response.status_code != 200:
+                raise MarketDataUnavailable(
+                    f"OKX public market data returned HTTP {response.status_code}."
+                )
+        if len(response.content) > MAX_RESPONSE_BYTES:
+            raise MarketDataUnavailable("OKX public market data response was too large.")
+        try:
+            payload = response.json()
+            if str(payload.get("code")) != "0" or not isinstance(payload.get("data"), list):
+                raise MarketDataUnavailable("OKX public market data returned an error.")
+            return payload
+        except (ValueError, TypeError, AttributeError) as exc:
+            raise MarketDataUnavailable(
+                "OKX public market data returned an unexpected response."
+            ) from exc
+
+    async def get_ticker(self, symbol: str) -> Ticker | None:
+        """Provider implementation used by the existing exchange-neutral analytics."""
+        instrument_id = _instrument_id(symbol, "spot")
+        try:
+            payload = await self._get("/api/v5/market/ticker", {"instId": instrument_id})
+            item = payload["data"][0]
+            last = _decimal(item["last"], "ticker price")
+            open_24h = _decimal(item["open24h"], "24-hour open")
+            high = _decimal(item["high24h"], "24-hour high")
+            low = _decimal(item["low24h"], "24-hour low")
+            change = last - open_24h
+            change_pct = (
+                Decimal("0") if open_24h == 0 else change / open_24h * 100
+            )
+            return Ticker(
+                symbol=symbol,
+                price=float(last),
+                change_24h=float(change),
+                change_pct_24h=float(change_pct),
+                volume=float(_decimal(item["vol24h"], "24-hour volume")),
+                quote_volume=float(_decimal(item["volCcy24h"], "24-hour quote volume")),
+                high=float(high),
+                low=float(low),
+                trades=0,
+            )
+        except (KeyError, IndexError, MarketDataUnavailable):
+            logger.warning("OKX ticker unavailable", symbol=symbol)
+            return None
+
+    async def get_candles(self, symbol: str, timeframe: str, limit: int = 200) -> list[Candle]:
+        """Provider implementation used by the existing analytics."""
+        if timeframe not in _BAR_OKX or not 1 <= limit <= 300:
+            raise ValueError("Unsupported candle timeframe or limit.")
+        instrument_id = _instrument_id(symbol, "spot")
+        try:
+            payload = await self._get(
+                "/api/v5/market/candles",
+                {"instId": instrument_id, "bar": _BAR_OKX[timeframe], "limit": str(limit)},
+            )
+            rows = list(reversed(payload["data"]))
+            output: list[Candle] = []
+            for row in rows:
+                opened = _moment(row[0], "candle time")
+                volume = _decimal(row[5], "candle volume")
+                quote_volume = _decimal(row[7], "candle quote volume")
+                output.append(
+                    Candle(
+                        open_time=int(opened.timestamp() * 1000),
+                        open=float(_decimal(row[1], "candle open")),
+                        high=float(_decimal(row[2], "candle high")),
+                        low=float(_decimal(row[3], "candle low")),
+                        close=float(_decimal(row[4], "candle close")),
+                        volume=float(volume),
+                        close_time=int(opened.timestamp() * 1000) + _BAR_MS[timeframe] - 1,
+                        quote_volume=float(quote_volume),
+                        trades=0,
+                    )
+                )
+            return output
+        except (KeyError, IndexError, MarketDataUnavailable):
+            logger.warning(
+                "OKX candles unavailable", symbol=symbol, timeframe=timeframe
+            )
+            return []
+
+    async def _instrument_rules(
+        self, market_type: MarketType
+    ) -> dict[str, InstrumentRules]:
+        now = self._clock()
+        cached = self._instrument_cache.get(market_type)
+        if cached is not None and (now - cached[0]).total_seconds() < 3600:
+            return cached[1]
+        kind = "SPOT" if market_type == "spot" else "SWAP"
+        payload = await self._get("/api/v5/public/instruments", {"instType": kind})
+        wanted = {_instrument_id(symbol, market_type) for symbol in SYMBOLS}
+        result: dict[str, InstrumentRules] = {}
+        for item in payload["data"]:
+            instrument_id = item.get("instId")
+            if instrument_id not in wanted:
+                continue
+            result[instrument_id] = InstrumentRules(
+                instrument_id=instrument_id,
+                min_size=_decimal(item["minSz"], "minimum size") if item.get("minSz") else None,
+                lot_size=_decimal(item["lotSz"], "lot size") if item.get("lotSz") else None,
+                tick_size=_decimal(item["tickSz"], "tick size") if item.get("tickSz") else None,
+                contract_value=(
+                    _decimal(item["ctVal"], "contract value") if item.get("ctVal") else None
+                ),
+                max_leverage=None,
+            )
+        self._instrument_cache[market_type] = (now, result)
+        return result
+
+    async def _row(self, symbol: str, market_type: MarketType) -> MarketScannerRow:
+        instrument_id = _instrument_id(symbol, market_type)
+        observed_at = self._clock()
+        try:
+            ticker, candle_data, candle_data_15m, book_data, rules = await asyncio.gather(
+                self._get("/api/v5/market/ticker", {"instId": instrument_id}),
+                self._get(
+                    "/api/v5/market/candles",
+                    {"instId": instrument_id, "bar": "1H", "limit": "100"},
+                ),
+                self._get(
+                    "/api/v5/market/candles",
+                    {"instId": instrument_id, "bar": "15m", "limit": "100"},
+                ),
+                self._get("/api/v5/market/books", {"instId": instrument_id, "sz": "5"}),
+                self._instrument_rules(market_type),
+                return_exceptions=True,
+            )
+            if any(
+                isinstance(result, Exception)
+                for result in (ticker, candle_data, candle_data_15m, book_data, rules)
+            ):
+                raise MarketDataUnavailable(
+                    "One or more OKX market-data feeds are unavailable."
+                )
+            ticker_item = ticker["data"][0]  # type: ignore[index]
+            book_item = book_data["data"][0]  # type: ignore[index]
+            exchange_at = _moment(ticker_item["ts"], "ticker time")
+            age = max(0, int((observed_at - exchange_at).total_seconds()))
+            status = "fresh" if age <= self._stale_after_seconds else "stale"
+            last = _decimal(ticker_item["last"], "ticker price")
+            open_24h = _decimal(ticker_item["open24h"], "24-hour open")
+            bid = _decimal(ticker_item["bidPx"], "best bid")
+            ask = _decimal(ticker_item["askPx"], "best ask")
+            change_pct = (
+                Decimal("0") if open_24h == 0 else (last - open_24h) / open_24h * 100
+            )
+            spread = Decimal("0") if last == 0 else (ask - bid) / last * 100
+            candles: list[CandlePoint] = []
+            for row in reversed(candle_data["data"]):  # type: ignore[index]
+                candle_at = _moment(row[0], "candle time")
+                candles.append(
+                    CandlePoint(
+                        opened_at=candle_at,
+                        open=_decimal(row[1], "candle open"),
+                        high=_decimal(row[2], "candle high"),
+                        low=_decimal(row[3], "candle low"),
+                        close=_decimal(row[4], "candle close"),
+                        volume=_decimal(row[5], "candle volume"),
+                        quote_volume=_decimal(row[7], "candle quote volume"),
+                        complete=str(row[8]) == "1",
+                    )
+                )
+            candles_15m: list[CandlePoint] = []
+            for row in reversed(candle_data_15m["data"]):  # type: ignore[index]
+                candle_at = _moment(row[0], "candle time")
+                candles_15m.append(
+                    CandlePoint(
+                        opened_at=candle_at,
+                        open=_decimal(row[1], "candle open"),
+                        high=_decimal(row[2], "candle high"),
+                        low=_decimal(row[3], "candle low"),
+                        close=_decimal(row[4], "candle close"),
+                        volume=_decimal(row[5], "candle volume"),
+                        quote_volume=_decimal(row[7], "candle quote volume"),
+                        complete=str(row[8]) == "1",
+                    )
+                )
+            bids = [
+                BookLevel(price=_decimal(x[0], "bid price"), size=_decimal(x[1], "bid size"))
+                for x in book_item["bids"]
+            ]
+            asks = [
+                BookLevel(price=_decimal(x[0], "ask price"), size=_decimal(x[1], "ask size"))
+                for x in book_item["asks"]
+            ]
+            funding_rate = None
+            next_funding_at = None
+            if market_type == "futures":
+                funding = await self._get(
+                    "/api/v5/public/funding-rate", {"instId": instrument_id}
+                )
+                funding_item = funding["data"][0]
+                funding_rate = _decimal(funding_item["fundingRate"], "funding rate")
+                next_funding_at = (
+                    _moment(funding_item["nextFundingTime"], "next funding time")
+                    if funding_item.get("nextFundingTime")
+                    else None
+                )
+            return MarketScannerRow(
+                symbol=f"{symbol[:-4]}/USDT",
+                market_type=market_type,
+                status=status,
+                observed_at=observed_at,
+                exchange_at=exchange_at,
+                age_seconds=age,
+                last_price=last,
+                change_pct_24h=change_pct,
+                volume_24h=_decimal(ticker_item["volCcy24h"], "24-hour quote volume"),
+                bid=bid,
+                ask=ask,
+                spread_pct=spread,
+                funding_rate=funding_rate,
+                next_funding_at=next_funding_at,
+                instrument=rules.get(instrument_id) if isinstance(rules, dict) else None,
+                indicators=None,
+                candles=candles,
+                candles_15m=candles_15m,
+                bids=bids,
+                asks=asks,
+                detail=(
+                    None
+                    if status == "fresh"
+                    else "The latest exchange ticker is older than 60 seconds."
+                ),
+            )
+        except (KeyError, IndexError, MarketDataUnavailable, InvalidOperation) as exc:
+            logger.warning(
+                "OKX scanner row unavailable",
+                symbol=symbol,
+                marketType=market_type,
+                reason=type(exc).__name__,
+            )
+            return MarketScannerRow(
+                symbol=f"{symbol[:-4]}/USDT",
+                market_type=market_type,
+                status="unavailable",
+                observed_at=observed_at,
+                exchange_at=None,
+                age_seconds=None,
+                last_price=None,
+                change_pct_24h=None,
+                volume_24h=None,
+                bid=None,
+                ask=None,
+                spread_pct=None,
+                funding_rate=None,
+                next_funding_at=None,
+                instrument=None,
+                indicators=None,
+                candles=[],
+                candles_15m=[],
+                bids=[],
+                asks=[],
+                detail="OKX market data is unavailable for this instrument.",
+            )
+
+    async def scanner(self) -> list[MarketScannerRow]:
+        rows = await asyncio.gather(
+            *(
+                self._row(symbol, market_type)
+                for symbol in SYMBOLS
+                for market_type in ("spot", "futures")
+            )
+        )
+        return list(rows)
+
+    async def latest_snapshot_time(self) -> datetime:
+        return self._clock()
+
