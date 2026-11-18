@@ -10,3 +10,4 @@
 - [Publishing is the owner's step](publish-is-owners-step.md) — hold back the publish card, publish calls and the schema-diff explainer until the owner has published once.
 - [Task tool limits](task-tool-limits.md) — follow-up task descriptions are capped at 4,000 characters; a rejected proposal records nothing and can be sent again.
 - [Response compatibility](response-compatibility-lessons.md) — saved-result extensions need legacy-read and generated-contract checks; runtime success alone is insufficient.
+- [Owner's manual trade approach](manual-trading-style.md) — pullbacks/supports guide limit entries; resistance guides take-profit placement with a planned stop.
