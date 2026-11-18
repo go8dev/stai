@@ -7,6 +7,7 @@ Personal, paper-trading-only crypto research and portfolio platform for one owne
 - 17 Nov 2026: the owner approved the plan in `docs/STAI_PHASE1_PLAN.md`, all 23 numbered items as proposed. Its decision log records every approval and change.
 - 18 Nov 2026: the owner published Phase 1 and supplied healthy production and intact-audit screenshots. Production restart check 7 remains unconfirmed.
 - Phase 2 is implemented in the workspace. Production continuous bots remain disabled by default pending check 7 and the owner's approval. Phases 3 to 7 are not started.
+- The owner requested Phase 3 after reviewing Phase 2 and explicitly deferred production migrations for now. Prepare the AI Committee task for the owner to start; do not block development on production restart check 7, and do not treat proceeding as permission to change production.
 
 ## Owner rules (do not weaken)
 
