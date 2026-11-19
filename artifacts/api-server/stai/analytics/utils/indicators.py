@@ -103,6 +103,14 @@ def add_ema(df: pd.DataFrame, period: int) -> pd.DataFrame:
     return df
 
 
+def add_sma(df: pd.DataFrame, period: int) -> pd.DataFrame:
+    """Attach a simple moving average without changing any legacy EMA values."""
+    if period < 1:
+        raise ValueError("SMA period must be positive.")
+    df[f"sma_{period}"] = df["close"].rolling(window=period, min_periods=period).mean()
+    return df
+
+
 def add_rsi(df: pd.DataFrame, period: int = 14) -> pd.DataFrame:
     """
     Attach ``rsi`` column using Wilder's smoothed RSI.

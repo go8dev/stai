@@ -45,6 +45,7 @@ import type {
   ListAuditEventsParams,
   ListPortfolioLedgerParams,
   MarketScannerResponse,
+  MtfMarketIntelligenceResponse,
   PortfolioSummary,
   ProposalCenterOverview,
   ProposalDecision,
@@ -1077,6 +1078,107 @@ export function useGetMarketScanner<TData = Awaited<ReturnType<typeof getMarketS
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetMarketScannerQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMarketIntelligenceUrl = () => {
+
+
+
+
+  return `/api/market/intelligence`
+}
+
+/**
+ * @summary Read-only OKX four-timeframe market intelligence
+ */
+export const getMarketIntelligence = async ( options?: Parameters<typeof customFetch>[1]): Promise<MtfMarketIntelligenceResponse> => {
+
+  return customFetch<MtfMarketIntelligenceResponse>(getGetMarketIntelligenceUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMarketIntelligenceQueryKey = () => {
+    return [
+    `/api/market/intelligence`
+    ] as const;
+    }
+
+
+export const getGetMarketIntelligenceQueryOptions = <TData = Awaited<ReturnType<typeof getMarketIntelligence>>, TError = ErrorType<ErrorResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMarketIntelligence>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMarketIntelligenceQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMarketIntelligence>>> = ({ signal }) => getMarketIntelligence({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMarketIntelligence>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetMarketIntelligenceQueryResult = NonNullable<Awaited<ReturnType<typeof getMarketIntelligence>>>
+export type GetMarketIntelligenceQueryError = ErrorType<ErrorResponse>
+
+
+export function useGetMarketIntelligence<TData = Awaited<ReturnType<typeof getMarketIntelligence>>, TError = ErrorType<ErrorResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMarketIntelligence>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMarketIntelligence>>,
+          TError,
+          Awaited<ReturnType<typeof getMarketIntelligence>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMarketIntelligence<TData = Awaited<ReturnType<typeof getMarketIntelligence>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMarketIntelligence>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMarketIntelligence>>,
+          TError,
+          Awaited<ReturnType<typeof getMarketIntelligence>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMarketIntelligence<TData = Awaited<ReturnType<typeof getMarketIntelligence>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMarketIntelligence>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Read-only OKX four-timeframe market intelligence
+ */
+
+export function useGetMarketIntelligence<TData = Awaited<ReturnType<typeof getMarketIntelligence>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMarketIntelligence>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetMarketIntelligenceQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

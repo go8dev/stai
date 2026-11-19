@@ -271,6 +271,169 @@ export const GetMarketScannerResponse = zod.object({
 
 
 /**
+ * @summary Read-only OKX four-timeframe market intelligence
+ */
+export const GetMarketIntelligenceResponse = zod.object({
+  "provider": zod.literal("OKX"),
+  "strategyVersion": zod.string(),
+  "observedAt": zod.coerce.date(),
+  "instruments": zod.array(zod.object({
+  "symbol": zod.string(),
+  "marketType": zod.enum(['spot', 'futures']),
+  "instrumentId": zod.string(),
+  "quote": zod.object({
+  "lastPrice": zod.union([zod.number(),zod.string(),zod.null()]),
+  "changePct24H": zod.union([zod.number(),zod.string(),zod.null()]),
+  "volume24H": zod.union([zod.number(),zod.string(),zod.null()]),
+  "exchangeAt": zod.union([zod.coerce.date(),zod.null()]),
+  "observedAt": zod.coerce.date(),
+  "status": zod.enum(['fresh', 'stale', 'unavailable'])
+}),
+  "timeframes": zod.array(zod.object({
+  "timeframe": zod.enum(['1d', '4h', '1h', '15m']),
+  "status": zod.enum(['fresh', 'stale', 'insufficient', 'unavailable']),
+  "latestCompletedAt": zod.union([zod.coerce.date(),zod.null()]),
+  "close": zod.union([zod.number(),zod.string(),zod.null()]),
+  "rsi14": zod.union([zod.number(),zod.null()]),
+  "sma20": zod.union([zod.number(),zod.null()]),
+  "sma50": zod.union([zod.number(),zod.null()]),
+  "atr14": zod.union([zod.number(),zod.null()]),
+  "smaDirection": zod.enum(['bullish', 'bearish', 'neutral']),
+  "rsiDirection": zod.enum(['bullish', 'bearish', 'neutral']),
+  "candles": zod.array(zod.object({
+  "openedAt": zod.coerce.date(),
+  "open": zod.union([zod.number(),zod.string()]),
+  "high": zod.union([zod.number(),zod.string()]),
+  "low": zod.union([zod.number(),zod.string()]),
+  "close": zod.union([zod.number(),zod.string()]),
+  "volume": zod.union([zod.number(),zod.string()]),
+  "quoteVolume": zod.union([zod.number(),zod.string()]),
+  "complete": zod.boolean()
+})),
+  "expectedCandles": zod.number().int(),
+  "actualCandles": zod.number().int(),
+  "gapCount": zod.number().int(),
+  "detail": zod.union([zod.string(),zod.null()])
+})),
+  "evidence": zod.object({
+  "strategyVersion": zod.string(),
+  "status": zod.enum(['complete', 'stale', 'insufficient']),
+  "bullishScore": zod.union([zod.number(),zod.string(),zod.null()]),
+  "bearishScore": zod.union([zod.number(),zod.string(),zod.null()]),
+  "neutralPoints": zod.union([zod.number(),zod.string(),zod.null()]),
+  "classification": zod.enum(['strong_bullish', 'moderate_bullish', 'strong_bearish', 'moderate_bearish', 'mixed', 'insufficient']),
+  "components": zod.array(zod.object({
+  "timeframe": zod.enum(['1d', '4h', '1h', '15m']),
+  "weight": zod.number().int(),
+  "smaDirection": zod.enum(['bullish', 'bearish', 'neutral']),
+  "smaPoints": zod.union([zod.number(),zod.string(),zod.null()]),
+  "rsiDirection": zod.enum(['bullish', 'bearish', 'neutral']),
+  "rsiPoints": zod.union([zod.number(),zod.string(),zod.null()])
+})),
+  "disagreementReasons": zod.array(zod.string()),
+  "note": zod.string()
+}),
+  "btcContext": zod.union([zod.object({
+  "strategyVersion": zod.string(),
+  "status": zod.enum(['complete', 'stale', 'insufficient']),
+  "bullishScore": zod.union([zod.number(),zod.string(),zod.null()]),
+  "bearishScore": zod.union([zod.number(),zod.string(),zod.null()]),
+  "neutralPoints": zod.union([zod.number(),zod.string(),zod.null()]),
+  "classification": zod.enum(['strong_bullish', 'moderate_bullish', 'strong_bearish', 'moderate_bearish', 'mixed', 'insufficient']),
+  "components": zod.array(zod.object({
+  "timeframe": zod.enum(['1d', '4h', '1h', '15m']),
+  "weight": zod.number().int(),
+  "smaDirection": zod.enum(['bullish', 'bearish', 'neutral']),
+  "smaPoints": zod.union([zod.number(),zod.string(),zod.null()]),
+  "rsiDirection": zod.enum(['bullish', 'bearish', 'neutral']),
+  "rsiPoints": zod.union([zod.number(),zod.string(),zod.null()])
+})),
+  "disagreementReasons": zod.array(zod.string()),
+  "note": zod.string()
+}),zod.null()]),
+  "zones": zod.array(zod.object({
+  "id": zod.string(),
+  "sourceTimeframe": zod.enum(['1d', '4h', '1h', '15m']),
+  "kind": zod.enum(['support', 'resistance']),
+  "lower": zod.union([zod.number(),zod.string()]),
+  "upper": zod.union([zod.number(),zod.string()]),
+  "pivotAt": zod.coerce.date(),
+  "confirmedAt": zod.coerce.date(),
+  "atrAtCalculation": zod.union([zod.number(),zod.string(),zod.null()]),
+  "independentReactions": zod.number().int(),
+  "state": zod.enum(['active', 'tested', 'broken', 'retested', 'invalidated']),
+  "distanceFromPrice": zod.union([zod.number(),zod.string(),zod.null()]),
+  "confluenceTimeframes": zod.array(zod.enum(['1d', '4h', '1h', '15m'])),
+  "isPriorExtreme": zod.boolean(),
+  "detail": zod.string()
+})),
+  "nearestSupport": zod.union([zod.object({
+  "id": zod.string(),
+  "sourceTimeframe": zod.enum(['1d', '4h', '1h', '15m']),
+  "kind": zod.enum(['support', 'resistance']),
+  "lower": zod.union([zod.number(),zod.string()]),
+  "upper": zod.union([zod.number(),zod.string()]),
+  "pivotAt": zod.coerce.date(),
+  "confirmedAt": zod.coerce.date(),
+  "atrAtCalculation": zod.union([zod.number(),zod.string(),zod.null()]),
+  "independentReactions": zod.number().int(),
+  "state": zod.enum(['active', 'tested', 'broken', 'retested', 'invalidated']),
+  "distanceFromPrice": zod.union([zod.number(),zod.string(),zod.null()]),
+  "confluenceTimeframes": zod.array(zod.enum(['1d', '4h', '1h', '15m'])),
+  "isPriorExtreme": zod.boolean(),
+  "detail": zod.string()
+}),zod.null()]),
+  "nearestResistance": zod.union([zod.object({
+  "id": zod.string(),
+  "sourceTimeframe": zod.enum(['1d', '4h', '1h', '15m']),
+  "kind": zod.enum(['support', 'resistance']),
+  "lower": zod.union([zod.number(),zod.string()]),
+  "upper": zod.union([zod.number(),zod.string()]),
+  "pivotAt": zod.coerce.date(),
+  "confirmedAt": zod.coerce.date(),
+  "atrAtCalculation": zod.union([zod.number(),zod.string(),zod.null()]),
+  "independentReactions": zod.number().int(),
+  "state": zod.enum(['active', 'tested', 'broken', 'retested', 'invalidated']),
+  "distanceFromPrice": zod.union([zod.number(),zod.string(),zod.null()]),
+  "confluenceTimeframes": zod.array(zod.enum(['1d', '4h', '1h', '15m'])),
+  "isPriorExtreme": zod.boolean(),
+  "detail": zod.string()
+}),zod.null()]),
+  "opportunity": zod.object({
+  "state": zod.enum(['bullish_watchlist', 'bearish_watchlist', 'waiting_for_pullback', 'entry_zone_reached', 'awaiting_confirmation', 'indicative_setup_ready', 'invalidated', 'expired', 'insufficient_data', 'no_opportunity']),
+  "direction": zod.union([zod.enum(['long', 'short']),zod.null()]),
+  "anchorId": zod.union([zod.string(),zod.null()]),
+  "anchorAt": zod.union([zod.coerce.date(),zod.null()]),
+  "signalAt": zod.union([zod.coerce.date(),zod.null()]),
+  "expiresAt": zod.union([zod.coerce.date(),zod.null()]),
+  "researchRuleVersion": zod.string(),
+  "detail": zod.string(),
+  "plan": zod.union([zod.object({
+  "direction": zod.enum(['long', 'short']),
+  "entryZoneLower": zod.union([zod.number(),zod.string()]),
+  "entryZoneUpper": zod.union([zod.number(),zod.string()]),
+  "trigger": zod.string(),
+  "entryReference": zod.union([zod.number(),zod.string()]),
+  "stopReference": zod.union([zod.number(),zod.string()]),
+  "targetReference": zod.union([zod.number(),zod.string()]),
+  "grossRewardRisk": zod.union([zod.number(),zod.string()]),
+  "estimatedNetRewardRisk": zod.union([zod.number(),zod.string(),zod.null()]),
+  "supportingZoneIds": zod.array(zod.string()),
+  "opposingEvidence": zod.array(zod.string()),
+  "signalAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "priceBasis": zod.literal("indicative_only"),
+  "costNote": zod.string()
+}),zod.null()])
+}),
+  "committeeStatus": zod.string(),
+  "observedAt": zod.coerce.date()
+})),
+  "limitations": zod.array(zod.string())
+})
+
+
+/**
  * @summary Virtual fund balances and ledger status
  */
 export const GetPortfolioSummaryResponse = zod.object({

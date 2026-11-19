@@ -962,6 +962,300 @@ export interface MarketScannerResponse {
   rows: MarketScannerRow[];
 }
 
+export type MtfDirectionalEvidenceStatus = typeof MtfDirectionalEvidenceStatus[keyof typeof MtfDirectionalEvidenceStatus];
+
+
+export const MtfDirectionalEvidenceStatus = {
+  complete: 'complete',
+  stale: 'stale',
+  insufficient: 'insufficient',
+} as const;
+
+export type MtfDirectionalEvidenceClassification = typeof MtfDirectionalEvidenceClassification[keyof typeof MtfDirectionalEvidenceClassification];
+
+
+export const MtfDirectionalEvidenceClassification = {
+  strong_bullish: 'strong_bullish',
+  moderate_bullish: 'moderate_bullish',
+  strong_bearish: 'strong_bearish',
+  moderate_bearish: 'moderate_bearish',
+  mixed: 'mixed',
+  insufficient: 'insufficient',
+} as const;
+
+export type MtfScoreComponentTimeframe = typeof MtfScoreComponentTimeframe[keyof typeof MtfScoreComponentTimeframe];
+
+
+export const MtfScoreComponentTimeframe = {
+  '1d': '1d',
+  '4h': '4h',
+  '1h': '1h',
+  '15m': '15m',
+} as const;
+
+export type MtfScoreComponentSmaDirection = typeof MtfScoreComponentSmaDirection[keyof typeof MtfScoreComponentSmaDirection];
+
+
+export const MtfScoreComponentSmaDirection = {
+  bullish: 'bullish',
+  bearish: 'bearish',
+  neutral: 'neutral',
+} as const;
+
+export type MtfScoreComponentRsiDirection = typeof MtfScoreComponentRsiDirection[keyof typeof MtfScoreComponentRsiDirection];
+
+
+export const MtfScoreComponentRsiDirection = {
+  bullish: 'bullish',
+  bearish: 'bearish',
+  neutral: 'neutral',
+} as const;
+
+export interface MtfScoreComponent {
+  timeframe: MtfScoreComponentTimeframe;
+  weight: number;
+  smaDirection: MtfScoreComponentSmaDirection;
+  smaPoints: number | string | null;
+  rsiDirection: MtfScoreComponentRsiDirection;
+  rsiPoints: number | string | null;
+}
+
+export interface MtfDirectionalEvidence {
+  strategyVersion: string;
+  status: MtfDirectionalEvidenceStatus;
+  bullishScore: number | string | null;
+  bearishScore: number | string | null;
+  neutralPoints: number | string | null;
+  classification: MtfDirectionalEvidenceClassification;
+  components: MtfScoreComponent[];
+  disagreementReasons: string[];
+  note: string;
+}
+
+export type MtfIndicativePlanDirection = typeof MtfIndicativePlanDirection[keyof typeof MtfIndicativePlanDirection];
+
+
+export const MtfIndicativePlanDirection = {
+  long: 'long',
+  short: 'short',
+} as const;
+
+export interface MtfIndicativePlan {
+  direction: MtfIndicativePlanDirection;
+  entryZoneLower: number | string;
+  entryZoneUpper: number | string;
+  trigger: string;
+  entryReference: number | string;
+  stopReference: number | string;
+  targetReference: number | string;
+  grossRewardRisk: number | string;
+  estimatedNetRewardRisk: number | string | null;
+  supportingZoneIds: string[];
+  opposingEvidence: string[];
+  signalAt: string;
+  expiresAt: string;
+  priceBasis: 'indicative_only';
+  costNote: string;
+}
+
+export type MtfIndicatorSnapshotTimeframe = typeof MtfIndicatorSnapshotTimeframe[keyof typeof MtfIndicatorSnapshotTimeframe];
+
+
+export const MtfIndicatorSnapshotTimeframe = {
+  '1d': '1d',
+  '4h': '4h',
+  '1h': '1h',
+  '15m': '15m',
+} as const;
+
+export type MtfIndicatorSnapshotStatus = typeof MtfIndicatorSnapshotStatus[keyof typeof MtfIndicatorSnapshotStatus];
+
+
+export const MtfIndicatorSnapshotStatus = {
+  fresh: 'fresh',
+  stale: 'stale',
+  insufficient: 'insufficient',
+  unavailable: 'unavailable',
+} as const;
+
+export type MtfIndicatorSnapshotSmaDirection = typeof MtfIndicatorSnapshotSmaDirection[keyof typeof MtfIndicatorSnapshotSmaDirection];
+
+
+export const MtfIndicatorSnapshotSmaDirection = {
+  bullish: 'bullish',
+  bearish: 'bearish',
+  neutral: 'neutral',
+} as const;
+
+export type MtfIndicatorSnapshotRsiDirection = typeof MtfIndicatorSnapshotRsiDirection[keyof typeof MtfIndicatorSnapshotRsiDirection];
+
+
+export const MtfIndicatorSnapshotRsiDirection = {
+  bullish: 'bullish',
+  bearish: 'bearish',
+  neutral: 'neutral',
+} as const;
+
+export interface MtfIndicatorSnapshot {
+  timeframe: MtfIndicatorSnapshotTimeframe;
+  status: MtfIndicatorSnapshotStatus;
+  latestCompletedAt: string | null;
+  close: number | string | null;
+  rsi14: number | null;
+  sma20: number | null;
+  sma50: number | null;
+  atr14: number | null;
+  smaDirection: MtfIndicatorSnapshotSmaDirection;
+  rsiDirection: MtfIndicatorSnapshotRsiDirection;
+  candles: CandlePoint[];
+  expectedCandles: number;
+  actualCandles: number;
+  gapCount: number;
+  detail: string | null;
+}
+
+export type MtfInstrumentAnalysisMarketType = typeof MtfInstrumentAnalysisMarketType[keyof typeof MtfInstrumentAnalysisMarketType];
+
+
+export const MtfInstrumentAnalysisMarketType = {
+  spot: 'spot',
+  futures: 'futures',
+} as const;
+
+export type MtfQuoteStatus = typeof MtfQuoteStatus[keyof typeof MtfQuoteStatus];
+
+
+export const MtfQuoteStatus = {
+  fresh: 'fresh',
+  stale: 'stale',
+  unavailable: 'unavailable',
+} as const;
+
+export interface MtfQuote {
+  lastPrice: number | string | null;
+  changePct24H: number | string | null;
+  volume24H: number | string | null;
+  exchangeAt: string | null;
+  observedAt: string;
+  status: MtfQuoteStatus;
+}
+
+export type MtfZoneSourceTimeframe = typeof MtfZoneSourceTimeframe[keyof typeof MtfZoneSourceTimeframe];
+
+
+export const MtfZoneSourceTimeframe = {
+  '1d': '1d',
+  '4h': '4h',
+  '1h': '1h',
+  '15m': '15m',
+} as const;
+
+export type MtfZoneKind = typeof MtfZoneKind[keyof typeof MtfZoneKind];
+
+
+export const MtfZoneKind = {
+  support: 'support',
+  resistance: 'resistance',
+} as const;
+
+export type MtfZoneState = typeof MtfZoneState[keyof typeof MtfZoneState];
+
+
+export const MtfZoneState = {
+  active: 'active',
+  tested: 'tested',
+  broken: 'broken',
+  retested: 'retested',
+  invalidated: 'invalidated',
+} as const;
+
+export type MtfZoneConfluenceTimeframesItem = typeof MtfZoneConfluenceTimeframesItem[keyof typeof MtfZoneConfluenceTimeframesItem];
+
+
+export const MtfZoneConfluenceTimeframesItem = {
+  '1d': '1d',
+  '4h': '4h',
+  '1h': '1h',
+  '15m': '15m',
+} as const;
+
+export interface MtfZone {
+  id: string;
+  sourceTimeframe: MtfZoneSourceTimeframe;
+  kind: MtfZoneKind;
+  lower: number | string;
+  upper: number | string;
+  pivotAt: string;
+  confirmedAt: string;
+  atrAtCalculation: number | string | null;
+  independentReactions: number;
+  state: MtfZoneState;
+  distanceFromPrice: number | string | null;
+  confluenceTimeframes: MtfZoneConfluenceTimeframesItem[];
+  isPriorExtreme: boolean;
+  detail: string;
+}
+
+export type MtfOpportunityState = typeof MtfOpportunityState[keyof typeof MtfOpportunityState];
+
+
+export const MtfOpportunityState = {
+  bullish_watchlist: 'bullish_watchlist',
+  bearish_watchlist: 'bearish_watchlist',
+  waiting_for_pullback: 'waiting_for_pullback',
+  entry_zone_reached: 'entry_zone_reached',
+  awaiting_confirmation: 'awaiting_confirmation',
+  indicative_setup_ready: 'indicative_setup_ready',
+  invalidated: 'invalidated',
+  expired: 'expired',
+  insufficient_data: 'insufficient_data',
+  no_opportunity: 'no_opportunity',
+} as const;
+
+export type MtfOpportunityDirection = typeof MtfOpportunityDirection[keyof typeof MtfOpportunityDirection] | null;
+
+
+export const MtfOpportunityDirection = {
+  long: 'long',
+  short: 'short',
+} as const;
+
+export interface MtfOpportunity {
+  state: MtfOpportunityState;
+  direction: MtfOpportunityDirection;
+  anchorId: string | null;
+  anchorAt: string | null;
+  signalAt: string | null;
+  expiresAt: string | null;
+  researchRuleVersion: string;
+  detail: string;
+  plan: MtfIndicativePlan | null;
+}
+
+export interface MtfInstrumentAnalysis {
+  symbol: string;
+  marketType: MtfInstrumentAnalysisMarketType;
+  instrumentId: string;
+  quote: MtfQuote;
+  timeframes: MtfIndicatorSnapshot[];
+  evidence: MtfDirectionalEvidence;
+  btcContext: MtfDirectionalEvidence | null;
+  zones: MtfZone[];
+  nearestSupport: MtfZone | null;
+  nearestResistance: MtfZone | null;
+  opportunity: MtfOpportunity;
+  committeeStatus: string;
+  observedAt: string;
+}
+
+export interface MtfMarketIntelligenceResponse {
+  provider: 'OKX';
+  strategyVersion: string;
+  observedAt: string;
+  instruments: MtfInstrumentAnalysis[];
+  limitations: string[];
+}
+
 export type PortfolioSummaryPositionsItem = { [key: string]: unknown };
 
 export type PortfolioSummaryBotsItem = { [key: string]: unknown };

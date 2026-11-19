@@ -37,6 +37,7 @@ OPERATIONS = {
     ("GET", "/audit/events"): "listAuditEvents",
     ("POST", "/audit/verify"): "verifyAuditTrail",
     ("GET", "/market/scanner"): "getMarketScanner",
+    ("GET", "/market/intelligence"): "getMarketIntelligence",
     ("GET", "/portfolio/summary"): "getPortfolioSummary",
     ("GET", "/portfolio/ledger"): "listPortfolioLedger",
     ("GET", "/portfolio/ledger/verify"): "verifyPortfolioLedger",

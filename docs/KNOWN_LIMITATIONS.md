@@ -7,6 +7,23 @@ says so.
 
 ## Strategy Laboratory limitations
 
+- The four-timeframe market-intelligence feed is a separate, read-only research
+  contract. Balanced scoring, 0.25 ATR clustering, swing-zone states, and the
+  opportunity anchor/confirmation rule are unvalidated hypotheses; none is an
+  existing scanner eligibility rule.
+- OKX `1Dutc` is requested for UTC-midnight daily bars, and the adapter rejects
+  daily opens not aligned to 00:00 UTC. Historical candles are bounded and held
+  in a process-local cache (15M 60s, 1H 120s, 4H 300s, 1D 600s); the cache is
+  lost on restart and does not imply durable history coverage.
+- Indicator snapshots need at least 50 contiguous completed bars for SMA50 and
+  ATR14. Data gaps reset indicator and swing runs; missing or stale history
+  cannot produce an indicative plan.
+- Estimated net reward/risk uses the existing default fee schedule only. It
+  excludes spread, slippage, market impact, futures funding, and account-specific
+  fee tiers. Prices and costs remain indicative and cannot create a proposal.
+- BTC evidence is attached to ETH/SOL as context only. It is not used as a strict
+  alignment gate. The MTF endpoint neither creates committee work nor trading
+  proposals, permits, or orders.
 - The owner selected exact scanner parity after the conflicting 1h trend and
   pullback requirements were explained. No eligible entries are expected; zero
   trades cannot establish a win rate or validate the inherited exits.

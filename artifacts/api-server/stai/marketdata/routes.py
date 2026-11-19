@@ -16,7 +16,13 @@ from stai.committee.scoring import setup_scores
 from stai.core.errors import ErrorResponse
 from stai.core.runtime import Runtime, get_runtime
 from stai.marketdata.indicators import indicator_snapshot, safe_number
-from stai.marketdata.schemas import MarketIndicators, MarketScannerResponse, MarketScannerRow
+from stai.marketdata.mtf import market_intelligence
+from stai.marketdata.schemas import (
+    MarketIndicators,
+    MarketScannerResponse,
+    MarketScannerRow,
+    MtfMarketIntelligenceResponse,
+)
 from stai.proposals.service import persist_market_scan
 
 router = APIRouter(
@@ -122,3 +128,19 @@ async def get_market_scanner(
         scanned_at=scanned_at,
         rows=rows,
     )
+
+
+@router.get(
+    "/market/intelligence",
+    operation_id="getMarketIntelligence",
+    summary="Read-only OKX four-timeframe market intelligence",
+    response_model=MtfMarketIntelligenceResponse,
+    response_description=(
+        "Independent research classifications, completed candles, structure, "
+        "and indicative opportunity states."
+    ),
+)
+async def get_market_intelligence(
+    runtime: Runtime = Depends(get_runtime),
+) -> MtfMarketIntelligenceResponse:
+    return await market_intelligence(runtime)

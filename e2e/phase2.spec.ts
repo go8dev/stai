@@ -17,11 +17,20 @@ import {
   MarketScannerRowMarketType,
   MarketScannerRowStatus,
   type CandlePoint,
+  type CommitteeOverview,
   type ErrorResponse,
   type LedgerList,
   type LedgerVerification,
+  type MtfDirectionalEvidence,
+  type MtfIndicatorSnapshot,
+  type MtfInstrumentAnalysis,
+  type MtfMarketIntelligenceResponse,
+  type MtfOpportunity,
+  type MtfQuoteStatus,
+  type MtfZone,
   type MarketScannerResponse,
   type MarketScannerRow,
+  type ProposalCenterOverview,
   type PortfolioSummary,
 } from '../lib/api-client-react/src/generated/api.schemas';
 
@@ -166,7 +175,7 @@ const SCANNER_ROWS: MarketScannerRow[] = [
     '2310.2',
     MarketIndicatorsScreeningState.no_alignment,
   ),
-  deadRow('LTC-USDT', SPOT),
+  deadRow('SOL-USDT', SPOT),
   liveRow(
     'BTC-USDT-SWAP',
     PERP,
@@ -199,6 +208,325 @@ const SCANNER_OUTAGE: MarketScannerResponse = {
     ...deadRow(row.symbol, row.marketType),
     detail: 'Provider unreachable.',
   })),
+};
+
+const MTF_WEIGHTS = { '1d': 15, '4h': 25, '1h': 35, '15m': 25 } as const;
+const MTF_INTERVAL_MS = {
+  '1d': 24 * 60 * 60_000,
+  '4h': 4 * 60 * 60_000,
+  '1h': 60 * 60_000,
+  '15m': 15 * 60_000,
+} as const;
+
+function mtfCandles(
+  timeframe: keyof typeof MTF_WEIGHTS,
+  price: number,
+): CandlePoint[] {
+  const intervalMs = MTF_INTERVAL_MS[timeframe];
+  const count = timeframe === '1d' ? 31 : 30;
+  const start = {
+    '1d': Date.parse('2024-12-16T00:00:00.000Z'),
+    '4h': Date.parse('2025-01-10T00:00:00.000Z'),
+    '1h': Date.parse('2025-01-14T00:00:00.000Z'),
+    '15m': Date.parse('2025-01-15T00:00:00.000Z'),
+  }[timeframe];
+  return Array.from({ length: count }, (_, index) => {
+    const close = price - 1 + index * 0.05;
+    return {
+      openedAt: new Date(start + index * intervalMs).toISOString(),
+      open: (close - 0.05).toFixed(3),
+      high: (close + 0.2).toFixed(3),
+      low: (close - 0.2).toFixed(3),
+      close: close.toFixed(3),
+      volume: '12.5',
+      quoteVolume: (close * 12.5).toFixed(2),
+      complete: true,
+    };
+  });
+}
+
+function mtfEvidence(
+  status: 'complete' | 'stale' | 'insufficient',
+): MtfDirectionalEvidence {
+  const components = (
+    Object.entries(MTF_WEIGHTS) as [keyof typeof MTF_WEIGHTS, number][]
+  ).map(([timeframe, weight]) => {
+    const neutral = timeframe === '15m';
+    const perIndicator = weight / 2;
+    const direction: MtfDirectionalEvidence['components'][number]['smaDirection'] =
+      status === 'insufficient' ? 'neutral' : neutral ? 'neutral' : 'bullish';
+    return {
+      timeframe,
+      weight,
+      smaDirection: direction,
+      smaPoints: status === 'insufficient' ? null : perIndicator,
+      rsiDirection: direction,
+      rsiPoints: status === 'insufficient' ? null : perIndicator,
+    };
+  });
+  return {
+    strategyVersion: 'stai-mtf-balanced-v1',
+    status,
+    bullishScore: status === 'insufficient' ? null : 75,
+    bearishScore: status === 'insufficient' ? null : 0,
+    neutralPoints: status === 'insufficient' ? null : 25,
+    classification:
+      status === 'insufficient' ? 'insufficient' : 'strong_bullish',
+    components,
+    disagreementReasons: [],
+    note:
+      status === 'stale'
+        ? 'Last-known diagnostic evidence; candle data is stale.'
+        : 'Synthetic completed-candle evidence for browser verification.',
+  };
+}
+
+function mtfZones(price: number): MtfZone[] {
+  const pivotAt = '2025-01-14T00:00:00.000Z';
+  const confirmedAt = '2025-01-14T01:00:00.000Z';
+  return [
+    {
+      id: 'zone-1h-support',
+      sourceTimeframe: '1h',
+      kind: 'support',
+      lower: price - 1.15,
+      upper: price - 0.95,
+      pivotAt,
+      confirmedAt,
+      atrAtCalculation: 8,
+      independentReactions: 2,
+      state: 'tested',
+      distanceFromPrice: 0.95,
+      confluenceTimeframes: ['4h'],
+      isPriorExtreme: false,
+      detail: 'Synthetic confirmed 1H support fixture.',
+    },
+    {
+      id: 'zone-4h-resistance',
+      sourceTimeframe: '4h',
+      kind: 'resistance',
+      lower: price + 0.45,
+      upper: price + 0.65,
+      pivotAt: '2025-01-13T20:00:00.000Z',
+      confirmedAt: '2025-01-14T00:00:00.000Z',
+      atrAtCalculation: 10,
+      independentReactions: 2,
+      state: 'active',
+      distanceFromPrice: 0.45,
+      confluenceTimeframes: ['1h'],
+      isPriorExtreme: false,
+      detail: 'Synthetic confirmed 4H resistance fixture.',
+    },
+    {
+      id: 'zone-1d-prior-support',
+      sourceTimeframe: '1d',
+      kind: 'support',
+      lower: price - 2.15,
+      upper: price - 1.95,
+      pivotAt: '2025-01-13T00:00:00.000Z',
+      confirmedAt: '2025-01-14T00:00:00.000Z',
+      atrAtCalculation: null,
+      independentReactions: 1,
+      state: 'active',
+      distanceFromPrice: 1.95,
+      confluenceTimeframes: [],
+      isPriorExtreme: true,
+      detail: 'Synthetic prior completed daily extreme.',
+    },
+  ];
+}
+
+function mtfInstrument(
+  symbol: string,
+  marketType: 'spot' | 'futures',
+  status: MtfQuoteStatus,
+  lastPrice: number,
+): MtfInstrumentAnalysis {
+  const available = status !== 'unavailable';
+  const evidenceStatus =
+    status === 'unavailable'
+      ? 'insufficient'
+      : status === 'stale'
+        ? 'stale'
+        : 'complete';
+  const evidence = mtfEvidence(evidenceStatus);
+  const timeframes: MtfIndicatorSnapshot[] = (
+    Object.keys(MTF_WEIGHTS) as (keyof typeof MTF_WEIGHTS)[]
+  ).map((timeframe) => {
+    const frameStatus = !available
+      ? 'unavailable'
+      : status === 'stale' && timeframe === '1d'
+        ? 'stale'
+        : 'fresh';
+    const candles = available ? mtfCandles(timeframe, lastPrice) : [];
+    return {
+      timeframe,
+      status: frameStatus,
+      latestCompletedAt: available
+        ? new Date(
+            Date.parse(candles.at(-1)!.openedAt) + MTF_INTERVAL_MS[timeframe],
+          ).toISOString()
+        : null,
+      close: available ? candles.at(-1)!.close : null,
+      rsi14: available ? 56.2 : null,
+      sma20: available ? lastPrice - 0.5 : null,
+      sma50: available ? lastPrice - 1 : null,
+      atr14: available ? 8 : null,
+      smaDirection: available ? 'bullish' : 'neutral',
+      rsiDirection: available ? 'bullish' : 'neutral',
+      candles,
+      expectedCandles: timeframe === '1d' ? 240 : 240,
+      actualCandles: candles.length,
+      gapCount: 0,
+      detail:
+        frameStatus === 'stale'
+          ? 'Most recent expected daily candle is missing.'
+          : null,
+    };
+  });
+  const zones = available ? mtfZones(lastPrice) : [];
+  const quoteAt = '2025-01-15T04:00:00.000Z';
+  const opportunity: MtfOpportunity = !available
+    ? {
+        state: 'insufficient_data',
+        direction: null,
+        anchorId: null,
+        anchorAt: null,
+        signalAt: null,
+        expiresAt: null,
+        researchRuleVersion: 'stai-mtf-research-opportunity-v1',
+        detail: 'Market data unavailable; no opportunity evaluated.',
+        plan: null,
+      }
+    : status === 'stale'
+      ? {
+          state: 'insufficient_data',
+          direction: null,
+          anchorId: null,
+          anchorAt: null,
+          signalAt: null,
+          expiresAt: null,
+          researchRuleVersion: 'stai-mtf-research-opportunity-v1',
+          detail:
+            'Stale timeframe data prevents current opportunity evaluation.',
+          plan: null,
+        }
+      : marketType === 'futures' && symbol.startsWith('BTC')
+        ? {
+            state: 'indicative_setup_ready',
+            direction: 'long',
+            anchorId: 'fixture-anchor-btc-futures',
+            anchorAt: '2025-01-15T03:00:00.000Z',
+            signalAt: '2025-01-15T04:00:00.000Z',
+            expiresAt: '2025-01-15T05:00:00.000Z',
+            researchRuleVersion: 'stai-mtf-research-opportunity-v1',
+            detail: 'Synthetic closed-candle confirmation; indicative only.',
+            plan: {
+              direction: 'long',
+              entryZoneLower: lastPrice - 1.15,
+              entryZoneUpper: lastPrice + 0.2,
+              trigger: 'A completed 15M candle confirms the pullback anchor.',
+              entryReference: lastPrice,
+              stopReference: lastPrice - 1.15,
+              targetReference: lastPrice + 0.45,
+              grossRewardRisk: 0.4,
+              estimatedNetRewardRisk: 0.3,
+              supportingZoneIds: ['zone-1h-support', 'zone-4h-resistance'],
+              opposingEvidence: [],
+              signalAt: '2025-01-15T04:00:00.000Z',
+              expiresAt: '2025-01-15T05:00:00.000Z',
+              priceBasis: 'indicative_only',
+              costNote: 'Synthetic fixture; no executable plan or order.',
+            },
+          }
+        : {
+            state: 'waiting_for_pullback',
+            direction: 'long',
+            anchorId: null,
+            anchorAt: null,
+            signalAt: null,
+            expiresAt: null,
+            researchRuleVersion: 'stai-mtf-research-opportunity-v1',
+            detail: 'Directional research evidence; waiting for pullback.',
+            plan: null,
+          };
+  return {
+    symbol: `${symbol.startsWith('BTC') ? 'BTC' : symbol.startsWith('ETH') ? 'ETH' : 'SOL'}/USDT`,
+    marketType,
+    instrumentId: `${symbol.replace('-SWAP', '')}${marketType === 'futures' ? '-SWAP' : ''}`,
+    quote: {
+      lastPrice: available ? lastPrice : null,
+      changePct24H: available ? 1.25 : null,
+      volume24H: available ? 12345.67 : null,
+      exchangeAt: available ? quoteAt : null,
+      observedAt: quoteAt,
+      status,
+    },
+    timeframes,
+    evidence,
+    btcContext: symbol.startsWith('BTC') ? null : mtfEvidence('complete'),
+    zones,
+    nearestSupport:
+      zones.find(
+        (zone) => zone.kind === 'support' && zone.sourceTimeframe === '1h',
+      ) ?? null,
+    nearestResistance:
+      zones.find(
+        (zone) => zone.kind === 'resistance' && zone.sourceTimeframe === '4h',
+      ) ?? null,
+    opportunity,
+    committeeStatus: 'Persisted history only; no committee review triggered.',
+    observedAt: quoteAt,
+  };
+}
+
+const MTF_ROWS: MtfMarketIntelligenceResponse = {
+  provider: 'OKX',
+  strategyVersion: 'stai-mtf-balanced-v1',
+  observedAt: '2025-01-15T04:00:00.000Z',
+  instruments: [
+    mtfInstrument('BTC-USDT', 'spot', 'fresh', 43210.5),
+    mtfInstrument('ETH-USDT', 'spot', 'stale', 2310.2),
+    mtfInstrument('SOL-USDT', 'spot', 'unavailable', 142.5),
+    mtfInstrument('BTC-USDT-SWAP', 'futures', 'fresh', 43215),
+    mtfInstrument('ETH-USDT-SWAP', 'futures', 'stale', 2311),
+    mtfInstrument('SOL-USDT-SWAP', 'futures', 'unavailable', 142.7),
+  ],
+  limitations: ['Synthetic browser test fixtures; not market advice.'],
+};
+
+const MTF_OUTAGE: MtfMarketIntelligenceResponse = {
+  ...MTF_ROWS,
+  instruments: MTF_ROWS.instruments.map((item) =>
+    mtfInstrument(
+      item.symbol.replace('/', '-') +
+        (item.marketType === 'futures' ? '-SWAP' : ''),
+      item.marketType,
+      'unavailable',
+      0,
+    ),
+  ),
+};
+
+const COMMITTEE_OVERVIEW: CommitteeOverview = {
+  roles: [],
+  runs: [],
+  paidAutomationEnabled: false,
+  manualPaidRunsEnabled: false,
+  entryGate: 'closed',
+  benchmarkState: 'not_started',
+  limitsStatus: 'within_limits',
+  nextStep: 'No action requested.',
+};
+
+const PROPOSAL_OVERVIEW: ProposalCenterOverview = {
+  candidates: [],
+  proposals: [],
+  paidCommitteeEnabled: false,
+  ownerApprovalRequired: true,
+  strategyThreshold: 60,
+  gateStatus: 'closed',
+  gateMessage: 'Closed in fixture.',
 };
 
 /** Fund of 1000 split 600 spot and 400 futures; no positions; two dry-run bots with the gate closed. */
@@ -315,6 +643,10 @@ const pathIs = (name: string) => (url: URL) => url.pathname === name;
 
 interface PresentOptions {
   scanner?: { status: number; body: unknown };
+  scannerHits?: number[];
+  intelligence?: { status: number; body: unknown };
+  intelligenceDelayMs?: number;
+  intelligenceHits?: number[];
   verify?: LedgerVerification;
   /** Receives one entry per request to the verify route, so on-demand use can be checked. */
   verifyHits?: number[];
@@ -346,8 +678,28 @@ async function presentSignedIn(page: Page, options: PresentOptions = {}) {
     }),
   );
   const scanner = options.scanner ?? { status: 200, body: SCANNER_OK };
-  await page.route(pathIs('/api/market/scanner'), (route) =>
-    json(route, scanner.status, scanner.body),
+  await page.route(pathIs('/api/market/scanner'), (route) => {
+    options.scannerHits?.push(Date.now());
+    return json(route, scanner.status, scanner.body);
+  });
+  const intelligence = options.intelligence ?? {
+    status: 200,
+    body: MTF_ROWS,
+  };
+  await page.route(pathIs('/api/market/intelligence'), async (route) => {
+    options.intelligenceHits?.push(Date.now());
+    if (options.intelligenceDelayMs) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, options.intelligenceDelayMs),
+      );
+    }
+    return json(route, intelligence.status, intelligence.body);
+  });
+  await page.route(pathIs('/api/committee'), (route) =>
+    json(route, 200, COMMITTEE_OVERVIEW),
+  );
+  await page.route(pathIs('/api/proposal-center'), (route) =>
+    json(route, 200, PROPOSAL_OVERVIEW),
   );
   await page.route(pathIs('/api/portfolio/summary'), (route) =>
     json(route, 200, PORTFOLIO),
@@ -364,10 +716,10 @@ async function presentSignedIn(page: Page, options: PresentOptions = {}) {
 /** The keys of the scanner rows currently listed, for example "BTC-USDT-spot". */
 const rowKeys = (page: Page) =>
   page
-    .locator('[data-testid^="row-scanner-"]')
+    .locator('[data-testid^="row-market-"]')
     .evaluateAll((els) =>
       els.map((el) =>
-        (el.getAttribute('data-testid') ?? '').replace('row-scanner-', ''),
+        (el.getAttribute('data-testid') ?? '').replace('row-market-', ''),
       ),
     );
 
@@ -390,6 +742,15 @@ async function expectReadOnly(page: Page) {
     page.getByRole('button', { name: FORBIDDEN_CONTROL }),
   ).toHaveCount(0);
   await expect(page.locator('form, input, select, textarea')).toHaveCount(0);
+}
+
+async function expectNoTradingActions(page: Page) {
+  await expect(
+    page.getByRole('button', {
+      name: /^(buy|sell|place order|place trade|approve|submit proposal|execute order|start bot|run committee|enable automation)$/i,
+    }),
+  ).toHaveCount(0);
+  await expect(page.locator('form')).toHaveCount(0);
 }
 
 // ---------------------------------------------------------------------------
@@ -419,58 +780,62 @@ test.describe('a signed-out visitor never sees Phase 2 data', () => {
   }
 });
 
-test.describe('Market Scanner (synthetic fixtures)', () => {
-  test('lists six rows with fresh, stale and unavailable statuses', async ({
+test.describe('Market Scanner · MTF research UI (synthetic contract fixtures)', () => {
+  test('renders six joined instruments and explicit fresh, stale and unavailable data', async ({
     page,
   }, testInfo) => {
-    await presentSignedIn(page);
+    const scannerHits: number[] = [];
+    const intelligenceHits: number[] = [];
+    await presentSignedIn(page, { scannerHits, intelligenceHits });
     await page.goto('/market-scanner');
     await expect(page.getByTestId('page-market-scanner')).toBeVisible();
 
-    await expect(page.locator('[data-testid^="row-scanner-"]')).toHaveCount(6);
+    const rows = page.locator('[data-testid^="row-market-"]');
+    await expect(rows).toHaveCount(6);
     await expect(page.getByTestId('text-freshness-counts')).toContainText(
-      '2 fresh',
+      '2 fresh quotes',
     );
     await expect(page.getByTestId('text-freshness-counts')).toContainText(
-      '2 stale',
+      '2 stale quotes',
     );
     await expect(page.getByTestId('text-freshness-counts')).toContainText(
       '2 unavailable',
     );
-    await expect(page.getByTestId('status-row-BTC-USDT-spot')).toContainText(
+    await expect(page.getByTestId('row-market-BTC-USDT-spot')).toHaveAttribute(
+      'data-freshness',
       'fresh',
     );
-    await expect(page.getByTestId('status-row-ETH-USDT-spot')).toContainText(
+    await expect(page.getByTestId('row-market-ETH-USDT-spot')).toHaveAttribute(
+      'data-freshness',
       'stale',
     );
     await expect(
-      page.getByTestId('status-row-SOL-USDT-SWAP-futures'),
-    ).toContainText('unavailable');
-    await expect(
-      page.getByRole('alert').filter({ hasText: 'Market data outage' }),
-    ).toHaveCount(0);
+      page.getByTestId('row-market-SOL-USDT-SWAP-futures'),
+    ).toHaveAttribute('data-freshness', 'unavailable');
+    expect(scannerHits).toHaveLength(1);
+    expect(intelligenceHits).toHaveLength(1);
     await expectNoPageOverflow(page);
-    await testInfo.attach('scanner-fixture-six-rows', {
+    await testInfo.attach('mtf-screener-six-instrument-fixture', {
       body: await page.screenshot(),
       contentType: 'image/png',
     });
   });
 
-  test('filters to All, Spot and Perpetual', async ({ page }) => {
+  test('searches, filters, sorts and selects instruments without losing market identity', async ({
+    page,
+  }) => {
     await presentSignedIn(page);
     await page.goto('/market-scanner');
-    await expect(page.getByTestId('page-market-scanner')).toBeVisible();
+    await expect(page.locator('[data-testid^="row-market-"]')).toHaveCount(6);
 
-    await page.getByTestId('button-filter-spot').click();
-    await expect(page.getByTestId('button-filter-spot')).toHaveAttribute(
-      'aria-selected',
-      'true',
-    );
-    await expect
-      .poll(() => rowKeys(page))
-      .toEqual(['BTC-USDT-spot', 'ETH-USDT-spot', 'LTC-USDT-spot']);
+    await page.getByTestId('filter-market-type').selectOption('futures');
+    await expect(page.locator('[data-testid^="row-market-"]')).toHaveCount(3);
+    await page.getByTestId('input-symbol-search').fill('ETH');
+    await expect.poll(() => rowKeys(page)).toEqual(['ETH-USDT-SWAP-futures']);
 
-    await page.getByTestId('button-filter-futures').click();
+    await page.getByTestId('input-symbol-search').fill('');
+    await page.getByTestId('sort-lastPrice').click();
+    await page.getByTestId('sort-lastPrice').click();
     await expect
       .poll(() => rowKeys(page))
       .toEqual([
@@ -479,88 +844,169 @@ test.describe('Market Scanner (synthetic fixtures)', () => {
         'SOL-USDT-SWAP-futures',
       ]);
 
-    await page.getByTestId('button-filter-all').click();
-    await expect.poll(() => rowKeys(page)).toHaveLength(6);
+    await page.getByTestId('filter-market-type').selectOption('all');
+    await page.getByTestId('filter-direction').selectOption('long');
+    await expect(page.locator('[data-testid^="row-market-"]')).toHaveCount(2);
+    await page.getByTestId('filter-direction').selectOption('all');
+    await page.getByTestId('filter-market-type').selectOption('spot');
+    await page.getByTestId('input-symbol-search').fill('SOL');
+    await expect.poll(() => rowKeys(page)).toEqual(['SOL-USDT-spot']);
+
+    await page.getByTestId('button-reset-filters').click();
+    const selected = page.getByTestId('row-market-BTC-USDT-SWAP-futures');
+    await selected.click();
+    await expect(selected).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('market-detail')).toContainText(
+      'BTC-USDT-SWAP',
+    );
   });
 
-  test('expands a row to its screening, evidence and stale warning', async ({
+  test('shows selected timeframe candles and confirmed support/resistance levels', async ({
     page,
   }) => {
     await presentSignedIn(page);
     await page.goto('/market-scanner');
-    const expand = page.getByTestId('button-expand-ETH-USDT-SWAP-futures');
+    const btc = page.getByTestId('row-market-BTC-USDT-spot');
+    await btc.click();
 
-    await expand.click();
-    await expect(expand).toHaveAttribute('aria-expanded', 'true');
+    await page.getByTestId('chart-timeframe-15M').click();
+    await expect(page.getByTestId('chart-timeframe-15M')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expect(page.getByTestId('timeframe-15M')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     await expect(
-      page.getByText('Legacy indicators (diagnostic only)'),
-    ).toBeVisible();
-    await expect(page.getByText('Order book top')).toBeVisible();
-    await expect(
-      page.getByText('Last tick is older than the freshness limit.'),
+      page.getByRole('img', {
+        name: 'BTC-USDT 15M candlestick chart from OKX',
+      }),
     ).toBeVisible();
 
-    await expand.click();
-    await expect(expand).toHaveAttribute('aria-expanded', 'false');
+    await page.getByTestId('chart-timeframe-1H').click();
+    await expect(page.getByTestId('chart-zone-zone-1h-support')).toBeVisible();
+    await page.getByTestId('chart-zone-zone-1h-support').click();
+    await expect(page.getByText(/2 independent reactions/)).toBeVisible();
+
+    await page.getByTestId('tab-structure').click();
+    await expect(page.getByTestId('tab-structure')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
     await expect(
-      page.getByText('Legacy indicators (diagnostic only)'),
-    ).toHaveCount(0);
+      page.getByTestId('row-market-BTC-USDT-spot').getByText(/S .* \/ R/),
+    ).toBeVisible();
   });
 
-  test('shows an explicit outage when every instrument is unavailable', async ({
+  test('Committee tab shows persisted status only and never invokes AI or trading actions', async ({
     page,
   }) => {
-    await presentSignedIn(page, {
-      scanner: { status: 200, body: SCANNER_OUTAGE },
+    const writeRequests: string[] = [];
+    const aiRequests: string[] = [];
+    page.on('request', (request) => {
+      const url = new URL(request.url());
+      if (!url.pathname.startsWith('/api/')) return;
+      if (request.method() !== 'GET') {
+        writeRequests.push(`${request.method()} ${url.pathname}`);
+      }
+      if (/\/api\/(ai|committee\/(run|submit))/i.test(url.pathname)) {
+        aiRequests.push(`${request.method()} ${url.pathname}`);
+      }
     });
+    await presentSignedIn(page);
     await page.goto('/market-scanner');
-
+    await page.getByTestId('tab-committee').click();
+    await expect(page.getByTestId('tab-committee')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await expect(page.getByText(/existing runs 0/)).toBeVisible();
+    await expect(page.getByText(/Paid automation disabled/)).toBeVisible();
+    await expect(page.getByText(/manual paid runs disabled/)).toBeVisible();
+    await expect(page.getByText(/Entry gate closed/)).toBeVisible();
     await expect(
-      page.getByRole('alert').filter({ hasText: 'Market data outage' }),
+      page.getByText(/new MTF committee submissions disabled/),
     ).toBeVisible();
-    await expect(page.getByTestId('text-freshness-counts')).toContainText(
-      '0 fresh',
-    );
-    await expect(page.getByTestId('text-freshness-counts')).toContainText(
-      '6 unavailable',
-    );
-    await expect(page.locator('[data-testid^="row-scanner-"]')).toHaveCount(6);
+    await expectNoTradingActions(page);
+    expect(writeRequests).toEqual([]);
+    expect(aiRequests).toEqual([]);
   });
 
-  test('shows an error note with the correlation ID when the scan fails', async ({
+  test('shows a loading state while the MTF contract request is pending', async ({
+    page,
+  }) => {
+    await presentSignedIn(page, { intelligenceDelayMs: 700 });
+    await page.goto('/market-scanner');
+    await expect(page.locator('[aria-busy="true"]')).toBeVisible();
+    await expect(page.locator('[data-testid^="row-market-"]')).toHaveCount(6);
+  });
+
+  test('reports MTF request errors with correlation ID while preserving scanner rows', async ({
     page,
   }) => {
     await presentSignedIn(page, {
-      scanner: {
+      intelligence: {
         status: 503,
         body: {
           error: 'market_data_unavailable',
-          message: 'Market data is unavailable right now.',
-          correlationId: 'fixture-corr-0503',
+          message: 'MTF market intelligence is unavailable.',
+          correlationId: 'fixture-mtf-0503',
         } satisfies ErrorResponse,
       },
     });
     await page.goto('/market-scanner');
-
-    // The client retries a server error twice before it gives up.
     const alert = page
       .getByRole('alert')
-      .filter({ hasText: 'Scanner data could not be loaded' });
+      .filter({ hasText: 'Market intelligence could not be loaded' });
     await expect(alert).toBeVisible({ timeout: 15_000 });
-    await expect(alert).toContainText('Market data is unavailable right now.');
-    await expect(page.getByTestId('text-error-correlation-id')).toHaveText(
-      'fixture-corr-0503',
+    await expect(alert).toContainText(
+      'MTF market intelligence is unavailable.',
     );
-    await expect(page.locator('[data-testid^="row-scanner-"]')).toHaveCount(0);
+    await expect(page.getByTestId('text-error-correlation-id')).toHaveText(
+      'fixture-mtf-0503',
+    );
+    await expect(page.locator('[data-testid^="row-market-"]')).toHaveCount(6);
   });
 
-  test('is read-only and has no order or approval control', async ({
+  test('shows an explicit full outage and keeps unavailable instruments visible', async ({
+    page,
+  }) => {
+    await presentSignedIn(page, {
+      scanner: { status: 200, body: SCANNER_OUTAGE },
+      intelligence: { status: 200, body: MTF_OUTAGE },
+    });
+    await page.goto('/market-scanner');
+    await expect(
+      page.getByRole('alert').filter({ hasText: 'Market data outage' }),
+    ).toBeVisible();
+    await expect(page.getByTestId('text-freshness-counts')).toContainText(
+      '0 fresh quotes',
+    );
+    await expect(page.getByTestId('text-freshness-counts')).toContainText(
+      '0 stale quotes',
+    );
+    await expect(page.getByTestId('text-freshness-counts')).toContainText(
+      '6 unavailable',
+    );
+    await expect(page.locator('[data-testid^="row-market-"]')).toHaveCount(6);
+    await expect(
+      page.locator(
+        '[data-testid^="row-market-"][data-freshness="unavailable"]',
+      ),
+    ).toHaveCount(6);
+  });
+
+  test('is read-only while allowing research filters and tab navigation', async ({
     page,
   }) => {
     await presentSignedIn(page);
     await page.goto('/market-scanner');
     await expect(page.getByTestId('page-market-scanner')).toBeVisible();
-    await expectReadOnly(page);
+    await expectNoTradingActions(page);
+    await expect(page.getByTestId('input-symbol-search')).toBeVisible();
+    await expect(page.getByTestId('filter-market-type')).toBeVisible();
+    await expect(page.getByTestId('filter-timeframe')).toBeVisible();
   });
 });
 

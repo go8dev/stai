@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import math
+from collections import OrderedDict
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
@@ -42,8 +43,18 @@ MARKET_PATHS = frozenset(
 )
 MAX_RESPONSE_BYTES = 1_000_000
 STALE_AFTER_SECONDS = 60
-_BAR_MS = {"1m": 60_000, "15m": 900_000, "1h": 3_600_000, "4h": 14_400_000}
-_BAR_OKX = {"1m": "1m", "15m": "15m", "1h": "1H", "4h": "4H"}
+_BAR_MS = {
+    "1m": 60_000,
+    "15m": 900_000,
+    "1h": 3_600_000,
+    "4h": 14_400_000,
+    "1d": 86_400_000,
+}
+# OKX exposes UTC-aligned daily bars separately from its exchange-local 1D bars.
+# Use 1Dutc so UTC midnight is validated below rather than silently shifting days.
+_BAR_OKX = {"1m": "1m", "15m": "15m", "1h": "1H", "4h": "4H", "1d": "1Dutc"}
+_MTF_LIMITS = {"1d": 240, "4h": 240, "1h": 300, "15m": 300}
+_MTF_CACHE_TTL = {"1d": 600, "4h": 300, "1h": 120, "15m": 60}
 
 
 class MarketDataUnavailable(RuntimeError):
@@ -66,6 +77,23 @@ def _moment(milliseconds: Any, field: str) -> datetime:
         return datetime.fromtimestamp(value / 1000, tz=UTC)
     except (ValueError, TypeError, OverflowError, OSError) as exc:
         raise MarketDataUnavailable(f"OKX returned an invalid {field}.") from exc
+
+
+def _utc_bar_aligned(timeframe: str, opened_at: datetime) -> bool:
+    if opened_at.tzinfo is None or opened_at.utcoffset() != UTC.utcoffset(opened_at):
+        return False
+    if timeframe == "1d":
+        return opened_at.hour == opened_at.minute == opened_at.second == opened_at.microsecond == 0
+    if timeframe == "4h":
+        return (
+            opened_at.hour % 4 == 0
+            and opened_at.minute == opened_at.second == opened_at.microsecond == 0
+        )
+    if timeframe == "1h":
+        return opened_at.minute == opened_at.second == opened_at.microsecond == 0
+    if timeframe == "15m":
+        return opened_at.minute % 15 == 0 and opened_at.second == opened_at.microsecond == 0
+    return False
 
 
 def _instrument_id(symbol: str, market_type: MarketType) -> str:
@@ -95,6 +123,9 @@ class OkxMarketData:
         self._instrument_cache: dict[str, tuple[datetime, dict[str, InstrumentRules]]] = {}
         self._historical_request_lock = asyncio.Lock()
         self._last_historical_request_at: float | None = None
+        self._mtf_candle_cache: OrderedDict[
+            tuple[str, MarketType, str], tuple[datetime, list[CandlePoint]]
+        ] = OrderedDict()
 
     async def _get(self, path: str, params: dict[str, str]) -> dict[str, Any]:
         if path not in MARKET_PATHS:
@@ -270,6 +301,62 @@ class OkxMarketData:
         if not by_open_time:
             raise MarketDataUnavailable("OKX returned no closed candles for this period.")
         return [by_open_time[key] for key in sorted(by_open_time)]
+
+    async def get_mtf_candles(
+        self, symbol: str, market_type: MarketType, timeframe: str
+    ) -> list[CandlePoint]:
+        """Return cached, bounded closed history for MTF research only."""
+        if timeframe not in _MTF_LIMITS:
+            raise ValueError("Unsupported MTF timeframe.")
+        key = (symbol, market_type, timeframe)
+        now = self._clock()
+        cached = self._mtf_candle_cache.get(key)
+        if cached and (now - cached[0]).total_seconds() < _MTF_CACHE_TTL[timeframe]:
+            self._mtf_candle_cache.move_to_end(key)
+            return cached[1]
+        interval = _BAR_MS[timeframe]
+        end_at = now
+        start_at = datetime.fromtimestamp(
+            (int(now.timestamp() * 1000) - interval * (_MTF_LIMITS[timeframe] + 2)) / 1000,
+            tz=UTC,
+        )
+        candles = await self.get_historical_candles(
+            symbol, market_type, start_at, end_at, timeframe=timeframe
+        )
+        if any(not _utc_bar_aligned(timeframe, candle.opened_at) for candle in candles):
+            raise MarketDataUnavailable(
+                f"OKX {timeframe} candles are not aligned to the expected UTC boundary."
+            )
+        self._mtf_candle_cache[key] = (now, candles)
+        self._mtf_candle_cache.move_to_end(key)
+        while len(self._mtf_candle_cache) > 24:
+            self._mtf_candle_cache.popitem(last=False)
+        return candles
+
+    async def get_research_ticker(
+        self, symbol: str, market_type: MarketType
+    ) -> dict[str, Decimal | datetime]:
+        """A public ticker snapshot for the independent read-only MTF response."""
+        instrument_id = _instrument_id(symbol, market_type)
+        payload = await self._get("/api/v5/market/ticker", {"instId": instrument_id})
+        try:
+            item = payload["data"][0]
+            last = _decimal(item["last"], "ticker price")
+            opened = _decimal(item["open24h"], "24-hour open")
+            if last <= 0 or opened <= 0:
+                raise MarketDataUnavailable("OKX ticker prices are invalid.")
+            exchange_at = _moment(item["ts"], "ticker time")
+            if (exchange_at - self._clock()).total_seconds() > 5:
+                raise MarketDataUnavailable("OKX ticker timestamp is in the future.")
+            return {
+                "last": last,
+                "change_pct_24h": (last - opened) / opened * Decimal("100"),
+                "volume_24h": _decimal(item["volCcy24h"], "24-hour quote volume")
+                * (last if market_type == "futures" else Decimal("1")),
+                "exchange_at": exchange_at,
+            }
+        except (KeyError, IndexError, TypeError) as exc:
+            raise MarketDataUnavailable("OKX returned an incomplete research ticker.") from exc
 
     async def get_instrument_rule(self, symbol: str, market_type: MarketType) -> InstrumentRules:
         """Return current public instrument rules needed to model one-tick limits."""

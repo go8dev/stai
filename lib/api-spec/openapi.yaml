@@ -214,6 +214,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /market/intelligence:
+    get:
+      tags:
+      - market-data
+      summary: Read-only OKX four-timeframe market intelligence
+      operationId: getMarketIntelligence
+      responses:
+        '200':
+          description: Independent research classifications, completed candles, structure, and indicative
+            opportunity states.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MtfMarketIntelligenceResponse'
+        '401':
+          description: Owner session required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /portfolio/summary:
     get:
       tags:
@@ -2586,6 +2606,521 @@ components:
       - candidateId
       - candidateStatus
       - entryResearch
+    MtfDirectionalEvidence:
+      properties:
+        strategyVersion:
+          type: string
+        status:
+          type: string
+          enum:
+          - complete
+          - stale
+          - insufficient
+        bullishScore:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        bearishScore:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        neutralPoints:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        classification:
+          type: string
+          enum:
+          - strong_bullish
+          - moderate_bullish
+          - strong_bearish
+          - moderate_bearish
+          - mixed
+          - insufficient
+        components:
+          items:
+            $ref: '#/components/schemas/MtfScoreComponent'
+          type: array
+        disagreementReasons:
+          items:
+            type: string
+          type: array
+        note:
+          type: string
+      type: object
+      required:
+      - strategyVersion
+      - status
+      - bullishScore
+      - bearishScore
+      - neutralPoints
+      - classification
+      - components
+      - disagreementReasons
+      - note
+    MtfIndicativePlan:
+      properties:
+        direction:
+          type: string
+          enum:
+          - long
+          - short
+        entryZoneLower:
+          anyOf:
+          - type: number
+          - type: string
+        entryZoneUpper:
+          anyOf:
+          - type: number
+          - type: string
+        trigger:
+          type: string
+        entryReference:
+          anyOf:
+          - type: number
+          - type: string
+        stopReference:
+          anyOf:
+          - type: number
+          - type: string
+        targetReference:
+          anyOf:
+          - type: number
+          - type: string
+        grossRewardRisk:
+          anyOf:
+          - type: number
+          - type: string
+        estimatedNetRewardRisk:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        supportingZoneIds:
+          items:
+            type: string
+          type: array
+        opposingEvidence:
+          items:
+            type: string
+          type: array
+        signalAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        priceBasis:
+          type: string
+          const: indicative_only
+        costNote:
+          type: string
+      type: object
+      required:
+      - direction
+      - entryZoneLower
+      - entryZoneUpper
+      - trigger
+      - entryReference
+      - stopReference
+      - targetReference
+      - grossRewardRisk
+      - estimatedNetRewardRisk
+      - supportingZoneIds
+      - opposingEvidence
+      - signalAt
+      - expiresAt
+      - priceBasis
+      - costNote
+    MtfIndicatorSnapshot:
+      properties:
+        timeframe:
+          type: string
+          enum:
+          - 1d
+          - 4h
+          - 1h
+          - 15m
+        status:
+          type: string
+          enum:
+          - fresh
+          - stale
+          - insufficient
+          - unavailable
+        latestCompletedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+        close:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        rsi14:
+          anyOf:
+          - type: number
+          - type: 'null'
+        sma20:
+          anyOf:
+          - type: number
+          - type: 'null'
+        sma50:
+          anyOf:
+          - type: number
+          - type: 'null'
+        atr14:
+          anyOf:
+          - type: number
+          - type: 'null'
+        smaDirection:
+          type: string
+          enum:
+          - bullish
+          - bearish
+          - neutral
+        rsiDirection:
+          type: string
+          enum:
+          - bullish
+          - bearish
+          - neutral
+        candles:
+          items:
+            $ref: '#/components/schemas/CandlePoint'
+          type: array
+        expectedCandles:
+          type: integer
+        actualCandles:
+          type: integer
+        gapCount:
+          type: integer
+        detail:
+          anyOf:
+          - type: string
+          - type: 'null'
+      type: object
+      required:
+      - timeframe
+      - status
+      - latestCompletedAt
+      - close
+      - rsi14
+      - sma20
+      - sma50
+      - atr14
+      - smaDirection
+      - rsiDirection
+      - candles
+      - expectedCandles
+      - actualCandles
+      - gapCount
+      - detail
+    MtfInstrumentAnalysis:
+      properties:
+        symbol:
+          type: string
+        marketType:
+          type: string
+          enum:
+          - spot
+          - futures
+        instrumentId:
+          type: string
+        quote:
+          $ref: '#/components/schemas/MtfQuote'
+        timeframes:
+          items:
+            $ref: '#/components/schemas/MtfIndicatorSnapshot'
+          type: array
+        evidence:
+          $ref: '#/components/schemas/MtfDirectionalEvidence'
+        btcContext:
+          anyOf:
+          - $ref: '#/components/schemas/MtfDirectionalEvidence'
+          - type: 'null'
+        zones:
+          items:
+            $ref: '#/components/schemas/MtfZone'
+          type: array
+        nearestSupport:
+          anyOf:
+          - $ref: '#/components/schemas/MtfZone'
+          - type: 'null'
+        nearestResistance:
+          anyOf:
+          - $ref: '#/components/schemas/MtfZone'
+          - type: 'null'
+        opportunity:
+          $ref: '#/components/schemas/MtfOpportunity'
+        committeeStatus:
+          type: string
+        observedAt:
+          type: string
+          format: date-time
+      type: object
+      required:
+      - symbol
+      - marketType
+      - instrumentId
+      - quote
+      - timeframes
+      - evidence
+      - btcContext
+      - zones
+      - nearestSupport
+      - nearestResistance
+      - opportunity
+      - committeeStatus
+      - observedAt
+    MtfMarketIntelligenceResponse:
+      properties:
+        provider:
+          type: string
+          const: OKX
+        strategyVersion:
+          type: string
+        observedAt:
+          type: string
+          format: date-time
+        instruments:
+          items:
+            $ref: '#/components/schemas/MtfInstrumentAnalysis'
+          type: array
+        limitations:
+          items:
+            type: string
+          type: array
+      type: object
+      required:
+      - provider
+      - strategyVersion
+      - observedAt
+      - instruments
+      - limitations
+    MtfOpportunity:
+      properties:
+        state:
+          type: string
+          enum:
+          - bullish_watchlist
+          - bearish_watchlist
+          - waiting_for_pullback
+          - entry_zone_reached
+          - awaiting_confirmation
+          - indicative_setup_ready
+          - invalidated
+          - expired
+          - insufficient_data
+          - no_opportunity
+        direction:
+          anyOf:
+          - type: string
+            enum:
+            - long
+            - short
+          - type: 'null'
+        anchorId:
+          anyOf:
+          - type: string
+          - type: 'null'
+        anchorAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+        signalAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+        expiresAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+        researchRuleVersion:
+          type: string
+        detail:
+          type: string
+        plan:
+          anyOf:
+          - $ref: '#/components/schemas/MtfIndicativePlan'
+          - type: 'null'
+      type: object
+      required:
+      - state
+      - direction
+      - anchorId
+      - anchorAt
+      - signalAt
+      - expiresAt
+      - researchRuleVersion
+      - detail
+      - plan
+    MtfQuote:
+      properties:
+        lastPrice:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        changePct24H:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        volume24H:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        exchangeAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+        observedAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+          - fresh
+          - stale
+          - unavailable
+      type: object
+      required:
+      - lastPrice
+      - changePct24H
+      - volume24H
+      - exchangeAt
+      - observedAt
+      - status
+    MtfScoreComponent:
+      properties:
+        timeframe:
+          type: string
+          enum:
+          - 1d
+          - 4h
+          - 1h
+          - 15m
+        weight:
+          type: integer
+        smaDirection:
+          type: string
+          enum:
+          - bullish
+          - bearish
+          - neutral
+        smaPoints:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        rsiDirection:
+          type: string
+          enum:
+          - bullish
+          - bearish
+          - neutral
+        rsiPoints:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+      type: object
+      required:
+      - timeframe
+      - weight
+      - smaDirection
+      - smaPoints
+      - rsiDirection
+      - rsiPoints
+    MtfZone:
+      properties:
+        id:
+          type: string
+        sourceTimeframe:
+          type: string
+          enum:
+          - 1d
+          - 4h
+          - 1h
+          - 15m
+        kind:
+          type: string
+          enum:
+          - support
+          - resistance
+        lower:
+          anyOf:
+          - type: number
+          - type: string
+        upper:
+          anyOf:
+          - type: number
+          - type: string
+        pivotAt:
+          type: string
+          format: date-time
+        confirmedAt:
+          type: string
+          format: date-time
+        atrAtCalculation:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        independentReactions:
+          type: integer
+        state:
+          type: string
+          enum:
+          - active
+          - tested
+          - broken
+          - retested
+          - invalidated
+        distanceFromPrice:
+          anyOf:
+          - type: number
+          - type: string
+          - type: 'null'
+        confluenceTimeframes:
+          items:
+            type: string
+            enum:
+            - 1d
+            - 4h
+            - 1h
+            - 15m
+          type: array
+        isPriorExtreme:
+          type: boolean
+        detail:
+          type: string
+      type: object
+      required:
+      - id
+      - sourceTimeframe
+      - kind
+      - lower
+      - upper
+      - pivotAt
+      - confirmedAt
+      - atrAtCalculation
+      - independentReactions
+      - state
+      - distanceFromPrice
+      - confluenceTimeframes
+      - isPriorExtreme
+      - detail
     PortfolioSummary:
       properties:
         fundId:
